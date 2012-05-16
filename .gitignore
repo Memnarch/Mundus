@@ -1,0 +1,10 @@
+*.~*
+*.exe
+*.local
+*.identcache
+*.res
+*.dcu
+*.asm
+*.rar
+*.bak
+thumbs.db
