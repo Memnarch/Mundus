@@ -29,8 +29,6 @@ uses
 {$R *.dfm}
 
 procedure TForm1.FormCreate(Sender: TObject);
-var
-  LCube: TCube;
 begin
   FSoftwareRenderer := TSoftwareRenderer.Create();
   FSoftwareRenderer.MeshList.Add(TCube.Create());

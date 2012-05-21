@@ -298,6 +298,7 @@ begin
     LWorldMatrix.MultiplyMatrix4D(LRotateZMatrix);
     LWorldMatrix.MultiplyMatrix4D(LViewMatrix);
     LProjectionMatrix.SetAsPerspectiveProjectionMatrix(100, 200, 64, 64);
+//    LProjectionMatrix.SetAsPerspectiveProjectionMatrix(100, 200, 12000, 12000);
     LProjectionMatrix.MultiplyMatrix4D(LWorldMatrix);
     for LTriangle in LMesh.Triangles do
     begin
@@ -306,6 +307,7 @@ begin
       LVertexA.Element[2] := LMesh.Vertices.Items[LTriangle.VertexA].Z;
       LVertexA.Element[3] := 1;
       LVertexA.MultiplyWithMatrix4D(LProjectionMatrix);
+      LVertexA.Rescale(True);
 
 
 
@@ -315,6 +317,7 @@ begin
       LVertexB.Element[2] := LMesh.Vertices.Items[LTriangle.VertexB].Z;
       LVertexB.Element[3] := 1;
       LVertexB.MultiplyWithMatrix4D(LProjectionMatrix);
+      LVertexB.Rescale(True);
 
 
 
@@ -324,12 +327,12 @@ begin
       LVertexC.Element[2] := LMesh.Vertices.Items[LTriangle.VertexC].Z;
       LVertexC.Element[3] := 1;
       LVertexC.MultiplyWithMatrix4D(LProjectionMatrix);
+      LVertexC.Rescale(True);
 
 
       LNormal.CalculateSurfaceNormal(LVertexA, LVertexB, LVertexC);
       if LNormal.Z < 0 then
       begin
-
         //denormalize vectors to screenpos
         LVertexA.Element[0] := (1-LVertexA.Element[0]) * 256;//half screen size
         LVertexA.Element[1] := (1-LVertexA.Element[1]) * 256;
@@ -337,9 +340,12 @@ begin
         LVertexB.Element[1] := (1-LVertexB.Element[1]) * 256;
         LVertexC.Element[0] := (1-LVertexC.Element[0]) * 256;
         LVertexC.Element[1] := (1-LVertexC.Element[1]) * 256;
-         LShader.InitTriangle(LVertexA, LVertexB, LVertexC);
-         LShader.InitUV(LTriangle.UVA, LTriangle.UVB, LTriangle.UVC);
-         LShader.InitTexture(FTexture);
+//        LVertexA.MultiplyVector4D(256);
+//        LVertexB.MultiplyVector4D(256);
+//        LVertexC.MultiplyVector4D(256);
+        LShader.InitTriangle(LVertexA, LVertexB, LVertexC);
+        LShader.InitUV(LTriangle.UVA, LTriangle.UVB, LTriangle.UVC);
+        LShader.InitTexture(FTexture);
         RasterizeTriangle(LVertexA, LVertexB,
           LVertexC, LShader);
 

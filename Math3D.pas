@@ -45,7 +45,7 @@ type
   public
     constructor Create(); reintroduce;
     destructor Destroy(); override;
-    procedure Rescale();
+    procedure Rescale(AKeepW: Boolean = False);
     procedure Clear(); override;
     procedure CopyFromVector4D(AVector: TVectorClass4D);
     procedure AddVector4D(AVector: TVectorClass4D);
@@ -276,10 +276,10 @@ begin
     end;
   end;
   Self.CopyFromVector4D(LVector);
-  if Self.Element[3] <> 1 then
-  begin
-    Self.Rescale();
-  end;
+//  if Self.Element[3] <> 1 then
+//  begin
+//    Self.Rescale();
+//  end;
   LVector.Free();
 end;
 
@@ -291,7 +291,10 @@ begin
   begin
     Self.FElement[i] := Self.FElement[i] / Self.FElement[3];
   end;
-  Self.FElement[3] := 1;
+  if not AKeepW then
+  begin
+    Self.FElement[3] := 1;
+  end;
 end;
 
 procedure TVectorClass4D.SubtractVector4D(AVector: TVectorClass4D);
