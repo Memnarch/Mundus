@@ -84,8 +84,8 @@ begin
       LZ := 1/(FZA  *LX + FZB * LY + FZD);
       LU := (FUA * LX + FUB * LY + FUD)*LZ;
       LV := (FVA * LX + FVB * LY + FVD)*LZ;
-      LTexX := Trunc(abs(LU*(FTexture.Width-1)));
-      LTexY := Trunc(abs(LV*(FTexture.Height-1)));
+      LTexX := Round(abs(LU*(FTexture.Width-1)));
+      LTexY := Round(abs(LV*(FTexture.Height-1)));
 
       LTexPixel := (LTexY mod FTexHeight)*FTexLineLength + (LTexX mod FTexWidth);
       FirstLine[LPixel].B := FTexFirstLine[LTexPixel].B;
@@ -108,8 +108,8 @@ begin
     LZ := 1/(FZA*LX + FZB * LY + FZD);
     LU := (FUA*LX + FUB * LY + FUD)*LZ;
     LV := (FVA*LX + FVB * LY + FVD)*LZ;
-    LTexX := Trunc(abs(LU*(FTexture.Width-1)));
-    LTexY := Trunc(abs(LV*(FTexture.Height-1)));
+    LTexX := Round(abs(LU*(FTexture.Width-1)));
+    LTexY := Round(abs(LV*(FTexture.Height-1)));
 
 
     LTexPixel := (LTexY mod FTexHeight)*FTexLineLength + (LTexX mod FTexWidth);
