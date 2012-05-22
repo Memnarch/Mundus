@@ -68,6 +68,7 @@ implementation
 
 constructor TBaseMesh.Create;
 begin
+  inherited;
   FVertexList := TObjectList<TVectorClass>.Create();
   FTriangleList := TObjectList<TTriangleClass>.Create();
 end;

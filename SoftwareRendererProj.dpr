@@ -12,11 +12,13 @@ uses
   SolidColorShader in 'SolidColorShader.pas',
   DepthColorShader in 'DepthColorShader.pas',
   Interpolation in 'Interpolation.pas',
-  TextureShader in 'TextureShader.pas';
+  TextureShader in 'TextureShader.pas',
+  StopWatch in 'StopWatch.pas';
 
 {$R *.res}
 
 begin
+  ReportMemoryLeaksOnShutdown := True;
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   Application.CreateForm(TForm1, Form1);

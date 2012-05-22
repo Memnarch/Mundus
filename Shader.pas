@@ -3,7 +3,7 @@ unit Shader;
 interface
 
 uses
-  Classes, Types, Graphics, ColorTypes, Math3D;
+  Classes, Types, Graphics, ColorTypes, Math3D, SiAuto, SmartInspect;
 
 type
 
@@ -16,7 +16,7 @@ type
   private
     FPixelBuffer: TBitmap;
     FPixel: TPoint;
-    FLineLength: LongInt;
+    FLineLength: Integer;
     FFirstLine: PRGB32Array;
     FMinX: Cardinal;
     FMinY: Cardinal;
@@ -26,7 +26,7 @@ type
     procedure ShadeSinglePixel(); virtual; abstract;
     procedure InitTriangle(AVecA, AVecB, AVecC: TVectorClass4D); virtual; abstract;
     property Pixel: TPoint read FPixel write FPixel;
-    property LineLength: LongInt read FLineLength;
+    property LineLength: Integer read FLineLength;
     property FirstLine: PRGB32Array read FFirstLine;
     property MinX: Cardinal read FMinX write FMinX;
     property MinY: Cardinal read FMinY write FMinY;
@@ -49,7 +49,7 @@ constructor TShader.Create(APixelBuffer: TBitmap);
 begin
   FPixelBuffer := APixelBuffer;
   FFirstLIne := FPixelBuffer.ScanLine[0];
-  FLineLength := (Longint(FPixelBuffer.Scanline[1]) - Longint(FFirstLine)) div SizeOf(TRGB32);
+  FLineLength := (LongInt(FPixelBuffer.Scanline[1]) - LongInt(FFirstLine)) div SizeOf(TRGB32);
 end;
 
 end.

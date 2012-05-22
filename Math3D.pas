@@ -113,7 +113,7 @@ begin
 
   X := (LVecU.Y*LVecV.Z) - (LVecU.Z*LVecV.Y);
   Y := (LVecU.Z*LVecV.X) - (LVecU.X*LVecV.Z);
-  Z := (LVecU.X*LVecV.Y )- (LVecU.Y*LVecV.X);
+  Z := (LVecU.X*LVecV.Y) - (LVecU.Y*LVecV.X);
   LVecU.Free;
   LVecV.Free;
 end;

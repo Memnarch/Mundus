@@ -3,7 +3,7 @@ unit SoftwareRenderer;
 interface
 
 uses
-  Types, Classes, SysUtils, Graphics, Generics.Collections, Math3D, BaseMesh, ColorTypes, Shader;
+  Types, Classes, SysUtils, Graphics, Generics.Collections, Math3D, BaseMesh, ColorTypes, Shader, SiAuto, SmartInspect;
 
 type
   TDepthBuffer = array of array of Single;
@@ -74,6 +74,7 @@ destructor TSoftwareRenderer.Destroy;
 begin
   FMeshList.Free();
   FBackBuffer.Free();
+  FTexture.Free;
   inherited;
 end;
 
@@ -370,7 +371,7 @@ begin
 //  RasterizeTriangle(Vector(0, 0, 0), Vector(25, 0, 0),
 //        Vector(25, 25,0), RGB32(255, 0, 0, 0), RGB32(255, 0, 0, 0), RGB32(255, 0, 0, 0));
   ACanvas.Draw(0, 0, FBackBuffer);
-  FFPS := 1000 div Max(1, MilliSecondsBetween(LTimeStart, Now()));
+  FFPS := 1000 div Max(1, MilliSecondsBetween(Now(), LTimeStart));
   LWorldMatrix.Free();
   LMoveMatrix.Free();
   LProjectionMatrix.Free();
@@ -381,7 +382,8 @@ begin
   LVertexA.Free();
   LVertexB.Free();
   LVertexC.Free();
-  GTest := GTest + 0.1;
+  LNormal.Free;
+//  GTest := GTest + 0.25;
 
   LShader.Free();
 end;

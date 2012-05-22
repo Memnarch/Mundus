@@ -61,7 +61,7 @@ end;
 
 procedure TDepthColorShader.Shade8X8Quad;
 var
-  LX, LY, LPixel, LValue: Cardinal;
+  LX, LY, LPixel, LValue: Integer;
 begin
   for LY  := Pixel.Y to Pixel.Y + 7 do
   begin
