@@ -13,7 +13,7 @@ type
     FZA, FZB, FZC, FZD: Single;
     FAW, FBW, FCW: Single;
     FVecA, FVecB, FVecC: TVectorClass4D;
-    FTexHeight, FTexWidth: Word;
+    FTexHeight, FTexWidth, FTexMaxX, FTexMaxY: Word;
     FTexture: TBitmap;
     FTexFirstLine: PRGB32Array;
     FTexLineLength: Integer;
@@ -38,6 +38,8 @@ begin
   if not (FTexture.PixelFormat = pf32bit) then raise Exception.Create('wrong pixelformat');
   FTexHeight := FTexture.Height;
   FTexWidth := FTexture.Width;
+  FTexMaxX := FTexWidth-1;
+  FTexMaxY := FTexHeight-1;
   FTexFirstLine := FTexture.ScanLine[0];
   FTexLineLength := (Longint(FTexture.Scanline[1]) - Longint(FTexFirstLine)) div SizeOf(TRGB32);
 end;
@@ -71,27 +73,39 @@ end;
 
 procedure TTextureShader.Shade8X8Quad;
 var
-  LX, LY, LPixel, LTexPixel: Integer;
+  LX, LY, LPixelY: Integer;
   LTexX, LTexY: Integer;
-  LU, LV: Single;
   LZ: Single;
+  LFUX, LFUY, LFVX, LFVY, LFZX, LFZY: Single;
 begin
+  LFZY := FZB*Pixel.Y + FZD;
+  LFUY := FUB*Pixel.Y + FUD;
+  LFVY := FVB*Pixel.Y + FVD;
+  LPixelY := Pixel.Y*LineLength;
   for LY  := Pixel.Y to Pixel.Y + 7 do
   begin
+    LFZX := FZA * Pixel.X + LFZY;
+    LFUX := (FUA * Pixel.X + LFUY);
+    LFVX := (FVA * Pixel.X + LFVY);
     for LX := Pixel.X to Pixel.X + 7 do
     begin
-      LPixel := LY*LineLength + LX;
-      LZ := 1/(FZA  *LX + FZB * LY + FZD);
-      LU := (FUA * LX + FUB * LY + FUD)*LZ;
-      LV := (FVA * LX + FVB * LY + FVD)*LZ;
-      LTexX := Round(abs(LU*(FTexture.Width-1)));
-      LTexY := Round(abs(LV*(FTexture.Height-1)));
+//      LPixel := LPixelY + LX;
+      LZ := 1/(LFZX);
+      LTexX := Round(abs(LFUX*FTexMaxX*LZ));
+      LTexY := Round(abs(LFVX*FTexMaxY*LZ));
 
-      LTexPixel := (LTexY mod FTexHeight)*FTexLineLength + (LTexX mod FTexWidth);
-      FirstLine[LPixel].B := FTexFirstLine[LTexPixel].B;
-      FirstLine[LPixel].G := FTexFirstLine[LTexPixel].G;
-      FirstLine[LPixel].R := FTexFirstLine[LTexPixel].R;
+//      LTexPixel := (LTexY mod FTexHeight)*FTexLineLength + (LTexX mod FTexWidth);
+//      LTexPixel := LTexPixel;
+      FirstLine[LPixelY + LX] := FTexFirstLine[(LTexY mod FTexHeight)*FTexLineLength + (LTexX mod FTexWidth)];
+
+      LFZX := LFZX + FZA;
+      LFUX := LFUX + FUA;
+      LFVX := LFVX + FVA;
     end;
+    LFZY := LFZY + FZB;
+    LFUY := LFUY + FUB;
+    LFVY := LFVY + FVB;
+    LPixelY := LPixelY + LineLength;
   end;
 end;
 
@@ -108,14 +122,12 @@ begin
     LZ := 1/(FZA*LX + FZB * LY + FZD);
     LU := (FUA*LX + FUB * LY + FUD)*LZ;
     LV := (FVA*LX + FVB * LY + FVD)*LZ;
-    LTexX := Round(abs(LU*(FTexture.Width-1)));
-    LTexY := Round(abs(LV*(FTexture.Height-1)));
+    LTexX := Round(abs(LU*(FTexMaxX)));
+    LTexY := Round(abs(LV*(FTexMaxY)));
 
 
     LTexPixel := (LTexY mod FTexHeight)*FTexLineLength + (LTexX mod FTexWidth);
-    FirstLine[LPixel].B := FTexFirstLine[LTexPixel].B;
-    FirstLine[LPixel].G := FTexFirstLine[LTexPixel].G;
-    FirstLine[LPixel].R := FTexFirstLine[LTexPixel].R;
+    FirstLine[LPixel] := FTexFirstLine[LTexPixel];
 end;
 
 end.

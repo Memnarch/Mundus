@@ -351,20 +351,20 @@ begin
         RasterizeTriangle(LVertexA, LVertexB,
           LVertexC, LShader);
 
-        FBackBuffer.Canvas.Pen.Color := clWhite;
-        FBackBuffer.Canvas.PolyLine([
-          Point(Round(LVertexA.Element[0]), Round(LVertexA.Element[1])),
-          Point(Round(LVertexB.Element[0]), Round(LVertexB.Element[1])),
-          Point(Round(LVertexC.Element[0]), Round(LVertexC.Element[1])),
-          Point(Round(LVertexA.Element[0]), Round(LVertexA.Element[1]))
-          ]);
-        FBackBuffer.Canvas.Brush.Color := clYellow;
-        FBackBuffer.Canvas.Pen.Color := clYellow;
-        FBackBuffer.Canvas.Rectangle(Round(LVertexA.Element[0])-2, Round(LVertexA.Element[1])-2, Round(LVertexA.Element[0])+2, Round(LVertexA.Element[1])+2);
-        FBackBuffer.Canvas.Rectangle(Round(LVertexB.Element[0])-2, Round(LVertexB.Element[1])-2, Round(LVertexB.Element[0])+2, Round(LVertexB.Element[1])+2);
-        FBackBuffer.Canvas.Rectangle(Round(LVertexC.Element[0])-2, Round(LVertexC.Element[1])-2, Round(LVertexC.Element[0])+2, Round(LVertexC.Element[1])+2);
-        FBackBuffer.Canvas.Brush.Color := clBlack;
-        FBackBuffer.Canvas.Pen.Color := clBlack;
+//        FBackBuffer.Canvas.Pen.Color := clWhite;
+//        FBackBuffer.Canvas.PolyLine([
+//          Point(Round(LVertexA.Element[0]), Round(LVertexA.Element[1])),
+//          Point(Round(LVertexB.Element[0]), Round(LVertexB.Element[1])),
+//          Point(Round(LVertexC.Element[0]), Round(LVertexC.Element[1])),
+//          Point(Round(LVertexA.Element[0]), Round(LVertexA.Element[1]))
+//          ]);
+//        FBackBuffer.Canvas.Brush.Color := clYellow;
+//        FBackBuffer.Canvas.Pen.Color := clYellow;
+//        FBackBuffer.Canvas.Rectangle(Round(LVertexA.Element[0])-2, Round(LVertexA.Element[1])-2, Round(LVertexA.Element[0])+2, Round(LVertexA.Element[1])+2);
+//        FBackBuffer.Canvas.Rectangle(Round(LVertexB.Element[0])-2, Round(LVertexB.Element[1])-2, Round(LVertexB.Element[0])+2, Round(LVertexB.Element[1])+2);
+//        FBackBuffer.Canvas.Rectangle(Round(LVertexC.Element[0])-2, Round(LVertexC.Element[1])-2, Round(LVertexC.Element[0])+2, Round(LVertexC.Element[1])+2);
+//        FBackBuffer.Canvas.Brush.Color := clBlack;
+//        FBackBuffer.Canvas.Pen.Color := clBlack;
         FPolyCount := FPolyCount + 1;
       end;
     end;
@@ -384,8 +384,8 @@ begin
   LVertexB.Free();
   LVertexC.Free();
   LNormal.Free;
-  GTest := GTest + 0.25;
-  GTest2 := 45;//GTest2 + 0.25;
+//  GTest := GTest + 0.25;
+//  GTest2 := 45;//GTest2 + 0.25;
 
   LShader.Free();
 end;
