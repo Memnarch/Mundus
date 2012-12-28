@@ -11,7 +11,6 @@ type
     RenderInfo: TLabel;
     GameTimer: TTimer;
     GameScreen: TPaintBox;
-    lbInfo: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure GameTimerTimer(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -20,6 +19,7 @@ type
     FSoftwareRenderer: TSoftwareRenderer;
     FLastCall: TDateTime;
     FWatch: TStopWatch;
+    FMinFPS, FMaxFPS: Integer;
   public
     { Public-Deklarationen }
   end;
@@ -30,7 +30,7 @@ var
 implementation
 
 uses
-  DateUtils, Cube, BaseMesh;
+  DateUtils, Cube, BaseMesh, Math;
 {$R *.dfm}
 
 procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -47,14 +47,23 @@ begin
 //  LCube.Position := Vector(-20, 0, LCube.Position.Z);
 //  FSoftwareRenderer.MeshList.Add(LCube);
   FLastCall := Now();
+  FMinFPS := 1000;
+  FMaxFPS := 0;
   FWatch := TStopWatch.Create(False);
   GameTimer.Enabled := True;
 end;
 
 procedure TForm1.GameTimerTimer(Sender: TObject);
+var
+  LFPS: Integer;
 begin
   FSoftwareRenderer.RenderFrame(GameScreen.Canvas);
-  RenderInfo.Caption := 'FPS: ' + IntToStr(FSoftwareRenderer.GetCurrentFPS) + ' PolyCount: ' + IntToStr(FSoftwareRenderer.GetCurrentPolyCount);
+  LFPS := FSoftwareRenderer.GetCurrentFPS;
+  FMaxFPS := Max(FMaxFPS, LFPS);
+  FMinFPS := Min(FMinFPS, LFPS);
+  RenderInfo.Caption := 'FPS: ' + IntToStr(LFPS) + ' Min-Fps: ' +
+      IntToStr(FMinFPS) + ' Max-Fps: ' + IntToStr(FMaxFPS) + ' PolyCount: ' +
+      IntToStr(FSoftwareRenderer.GetCurrentPolyCount);
 end;
 
 end.
