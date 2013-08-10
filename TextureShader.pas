@@ -89,13 +89,10 @@ begin
     LFVX := (FVA * Pixel.X + LFVY);
     for LX := Pixel.X to Pixel.X + 7 do
     begin
-//      LPixel := LPixelY + LX;
       LZ := 1/(LFZX);
       LTexX := Round(abs(LFUX*FTexMaxX*LZ));
       LTexY := Round(abs(LFVX*FTexMaxY*LZ));
 
-//      LTexPixel := (LTexY mod FTexHeight)*FTexLineLength + (LTexX mod FTexWidth);
-//      LTexPixel := LTexPixel;
       FirstLine[LPixelY + LX] := FTexFirstLine[(LTexY mod FTexHeight)*FTexLineLength + (LTexX mod FTexWidth)];
 
       LFZX := LFZX + FZA;
