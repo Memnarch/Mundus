@@ -22,6 +22,7 @@ type
     procedure SetDepthBufferSize(AWidth, AHeight: Integer);
     procedure ClearDepthBuffer();
     procedure RasterizeTriangle(AVerctorA, AvectorB, AvectorC: TVectorClass4D; AShader: TShader);
+    procedure TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrixClass4D);
   public
     constructor Create();
     destructor Destroy(); override;
@@ -135,10 +136,10 @@ begin
 //    maxx := (max(X1, Max(X2, X3)) + 15);// shr 4;
 //    miny := (min(Y1, Max(Y2, Y3)) + 15);// shr 4;
 //    maxy := (max(Y1, MAx(Y2, Y3)) + 15);// shr 4;
-    minx := Max(0, (min(X1, min(X2, X3))) div 16);// shr 4;
-    maxx := Min(511, max(X1, Max(X2, X3)) div 16);// shr 4;
-    miny := Max(0, min(Y1, min(Y2, Y3)) div 16);// shr 4;
-    maxy := Min(511, max(Y1, MAx(Y2, Y3)) div 16);// shr 4;
+    minx := Max(0, (min(X1, min(X2, X3)) + 15) div 16);// shr 4;
+    maxx := Min(511, (max(X1, Max(X2, X3)) + 15) div 16);// shr 4;
+    miny := Max(0, (min(Y1, min(Y2, Y3)) + 15) div 16);// shr 4;
+    maxy := Min(511, (max(Y1, MAx(Y2, Y3)) + 15) div 16);// shr 4;
     AShader.MinX := minx;
     AShader.MinY := miny;
 
@@ -263,6 +264,7 @@ var
 begin
   LShader := TTextureShader.Create(FBackBuffer); //TSolidColorShader.Create(FBackBuffer);
   LTimeStart := Now();
+  FBackBuffer.Canvas.Brush.Color := clRed;
   FBackBuffer.Canvas.FillRect(FBackBuffer.Canvas.ClipRect);
   ClearDepthBuffer();
   LWorldMatrix := TMatrixClass4D.Create();
@@ -302,34 +304,12 @@ begin
     LProjectionMatrix.SetAsPerspectiveProjectionMatrix(100, 200, 64, 64);
 //    LProjectionMatrix.SetAsPerspectiveProjectionMatrix(100, 200, 12000, 12000);
     LProjectionMatrix.MultiplyMatrix4D(LWorldMatrix);
+    TransformMesh(LMesh, LProjectionMatrix);
     for LTriangle in LMesh.Triangles do
     begin
-      LVertexA.Element[0] := LMesh.Vertices.Items[LTriangle.VertexA].X;
-      LVertexA.Element[1] := LMesh.Vertices.Items[LTriangle.VertexA].Y;
-      LVertexA.Element[2] := LMesh.Vertices.Items[LTriangle.VertexA].Z;
-      LVertexA.Element[3] := 1;
-      LVertexA.MultiplyWithMatrix4D(LProjectionMatrix);
-      LVertexA.Rescale(True);
-
-
-
-
-      LVertexB.Element[0] := LMesh.Vertices.Items[LTriangle.VertexB].X;
-      LVertexB.Element[1] := LMesh.Vertices.Items[LTriangle.VertexB].Y;
-      LVertexB.Element[2] := LMesh.Vertices.Items[LTriangle.VertexB].Z;
-      LVertexB.Element[3] := 1;
-      LVertexB.MultiplyWithMatrix4D(LProjectionMatrix);
-      LVertexB.Rescale(True);
-
-
-
-
-      LVertexC.Element[0] := LMesh.Vertices.Items[LTriangle.VertexC].X;
-      LVertexC.Element[1] := LMesh.Vertices.Items[LTriangle.VertexC].Y;
-      LVertexC.Element[2] := LMesh.Vertices.Items[LTriangle.VertexC].Z;
-      LVertexC.Element[3] := 1;
-      LVertexC.MultiplyWithMatrix4D(LProjectionMatrix);
-      LVertexC.Rescale(True);
+      LVertexA.CopyFromVector4D(LMesh.TransformedVertices[LTriangle.VertexA]);
+      LVertexB.CopyFromVector4D(LMesh.TransformedVertices[LTriangle.VertexB]);
+      LVertexC.CopyFromVector4D(LMesh.TransformedVertices[LTriangle.VertexC]);
 
 
       LNormal.CalculateSurfaceNormal(LVertexA, LVertexB, LVertexC);
@@ -380,9 +360,9 @@ begin
   LRotateYMatrix.Free();
   LRotateZMatrix.Free();
   LViewMatrix.Free();
-  LVertexA.Free();
-  LVertexB.Free();
-  LVertexC.Free();
+  LVertexA.Free;
+  LVertexB.Free;
+  LVertexC.Free;
   LNormal.Free;
   GTest := GTest + 0.25;
   GTest2 := 45;//GTest2 + 0.25;
@@ -409,6 +389,22 @@ begin
   FBackBuffer.Canvas.Pen.Color := clBlack;
   FBackBuffer.Canvas.Brush.Color := clBlack;
   SetDepthBufferSize(AWidth, AHeight);
+end;
+
+procedure TSoftwareRenderer.TransformMesh(AMesh: TBaseMesh;
+  AMatrix: TMatrixClass4D);
+var
+  i: Integer;
+begin
+  for i := 0 to AMesh.Vertices.Count - 1 do
+  begin
+    AMesh.TransformedVertices[i].Element[0] := AMesh.Vertices[i].X;
+    AMesh.TransformedVertices[i].Element[1] := AMesh.Vertices[i].Y;
+    AMesh.TransformedVertices[i].Element[2] := AMesh.Vertices[i].Z;
+    AMesh.TransformedVertices[i].Element[3] := 1;
+    AMesh.TransformedVertices[i].MultiplyWithMatrix4D(AMatrix);
+    AMesh.TransformedVertices[i].Rescale(True);
+  end;
 end;
 
 { some functions }
