@@ -100,13 +100,13 @@ var
   i, k: Integer;
 begin
 // 28.4 fixed-point coordinates
-    X1 := Round(AVerctorA.Element[0]);
-    X2 := Round(AVectorB.Element[0]);
-    X3 := Round(AvectorC.Element[0]);
+    X1 := Round(16*AVerctorA.Element[0]);
+    X2 := Round(16*AVectorB.Element[0]);
+    X3 := Round(16*AvectorC.Element[0]);
 
-    Y1 := Round(AVerctorA.Element[1]);
-    Y2 := Round(AVectorB.Element[1]);
-    Y3 := Round(AvectorC.Element[1]);
+    Y1 := Round(16*AVerctorA.Element[1]);
+    Y2 := Round(16*AVectorB.Element[1]);
+    Y3 := Round(16*AvectorC.Element[1]);
 
 //    Z1 := Round(AVerctorA.Element[2]);
 //    Z2 := Round(AVectorB.Element[2]);
@@ -122,23 +122,23 @@ begin
     DY31 := Y3 - Y1;
 
     // Fixed-point deltas
-    FDX12 := DX12;// shl 4;
-    FDX23 := DX23;// shl 4;
-    FDX31 := DX31;// shl 4;
+    FDX12 := DX12*16;// shl 4;
+    FDX23 := DX23*16;// shl 4;
+    FDX31 := DX31*16;// shl 4;
 
-    FDY12 := DY12;// shl 4;
-    FDY23 := DY23;// shl 4;
-    FDY31 := DY31;// shl 4;
+    FDY12 := DY12*16;// shl 4;
+    FDY23 := DY23*16;// shl 4;
+    FDY31 := DY31*16;// shl 4;
 
     // Bounding rectangle
 //    minx := (min(X1, min(X2, X3)) + 15);// shr 4;
 //    maxx := (max(X1, Max(X2, X3)) + 15);// shr 4;
 //    miny := (min(Y1, Max(Y2, Y3)) + 15);// shr 4;
 //    maxy := (max(Y1, MAx(Y2, Y3)) + 15);// shr 4;
-    minx := Max(0, (min(X1, min(X2, X3))));// shr 4;
-    maxx := Min(511, max(X1, Max(X2, X3)));// shr 4;
-    miny := Max(0, min(Y1, min(Y2, Y3)));// shr 4;
-    maxy := Min(511, max(Y1, MAx(Y2, Y3)));// shr 4;
+    minx := Max(0, (min(X1, min(X2, X3))) div 16);// shr 4;
+    maxx := Min(511, max(X1, Max(X2, X3)) div 16);// shr 4;
+    miny := Max(0, min(Y1, min(Y2, Y3)) div 16);// shr 4;
+    maxy := Min(511, max(Y1, MAx(Y2, Y3)) div 16);// shr 4;
     AShader.MinX := minx;
     AShader.MinY := miny;
 
@@ -176,10 +176,10 @@ begin
         while BlockX < MaxX do
         begin
             // Corners of block
-            CornerX0 := BlockX;// shl 4;
-            CornerX1 := (BlockX + QuadSize - 1);// shl 4;
-            CornerY0 := BlockY;// shl 4;
-            CornerY1 := (BlockY + QuadSize - 1);// shl 4;
+            CornerX0 := BlockX*16;// shl 4;
+            CornerX1 := (BlockX + QuadSize - 1)*16;// shl 4;
+            CornerY0 := BlockY*16;// shl 4;
+            CornerY1 := (BlockY + QuadSize - 1)*16;// shl 4;
 
             // Evaluate half-space functions
             a00 := (C1 + DX12 * CornerY0 - DY12 * CornerX0) > 0;
