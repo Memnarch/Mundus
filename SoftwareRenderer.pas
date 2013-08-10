@@ -67,7 +67,7 @@ begin
   FQuadSize := 8;
 
   FTexture := TBitmap.Create();
-  FTexture.LoadFromFile('Texture.bmp');
+  FTexture.LoadFromFile('Crate.bmp');
   FTexture.PixelFormat := pf32bit;
 end;
 
