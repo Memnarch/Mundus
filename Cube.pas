@@ -23,15 +23,15 @@ begin
   inherited Create();
   //front vertices
    
-  Vertices.Add(TVectorClass.Create(-32, -32, -32));
-  Vertices.Add(TVectorClass.Create(-32, 32, -32));
-  Vertices.Add(TVectorClass.Create(32, 32, -32));
-  Vertices.Add(TVectorClass.Create(32, -32, -32));
+  AddVertice(TVectorClass.Create(-32, -32, -32));
+  AddVertice(TVectorClass.Create(-32, 32, -32));
+  AddVertice(TVectorClass.Create(32, 32, -32));
+  AddVertice(TVectorClass.Create(32, -32, -32));
 //  // backvertices
-  Vertices.Add(TVectorClass.Create(-32, -32, 32));
-  Vertices.Add(TVectorClass.Create(-32, 32, 32));
-  Vertices.Add(TVectorClass.Create(32, 32, 32));
-  Vertices.Add(TVectorClass.Create(32, -32, 32));
+  AddVertice(TVectorClass.Create(-32, -32, 32));
+  AddVertice(TVectorClass.Create(-32, 32, 32));
+  AddVertice(TVectorClass.Create(32, 32, 32));
+  AddVertice(TVectorClass.Create(32, -32, 32));
 
   //FrontFace
   LTriangle := TTriangleClass.Create(0, 1, 2);
