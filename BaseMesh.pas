@@ -3,7 +3,7 @@ unit BaseMesh;
 interface
 
 uses
-  Types, Classes, SysUtils, Generics.Collections;
+  Types, Classes, SysUtils, Generics.Collections, Math3d;
 
 type
   TVector = record
@@ -50,11 +50,14 @@ type
     FVertexList: TObjectList<TVectorClass>;
     FTriangleList: TObjectList<TTriangleClass>;
     FPosition: TVector;
+    FTransformedVertices: TObjectList<TVectorClass4D>;
   public
     constructor Create();
     destructor Destroy(); override;
+    procedure AddVertice(AVertice: TVectorClass);
     property Triangles: TObjectList<TTriangleClass> read FTriangleList;
     property Vertices: TObjectList<TVectorClass> read FVertexList;
+    property TransformedVertices: TObjectList<TVectorClass4D> read FTransformedVertices;
     property Position: TVector read FPosition write FPosition;
   end;
 
@@ -66,17 +69,25 @@ implementation
 
 { TBaseMesh }
 
+procedure TBaseMesh.AddVertice(AVertice: TVectorClass);
+begin
+  FVertexList.Add(AVertice);
+  FTransformedVertices.Add(TVectorClass4D.Create());
+end;
+
 constructor TBaseMesh.Create;
 begin
   inherited;
   FVertexList := TObjectList<TVectorClass>.Create();
   FTriangleList := TObjectList<TTriangleClass>.Create();
+  FTransformedVertices := TObjectList<TVectorClass4D>.Create();
 end;
 
 destructor TBaseMesh.Destroy;
 begin
   FVertexList.Free();
   FTriangleList.Free();
+  FTransformedVertices.Free;
   inherited;
 end;
 
