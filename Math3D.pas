@@ -7,7 +7,7 @@ uses
 
 type
 
-  TFloatArray = array of Single;
+  TFloatArray = array of Double;
 
   TMatrix = array of TFloatArray;
 
@@ -16,14 +16,14 @@ type
   TVectorClass3D = class
   private
     FElement: TFloatArray;
-    function GetElement(Index: Integer): Single;
-    procedure SetElement(Index: Integer; const Value: Single);
-    function GetX: Single;
-    function GetY: Single;
-    function GetZ: Single;
-    procedure SetX(const Value: Single);
-    procedure SetY(const Value: Single);
-    procedure SetZ(const Value: Single);
+    function GetElement(Index: Integer): Double;
+    procedure SetElement(Index: Integer; const Value: Double);
+    function GetX: Double;
+    function GetY: Double;
+    function GetZ: Double;
+    procedure SetX(const Value: Double);
+    procedure SetY(const Value: Double);
+    procedure SetZ(const Value: Double);
   public
     constructor Create();
     destructor Destroy(); override;
@@ -31,12 +31,12 @@ type
     procedure CopyFromVector3D(AVector: TVectorClass3D);
     procedure AddVector3D(AVector: TVectorClass3D);
     procedure SubtractVector3D(AVector: TVectorClass3D);
-    procedure MultiplyVector3D(AFactor: Single);
+    procedure MultiplyVector3D(AFactor: Double);
     procedure CalculateSurfaceNormal(AVecA, AVecB, AVecC: TVectorClass3D);
-    property Element[Index: Integer]: Single read GetElement write SetElement;
-    property X: Single read GetX write SetX;
-    property Y: Single read GetY write SetY;
-    property Z: Single read GetZ write SetZ;
+    property Element[Index: Integer]: Double read GetElement write SetElement;
+    property X: Double read GetX write SetX;
+    property Y: Double read GetY write SetY;
+    property Z: Double read GetZ write SetZ;
   end;
 
   TVectorClass4D = class(TVectorClass3D)
@@ -50,37 +50,37 @@ type
     procedure CopyFromVector4D(AVector: TVectorClass4D);
     procedure AddVector4D(AVector: TVectorClass4D);
     procedure SubtractVector4D(AVector: TVectorClass4D);
-    procedure MultiplyVector4D(AFactor: Single);
+    procedure MultiplyVector4D(AFactor: Double);
     procedure MultiplyWithMatrix4D(AMatrix: TMatrixClass4D);
   end;
 
   TMatrixClass4D = class
   private
     FMatrix: TMatrix;
-    function GetMatrixElement(IndexX, IndexY: Integer): Single;
-    procedure SetMatrixElement(IndexX, IndexY: Integer; const Value: Single);
+    function GetMatrixElement(IndexX, IndexY: Integer): Double;
+    procedure SetMatrixElement(IndexX, IndexY: Integer; const Value: Double);
   public
     constructor Create();
     destructor Destroy(); override;
     procedure SetAsNullMatrix4D();
     procedure SetAsNullMatrix3D();
     procedure SetAsIdentMatrix4D();
-    procedure SetAsScaleMatrix(AX, AY, AZ: Single);
-    procedure SetAsMoveMatrix(AX, AY, AZ: Single);
-    procedure SetAsRotationXMatrix(AAlpha: Single);
-    procedure SetAsRotationYMatrix(AAlpha: Single);
-    procedure SetAsRotationZMatrix(AAlpha: Single);
-    procedure SetAsPerspectiveProjectionMatrix(AA, AB, AC, AD: Single);
+    procedure SetAsScaleMatrix(AX, AY, AZ: Double);
+    procedure SetAsMoveMatrix(AX, AY, AZ: Double);
+    procedure SetAsRotationXMatrix(AAlpha: Double);
+    procedure SetAsRotationYMatrix(AAlpha: Double);
+    procedure SetAsRotationZMatrix(AAlpha: Double);
+    procedure SetAsPerspectiveProjectionMatrix(AA, AB, AC, AD: Double);
     procedure Clear();
     procedure CopyFromMatrix4D(AMatrix: TMatrixClass4D);
     procedure AddMatrix4D(AMatrix: TMatrixClass4D);
     procedure AddMatrix3D(AMatrix: TMatrixClass4D);
     procedure SubtractMatrix4D(AMatrix: TMatrixClass4D);
     procedure SubtractMatrix3D(AMatrix:TMatrixClass4D);
-    procedure MultiplyMatrix4DWithFloat(AValue: Single);
-    procedure MultiplyMatrix3DWithFloat(AValue: Single);
+    procedure MultiplyMatrix4DWithFloat(AValue: Double);
+    procedure MultiplyMatrix3DWithFloat(AValue: Double);
     procedure MultiplyMatrix4D(AMatrix: TMatrixClass4D);
-    property Matrix[IndexX, IndexY: Integer]: Single read GetMatrixElement write SetMatrixElement;
+    property Matrix[IndexX, IndexY: Integer]: Double read GetMatrixElement write SetMatrixElement;
   end;
 
 implementation
@@ -150,27 +150,27 @@ begin
   inherited;
 end;
 
-function TVectorClass3D.GetElement(Index: Integer): Single;
+function TVectorClass3D.GetElement(Index: Integer): Double;
 begin
   Result := FElement[Index];
 end;
 
-function TVectorClass3D.GetX: Single;
+function TVectorClass3D.GetX: Double;
 begin
   Result := Element[0];
 end;
 
-function TVectorClass3D.GetY: Single;
+function TVectorClass3D.GetY: Double;
 begin
   Result := Element[1];
 end;
 
-function TVectorClass3D.GetZ: Single;
+function TVectorClass3D.GetZ: Double;
 begin
   Result := Element[2];
 end;
 
-procedure TVectorClass3D.MultiplyVector3D(AFactor: Single);
+procedure TVectorClass3D.MultiplyVector3D(AFactor: Double);
 var
   i: Integer;
 begin
@@ -180,22 +180,22 @@ begin
   end;
 end;
 
-procedure TVectorClass3D.SetElement(Index: Integer; const Value: Single);
+procedure TVectorClass3D.SetElement(Index: Integer; const Value: Double);
 begin
   FElement[Index] := Value;
 end;
 
-procedure TVectorClass3D.SetX(const Value: Single);
+procedure TVectorClass3D.SetX(const Value: Double);
 begin
   Element[0] := Value;
 end;
 
-procedure TVectorClass3D.SetY(const Value: Single);
+procedure TVectorClass3D.SetY(const Value: Double);
 begin
   Element[1] := Value;
 end;
 
-procedure TVectorClass3D.SetZ(const Value: Single);
+procedure TVectorClass3D.SetZ(const Value: Double);
 begin
   Element[2] := Value;
 end;
@@ -250,7 +250,7 @@ begin
   inherited;
 end;
 
-procedure TVectorClass4D.MultiplyVector4D(AFactor: Single);
+procedure TVectorClass4D.MultiplyVector4D(AFactor: Double);
 var
   i: Integer;
 begin
@@ -388,12 +388,12 @@ end;
 
 
 
-function TMatrixClass4D.GetMatrixElement(IndexX, IndexY: Integer): Single;
+function TMatrixClass4D.GetMatrixElement(IndexX, IndexY: Integer): Double;
 begin
   Result := FMatrix[IndexX, IndexY];
 end;
 
-procedure TMatrixClass4D.MultiplyMatrix3DWithFloat(AValue: Single);
+procedure TMatrixClass4D.MultiplyMatrix3DWithFloat(AValue: Double);
 var
   i, k: Integer;
 begin
@@ -429,7 +429,7 @@ begin
   LMatrix.Free();
 end;
 
-procedure TMatrixClass4D.MultiplyMatrix4DWithFloat(AValue: Single);
+procedure TMatrixClass4D.MultiplyMatrix4DWithFloat(AValue: Double);
 var
   i, k: Integer;
 begin
@@ -463,7 +463,7 @@ begin
   end;
 end;
 
-procedure TMatrixClass4D.SetAsMoveMatrix(AX, AY, AZ: Single);
+procedure TMatrixClass4D.SetAsMoveMatrix(AX, AY, AZ: Double);
 begin
   Clear();
   FMatrix[0, 0] := 1;
@@ -486,7 +486,7 @@ begin
   Clear();
 end;
 
-procedure TMatrixClass4D.SetAsPerspectiveProjectionMatrix(AA, AB, AC, AD: Single);
+procedure TMatrixClass4D.SetAsPerspectiveProjectionMatrix(AA, AB, AC, AD: Double);
 begin
   Clear();
   FMatrix[0, 0] := 2*AA/AD;
@@ -496,9 +496,9 @@ begin
   FMatrix[2, 3] := 1;
 end;
 
-procedure TMatrixClass4D.SetAsRotationXMatrix(AAlpha: Single);
+procedure TMatrixClass4D.SetAsRotationXMatrix(AAlpha: Double);
 var
-  LC, LS: Single;
+  LC, LS: Double;
 begin
   Clear();
   FMatrix[3, 3] := 1;
@@ -511,9 +511,9 @@ begin
   FMatrix[2][1] := -LS;
 end;
 
-procedure TMatrixClass4D.SetAsRotationYMatrix(AAlpha: Single);
+procedure TMatrixClass4D.SetAsRotationYMatrix(AAlpha: Double);
 var
-  LC, LS: Single;
+  LC, LS: Double;
 begin
   Clear();
   FMatrix[3, 3] := 1;
@@ -526,9 +526,9 @@ begin
   FMatrix[2][0] := LS;
 end;
 
-procedure TMatrixClass4D.SetAsRotationZMatrix(AAlpha: Single);
+procedure TMatrixClass4D.SetAsRotationZMatrix(AAlpha: Double);
 var
-  LC, LS: Single;
+  LC, LS: Double;
 begin
   Clear();
   FMatrix[3, 3] := 1;
@@ -541,7 +541,7 @@ begin
   FMatrix[1][0] := -LS;
 end;
 
-procedure TMatrixClass4D.SetAsScaleMatrix(AX, AY, AZ: Single);
+procedure TMatrixClass4D.SetAsScaleMatrix(AX, AY, AZ: Double);
 begin
   Clear;
   FMatrix[0, 0] := AX;
@@ -551,7 +551,7 @@ begin
 end;
 
 procedure TMatrixClass4D.SetMatrixElement(IndexX, IndexY: Integer;
-  const Value: Single);
+  const Value: Double);
 begin
   FMatrix[IndexX, IndexY] := Value;
 end;
