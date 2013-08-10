@@ -3,7 +3,7 @@
 			<ProjectGuid>{75461A3B-079E-4534-8ABE-6CC3E895AC89}</ProjectGuid>
 			<ProjectVersion>12.3</ProjectVersion>
 			<MainSource>SoftwareRendererProj.dpr</MainSource>
-			<Config Condition="'$(Config)'==''">Release</Config>
+			<Config Condition="'$(Config)'==''">Debug</Config>
 			<DCC_DCCCompiler>DCC32</DCC_DCCCompiler>
 			<Base>True</Base>
 			<Platform>Win32</Platform>
