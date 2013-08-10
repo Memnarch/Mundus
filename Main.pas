@@ -44,6 +44,7 @@ end;
 procedure TForm1.FormCreate(Sender: TObject);
 begin
   FCube := TCube.Create();
+  FCube.Position := Vector(0, 0, 132);
   FSoftwareRenderer := TSoftwareRenderer.Create();
   FSoftwareRenderer.MeshList.Add(FCube);
 //  LCube := TCube.Create();

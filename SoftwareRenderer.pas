@@ -364,8 +364,8 @@ begin
   LVertexB.Free;
   LVertexC.Free;
   LNormal.Free;
-  GTest := GTest + 0.25;
-  GTest2 := 45;//GTest2 + 0.25;
+//  GTest := GTest + 0.25;
+//  GTest2 := 45;//GTest2 + 0.25;
 
   LShader.Free();
 end;
