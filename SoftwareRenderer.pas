@@ -19,6 +19,12 @@ type
     FLineLength: LongInt;
     FFirstLine: PRGB32Array;
     FQuadSize: Integer;
+    FResolutionX: Integer;
+    FResolutionY: Integer;
+    FMaxResolutionX: Integer;
+    FMaxResolutionY: Integer;
+    FHalfResolutionX: Integer;
+    FHalfResolutionY: Integer;
     procedure SetDepthBufferSize(AWidth, AHeight: Integer);
     procedure ClearDepthBuffer();
     procedure RasterizeTriangle(AVerctorA, AvectorB, AvectorC: TVectorClass4D; AShader: TShader);
@@ -137,9 +143,9 @@ begin
 //    miny := (min(Y1, Max(Y2, Y3)) + 15);// shr 4;
 //    maxy := (max(Y1, MAx(Y2, Y3)) + 15);// shr 4;
     minx := Max(0, (min(X1, min(X2, X3)) + 15) div 16);// shr 4;
-    maxx := Min(511, (max(X1, Max(X2, X3)) + 15) div 16);// shr 4;
+    maxx := Min(FMaxResolutionX, (max(X1, Max(X2, X3)) + 15) div 16);// shr 4;
     miny := Max(0, (min(Y1, min(Y2, Y3)) + 15) div 16);// shr 4;
-    maxy := Min(511, (max(Y1, MAx(Y2, Y3)) + 15) div 16);// shr 4;
+    maxy := Min(FMaxResolutionY, (max(Y1, MAx(Y2, Y3)) + 15) div 16);// shr 4;
     AShader.MinX := minx;
     AShader.MinY := miny;
 
@@ -220,13 +226,13 @@ begin
                 CY2 := C2 + DX23 * CornerY0 - DY23 * CornerX0;
                 CY3 := C3 + DX31 * CornerY0 - DY31 * CornerX0;
 
-                for i := BlockY to Min(511, BlockY + QuadSize - 1) do
+                for i := BlockY to Min(FMaxResolutionY, BlockY + QuadSize - 1) do
                 begin
                   CX1 := CY1;
                   CX2 := CY2;
                   CX3 := CY3;
 
-                  for k := BlockX to Min(511, BlockX + QuadSize - 1) do
+                  for k := BlockX to Min(FMaxResolutionX, BlockX + QuadSize - 1) do
                   begin
                     if(CX1 >= 0) and (CX2 >= 0) and (CX3 >= 0)then
                     begin
@@ -301,7 +307,7 @@ begin
     LWorldMatrix.MultiplyMatrix4D(LRotateYMatrix);
     LWorldMatrix.MultiplyMatrix4D(LRotateZMatrix);
     LWorldMatrix.MultiplyMatrix4D(LViewMatrix);
-    LProjectionMatrix.SetAsPerspectiveProjectionMatrix(100, 200, 64, 64);
+    LProjectionMatrix.SetAsPerspectiveProjectionMatrix(100, 200, 0.7, FResolutionX/FResolutionY);
 //    LProjectionMatrix.SetAsPerspectiveProjectionMatrix(100, 200, 12000, 12000);
     LProjectionMatrix.MultiplyMatrix4D(LWorldMatrix);
     TransformMesh(LMesh, LProjectionMatrix);
@@ -313,15 +319,15 @@ begin
 
 
       LNormal.CalculateSurfaceNormal(LVertexA, LVertexB, LVertexC);
-      if LNormal.Z < 0 then
+      if (LNormal.Z < 0)then
       begin
         //denormalize vectors to screenpos
-        LVertexA.Element[0] := (1-LVertexA.Element[0]) * 256;//half screen size
-        LVertexA.Element[1] := (1-LVertexA.Element[1]) * 256;
-        LVertexB.Element[0] := (1-LVertexB.Element[0]) * 256;
-        LVertexB.Element[1] := (1-LVertexB.Element[1]) * 256;
-        LVertexC.Element[0] := (1-LVertexC.Element[0]) * 256;
-        LVertexC.Element[1] := (1-LVertexC.Element[1]) * 256;
+        LVertexA.Element[0] := (1-LVertexA.Element[0]) * FHalfResolutionX;//half screen size
+        LVertexA.Element[1] := (1-LVertexA.Element[1]) * FHalfResolutionY;
+        LVertexB.Element[0] := (1-LVertexB.Element[0]) * FHalfResolutionX;
+        LVertexB.Element[1] := (1-LVertexB.Element[1]) * FHalfResolutionY;
+        LVertexC.Element[0] := (1-LVertexC.Element[0]) * FHalfResolutionX;
+        LVertexC.Element[1] := (1-LVertexC.Element[1]) * FHalfResolutionY;
 //        LVertexA.MultiplyVector4D(256);
 //        LVertexB.MultiplyVector4D(256);
 //        LVertexC.MultiplyVector4D(256);
@@ -389,6 +395,12 @@ begin
   FBackBuffer.Canvas.Pen.Color := clBlack;
   FBackBuffer.Canvas.Brush.Color := clBlack;
   SetDepthBufferSize(AWidth, AHeight);
+  FResolutionX := AWidth;
+  FResolutionY := AHeight;
+  FMaxResolutionX := FResolutionX - 1;
+  FMaxResolutionY := FResolutionY - 1;
+  FHalfResolutionX := FResolutionX div 2;
+  FHalfResolutionY := FResolutionY div 2;
 end;
 
 procedure TSoftwareRenderer.TransformMesh(AMesh: TBaseMesh;

@@ -47,6 +47,11 @@ begin
   FCube.Position := Vector(0, 0, 132);
   FSoftwareRenderer := TSoftwareRenderer.Create();
   FSoftwareRenderer.MeshList.Add(FCube);
+  FSoftwareRenderer.SetResolution(1280, 720);
+  GameScreen.Width := 1280;
+  GameScreen.Height := 720;
+  ClientWidth := 1280;
+  ClientHeight := 800;
 //  LCube := TCube.Create();
 //  LCube.Position := Vector(-20, 0, LCube.Position.Z);
 //  FSoftwareRenderer.MeshList.Add(LCube);

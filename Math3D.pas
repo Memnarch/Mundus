@@ -70,7 +70,7 @@ type
     procedure SetAsRotationXMatrix(AAlpha: Double);
     procedure SetAsRotationYMatrix(AAlpha: Double);
     procedure SetAsRotationZMatrix(AAlpha: Double);
-    procedure SetAsPerspectiveProjectionMatrix(AA, AB, AC, AD: Double);
+    procedure SetAsPerspectiveProjectionMatrix(ZNear, ZFar, FOV, AspectRation: Double);
     procedure Clear();
     procedure CopyFromMatrix4D(AMatrix: TMatrixClass4D);
     procedure AddMatrix4D(AMatrix: TMatrixClass4D);
@@ -486,13 +486,13 @@ begin
   Clear();
 end;
 
-procedure TMatrixClass4D.SetAsPerspectiveProjectionMatrix(AA, AB, AC, AD: Double);
+procedure TMatrixClass4D.SetAsPerspectiveProjectionMatrix(ZNear, ZFar, FOV, AspectRation: Double);
 begin
   Clear();
-  FMatrix[0, 0] := 2*AA/AD;
-  FMatrix[1, 1] := 2*AA/AC;
-  FMatrix[2, 2] := AB / (AB - AA);
-  FMatrix[3, 2] := -AA*AB / (AB - AA);
+  FMatrix[0, 0] := Cotan(FOV/2)/AspectRation;// 2*ZNear/AspectRation;
+  FMatrix[1, 1] := Cotan(FOV/2);
+  FMatrix[2, 2] := ZFar / (ZFar - ZNear);
+  FMatrix[3, 2] := -((ZFar*ZNear) / (ZFar - ZNear));
   FMatrix[2, 3] := 1;
 end;
 
