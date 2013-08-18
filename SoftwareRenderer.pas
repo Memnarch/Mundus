@@ -7,6 +7,7 @@ uses
 
 type
   TDepthBuffer = array of array of Single;
+  TRenderEvent = procedure(Canvas: TCanvas) of object;
 
   TSoftwareRenderer = class
   private
@@ -25,10 +26,12 @@ type
     FMaxResolutionY: Integer;
     FHalfResolutionX: Integer;
     FHalfResolutionY: Integer;
+    FOnAfterFrame: TRenderEvent;
     procedure SetDepthBufferSize(AWidth, AHeight: Integer);
     procedure ClearDepthBuffer();
     procedure RasterizeTriangle(AVerctorA, AvectorB, AvectorC: TVectorClass4D; AShader: TShader);
     procedure TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrixClass4D);
+    procedure DoAfterFrame(ACanvas: TCanvas);
   public
     constructor Create();
     destructor Destroy(); override;
@@ -38,6 +41,9 @@ type
     function GetCurrentPolyCount(): Cardinal;
     property MeshList: TObjectList<TBaseMesh> read FMeshList;
     property QuadSize: Integer read FQuadSize;
+    property OnAfterFrame: TRenderEvent read FOnAfterFrame write FOnAfterFrame;
+    property ResolutionX: Integer read FResolutionX;
+    property ResolutionY: Integer read FResolutionY;
   end;
 
   function RGB32(ARed, AGreen, ABlue, AAlpha: Byte): TRGB32;
@@ -84,6 +90,14 @@ begin
   FBackBuffer.Free();
   FTexture.Free;
   inherited;
+end;
+
+procedure TSoftwareRenderer.DoAfterFrame(ACanvas: TCanvas);
+begin
+  if Assigned(FOnAfterFrame) then
+  begin
+    FOnAfterFrame(ACanvas);
+  end;
 end;
 
 function TSoftwareRenderer.GetCurrentFPS: Integer;
@@ -268,7 +282,8 @@ var
   LVertexA, LVertexB, LVertexC, LNormal: TVectorClass4D;
   LShader: TTextureShader;
 begin
-  LShader := TTextureShader.Create(FBackBuffer); //TSolidColorShader.Create(FBackBuffer);
+  LShader := TTextureShader.Create(); //TSolidColorShader.Create(FBackBuffer);
+  LShader.PixelBuffer := FBackBuffer;
   LTimeStart := Now();
   FBackBuffer.Canvas.Brush.Color := clRed;
   FBackBuffer.Canvas.FillRect(FBackBuffer.Canvas.ClipRect);
@@ -357,6 +372,7 @@ begin
   end;
 //  RasterizeTriangle(Vector(0, 0, 0), Vector(25, 0, 0),
 //        Vector(25, 25,0), RGB32(255, 0, 0, 0), RGB32(255, 0, 0, 0), RGB32(255, 0, 0, 0));
+  DoAfterFrame(FBackBuffer.Canvas);
   ACanvas.Draw(0, 0, FBackBuffer);
   FFPS := 1000 div Max(1, MilliSecondsBetween(Now(), LTimeStart));
   LWorldMatrix.Free();
@@ -370,8 +386,8 @@ begin
   LVertexB.Free;
   LVertexC.Free;
   LNormal.Free;
-//  GTest := GTest + 0.25;
-//  GTest2 := 45;//GTest2 + 0.25;
+  GTest := GTest + 0.25;
+  GTest2 := 45;//GTest2 + 0.25;
 
   LShader.Free();
 end;
@@ -395,6 +411,7 @@ begin
   FBackBuffer.Canvas.Pen.Color := clBlack;
   FBackBuffer.Canvas.Brush.Color := clBlack;
   SetDepthBufferSize(AWidth, AHeight);
+  ClearDepthBuffer();
   FResolutionX := AWidth;
   FResolutionY := AHeight;
   FMaxResolutionX := FResolutionX - 1;
