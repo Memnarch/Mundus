@@ -20,8 +20,9 @@ type
     FFirstLine: PRGB32Array;
     FMinX: Cardinal;
     FMinY: Cardinal;
+    procedure SetPixelBuffer(const Value: TBitmap);
   public
-    constructor Create(APixelBuffer: TBitmap);
+    constructor Create();
     procedure Shade8X8Quad(); virtual; abstract;
     procedure ShadeSinglePixel(); virtual; abstract;
     procedure InitTriangle(AVecA, AVecB, AVecC: TVectorClass4D); virtual; abstract;
@@ -30,7 +31,7 @@ type
     property FirstLine: PRGB32Array read FFirstLine;
     property MinX: Cardinal read FMinX write FMinX;
     property MinY: Cardinal read FMinY write FMinY;
-    property PixelBuffer: TBitmap read FPixelBuffer;
+    property PixelBuffer: TBitmap read FPixelBuffer write SetPixelBuffer;
   end;
 
   function PointF(X, Y: Single): TPointF;
@@ -45,11 +46,19 @@ end;
 
 { TShader }
 
-constructor TShader.Create(APixelBuffer: TBitmap);
+constructor TShader.Create();
 begin
-  FPixelBuffer := APixelBuffer;
-  FFirstLIne := FPixelBuffer.ScanLine[0];
-  FLineLength := (LongInt(FPixelBuffer.Scanline[1]) - LongInt(FFirstLine)) div SizeOf(TRGB32);
+  
+end;
+
+procedure TShader.SetPixelBuffer(const Value: TBitmap);
+begin
+  FPixelBuffer := Value;
+  if Assigned(FPixelBuffer) then
+  begin
+    FFirstLine := FPixelBuffer.ScanLine[0];
+    FLineLength := (LongInt(FPixelBuffer.Scanline[1]) - LongInt(FFirstLine)) div SizeOf(TRGB32);
+  end;
 end;
 
 end.

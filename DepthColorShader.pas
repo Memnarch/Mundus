@@ -16,7 +16,7 @@ type
     FVecB: TVectorClass4D;
     FVecC: TVectorClass4D;
   public
-    constructor Create(APixelBuffer: TBitmap); reintroduce;
+    constructor Create(); reintroduce;
     destructor Destroy(); override;
     procedure Shade8X8Quad(); override;
     procedure ShadeSinglePixel(); override;
@@ -29,7 +29,7 @@ uses
   Interpolation;
 { TDepthColorShader }
 
-constructor TDepthColorShader.Create(APixelBuffer: TBitmap);
+constructor TDepthColorShader.Create();
 begin
   inherited;
 end;

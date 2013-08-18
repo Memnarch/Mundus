@@ -3,7 +3,7 @@ unit TextureShader;
 interface
 
 uses
-  Classes, Types, SysUtils, Shader, Math3D, BaseMesh, Graphics, ColorTypes;
+  Classes, Types, SysUtils, Shader, Math3D, BaseMesh, Graphics, ColorTypes, XMM;
 
 type
   TTextureShader = class(TShader)
@@ -13,11 +13,22 @@ type
     FZA, FZB, FZC, FZD: Single;
     FAW, FBW, FCW: Single;
     FVecA, FVecB, FVecC: TVectorClass4D;
-    FTexHeight, FTexWidth, FTexMaxX, FTexMaxY: Word;
+    FTexHeight, FTexWidth, FTexMaxX, FTexMaxY: Integer;
     FTexture: TBitmap;
     FTexFirstLine: PRGB32Array;
     FTexLineLength: Integer;
+    //some filed for XMM register sized structures
+    FStepA: TXMMF32;
+    FStepB: TXMMF32;
+    FStepC: TXMMF32;
+    FStepD: TXMMF32;
+    //some pointers pointing to the previous declared registers
+    FPZUVA: PXMMF32;
+    FPZUVB: PXMMF32;
+    FPZUVC: PXMMF32;
+    FPZUVD: PXMMF32;
   public
+    constructor Create();
     procedure InitTriangle(AVecA, AvecB, AvecC: TVectorClass4D); override;
     procedure InitUV(AUVA, AUVB, AUVC: TUV);
     procedure InitTexture(ATexture: TBitmap);
@@ -31,6 +42,15 @@ uses
   Interpolation, Math;
 
 { TTextureShader }
+
+constructor TTextureShader.Create;
+begin
+  inherited;
+  FPZUVA := @FStepA;
+  FPZUVB := @FStepB;
+  FPZUVC := @FStepC;
+  FPZUVD := @FStepD;
+end;
 
 procedure TTextureShader.InitTexture(ATexture: TBitmap);
 begin
@@ -71,13 +91,17 @@ begin
   FVD := CalculateFactorD(FVecA, FVecB, FVecC, AUVA.V/FAW, AUVB.V/FBW, AUVC.V/FCW) / FVC;
 end;
 
+{$CODEALIGN 16}
 procedure TTextureShader.Shade8X8Quad;
 var
   LX, LY, LPixelY: Integer;
   LTexX, LTexY: Integer;
-  LZ: Single;
+  LZ: Double;
   LFUX, LFUY, LFVX, LFVY, LFZX, LFZY: Single;
+  LMaxX, LMaxY: Integer;
 begin
+  LMaxX := FTexMaxX;
+  LMaxY := FTexMaxY;
   LFZY := FZB*Pixel.Y + FZD;
   LFUY := FUB*Pixel.Y + FUD;
   LFVY := FVB*Pixel.Y + FVD;
@@ -85,15 +109,30 @@ begin
   for LY  := Pixel.Y to Pixel.Y + 7 do
   begin
     LFZX := FZA * Pixel.X + LFZY;
-    LFUX := (FUA * Pixel.X + LFUY);
-    LFVX := (FVA * Pixel.X + LFVY);
+    LFUX := FUA * Pixel.X + LFUY;
+    LFVX := FVA * Pixel.X + LFVY;
     for LX := Pixel.X to Pixel.X + 7 do
     begin
       LZ := 1/(LFZX);
-      LTexX := Round(abs(LFUX*FTexMaxX*LZ));
-      LTexY := Round(abs(LFVX*FTexMaxY*LZ));
+//      LTexX := Round(LFUX*LMaxX*LZ);
+      asm
+        fild LMaxX
+        FMul LFUX
+        FMul LZ
+        FISTP LTexX
+        wait
+      end;
+//      LTexY := Round(LFVX*FTexMaxY*LZ);
+      asm
+        fild LMaxY
+        FMul LFVX
+        FMul LZ
+        FISTP LTexY
+        wait
+      end;
 
-      FirstLine[LPixelY + LX] := FTexFirstLine[(LTexY mod FTexHeight)*FTexLineLength + (LTexX mod FTexWidth)];
+
+      FirstLine[LPixelY + LX] := FTexFirstLine[LTexY*FTexLineLength + LTexX];
 
       LFZX := LFZX + FZA;
       LFUX := LFUX + FUA;
@@ -106,6 +145,7 @@ begin
   end;
 end;
 
+{$CODEALIGN 16}
 procedure TTextureShader.ShadeSinglePixel;
 var
   LX, LY, LPixel, LTexPixel: Integer;
