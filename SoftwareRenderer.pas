@@ -312,7 +312,6 @@ end;
 
 procedure TSoftwareRenderer.RenderFrame(ACanvas: TCanvas);
 var
-  //LTimeStart: TDateTime;
   LMesh: TBaseMesh;
   LTriangle: TTriangleClass;
 begin
@@ -363,42 +362,25 @@ begin
         FVertexB.Element[1] := (1-FVertexB.Element[1]) * FHalfResolutionY;
         FVertexC.Element[0] := (1-FVertexC.Element[0]) * FHalfResolutionX;
         FVertexC.Element[1] := (1-FVertexC.Element[1]) * FHalfResolutionY;
-//        FVertexA.MultiplyVector4D(256);
-//        FVertexB.MultiplyVector4D(256);
-//        FVertexC.MultiplyVector4D(256);
+
         FShader.InitTriangle(FVertexA, FVertexB, FVertexC);
         TTextureShader(FShader).InitUV(LTriangle.UVA, LTriangle.UVB, LTriangle.UVC);
         TTextureShader(FShader).InitTexture(FTexture);
         RasterizeTriangle(FVertexA, FVertexB,
           FVertexC, FShader);
 
-//        FBackBuffer.Canvas.Pen.Color := clWhite;
-//        FBackBuffer.Canvas.PolyLine([
-//          Point(Round(FVertexA.Element[0]), Round(FVertexA.Element[1])),
-//          Point(Round(FVertexB.Element[0]), Round(FVertexB.Element[1])),
-//          Point(Round(FVertexC.Element[0]), Round(FVertexC.Element[1])),
-//          Point(Round(FVertexA.Element[0]), Round(FVertexA.Element[1]))
-//          ]);
-//        FBackBuffer.Canvas.Brush.Color := clYellow;
-//        FBackBuffer.Canvas.Pen.Color := clYellow;
-//        FBackBuffer.Canvas.Rectangle(Round(FVertexA.Element[0])-2, Round(FVertexA.Element[1])-2, Round(FVertexA.Element[0])+2, Round(FVertexA.Element[1])+2);
-//        FBackBuffer.Canvas.Rectangle(Round(FVertexB.Element[0])-2, Round(FVertexB.Element[1])-2, Round(FVertexB.Element[0])+2, Round(FVertexB.Element[1])+2);
-//        FBackBuffer.Canvas.Rectangle(Round(FVertexC.Element[0])-2, Round(FVertexC.Element[1])-2, Round(FVertexC.Element[0])+2, Round(FVertexC.Element[1])+2);
-//        FBackBuffer.Canvas.Brush.Color := clBlack;
-//        FBackBuffer.Canvas.Pen.Color := clBlack;
         FPolyCount := FPolyCount + 1;
       end;
     end;
   end;
-//  RasterizeTriangle(Vector(0, 0, 0), Vector(25, 0, 0),
-//        Vector(25, 25,0), RGB32(255, 0, 0, 0), RGB32(255, 0, 0, 0), RGB32(255, 0, 0, 0));
+
   DoAfterFrame(FBackBuffer.Canvas);
   ACanvas.Draw(0, 0, FBackBuffer);
   FTimer.Stop();
-  FFPS := 1000000 div FTimer.ElapsedMicroseconds; //1000 div Max(1, MilliSecondsBetween(Now(), LTimeStart));
+  FFPS := 1000000 div FTimer.ElapsedMicroseconds;
 
   GTest := GTest + 0.25;
-  GTest2 := 45;//GTest2 + 0.25;
+  GTest2 := 45;
 end;
 
 procedure TSoftwareRenderer.SetDepthBufferSize(AWidth, AHeight: Integer);
