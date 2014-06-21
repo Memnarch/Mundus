@@ -13,6 +13,7 @@ unit StopWatch;
      procedure SetTickStamp(var lInt : TLargeInteger) ;
      function GetElapsedTicks: TLargeInteger;
      function GetElapsedMiliseconds: TLargeInteger;
+    function GetElapsedMicroSeconds: TLargeInteger;
    public
      constructor Create(const startOnCreate : boolean = false) ;
      procedure Start;
@@ -20,6 +21,7 @@ unit StopWatch;
      property IsHighResolution : boolean read fIsHighResolution;
      property ElapsedTicks : TLargeInteger read GetElapsedTicks;
      property ElapsedMiliseconds : TLargeInteger read GetElapsedMiliseconds;
+     property ElapsedMicroseconds : TLargeInteger read GetElapsedMicroSeconds;
      property IsRunning : boolean read fIsRunning;
    end;
 
@@ -50,7 +52,12 @@ unit StopWatch;
      lInt := MilliSecondOf(Now) ;
  end;
 
- function TStopWatch.GetElapsedMiliseconds: TLargeInteger;
+ function TStopWatch.GetElapsedMicroSeconds: TLargeInteger;
+begin
+  result := (MSecsPerSec * 1000 * (fStopCount - fStartCount)) div fFrequency;
+end;
+
+function TStopWatch.GetElapsedMiliseconds: TLargeInteger;
  begin
    result := (MSecsPerSec * (fStopCount - fStartCount)) div fFrequency;
  end;
