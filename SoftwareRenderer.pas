@@ -3,7 +3,9 @@ unit SoftwareRenderer;
 interface
 
 uses
-  Types, Classes, SysUtils, Graphics, Generics.Collections, Math3D, BaseMesh, ColorTypes, Shader, SiAuto, SmartInspect;
+  Types, Classes, Windows, SysUtils, Graphics,
+  Generics.Collections, Math3D, BaseMesh,
+  ColorTypes, Shader, StopWatch;
 
 type
   TDepthBuffer = array of array of Single;
@@ -12,6 +14,7 @@ type
   TSoftwareRenderer = class
   private
     FDepthBuffer: TDepthBuffer;
+    FZeroDepthBuffer: TDepthBuffer;
     FBackBuffer: TBitmap;
     FTexture: TBitmap;
     FMeshList: TObjectList<TBaseMesh>;
@@ -27,6 +30,20 @@ type
     FHalfResolutionX: Integer;
     FHalfResolutionY: Integer;
     FOnAfterFrame: TRenderEvent;
+    FTimer: TStopWatch;
+    //buffers for rendering the frame
+    FWorldMatrix: TMatrixClass4D;
+    FViewMatrix: TMatrixClass4D;
+    FProjectionMatrix: TMatrixClass4D;  // Gerade dabei gewesen Viewtransformation einzubauen!! Seite 86 in TeilB
+    FMoveMatrix: TMatrixClass4D;
+    FRotateXMatrix: TMatrixClass4D;
+    FRotateYMatrix: TMatrixClass4D;
+    FRotateZMatrix: TMatrixClass4D;
+    FVertexA: TVectorClass4D;
+    FVertexB: TVectorClass4D;
+    FVertexC: TVectorClass4D;
+    FNormal: TVectorClass4D;
+    FShader: TShader;
     procedure SetDepthBufferSize(AWidth, AHeight: Integer);
     procedure ClearDepthBuffer();
     procedure RasterizeTriangle(AVerctorA, AvectorB, AvectorC: TVectorClass4D; AShader: TShader);
@@ -59,16 +76,8 @@ var
 { TSoftwareRenderer }
 
 procedure TSoftwareRenderer.ClearDepthBuffer;
-var
-  i, k: Integer;
 begin
-  for i := 0 to High(FDepthBuffer) do
-  begin
-    for k := 0 to High(FDepthBuffer[i]) do
-    begin
-      FDepthBuffer[i, k] := 10000;
-    end;
-  end;
+  FDepthBuffer := FZeroDepthBuffer;
 end;
 
 constructor TSoftwareRenderer.Create;
@@ -82,6 +91,22 @@ begin
   FTexture := TBitmap.Create();
   FTexture.LoadFromFile('Crate.bmp');
   FTexture.PixelFormat := pf32bit;
+  FTimer := TStopWatch.Create(False);
+
+  //setting up objects used while rendering a frame
+  FShader := TTextureShader.Create(); //TSolidColorShader.Create(FBackBuffer);
+  FWorldMatrix := TMatrixClass4D.Create();
+  FProjectionMatrix := TMatrixClass4D.Create();
+  FViewMatrix := TMatrixClass4D.Create();
+  FMoveMatrix := TMatrixClass4D.Create();
+  FRotateXMatrix := TMatrixClass4D.Create();
+  FRotateYMatrix := TMatrixClass4D.Create();
+  FRotateZMatrix := TMatrixClass4D.Create();
+
+  FVertexA := TVectorClass4D.Create();
+  FVertexB := TVectorClass4D.Create();
+  FVertexC := TVectorClass4D.Create();
+  FNormal := TVectorClass4D.Create();
 end;
 
 destructor TSoftwareRenderer.Destroy;
@@ -89,6 +114,20 @@ begin
   FMeshList.Free();
   FBackBuffer.Free();
   FTexture.Free;
+  FTimer.Free;
+  //destroy objects used while rendering a frame
+  FShader.Free();
+  FWorldMatrix.Free();
+  FMoveMatrix.Free();
+  FProjectionMatrix.Free();
+  FRotateXMAtrix.Free();
+  FRotateYMatrix.Free();
+  FRotateZMatrix.Free();
+  FViewMatrix.Free();
+  FVertexA.Free;
+  FVertexB.Free;
+  FVertexC.Free;
+  FNormal.Free;
   inherited;
 end;
 
@@ -273,97 +312,78 @@ end;
 
 procedure TSoftwareRenderer.RenderFrame(ACanvas: TCanvas);
 var
-  LTimeStart: TDateTime;
+  //LTimeStart: TDateTime;
   LMesh: TBaseMesh;
   LTriangle: TTriangleClass;
-  LWorldMatrix, LViewMatrix, LProjectionMatrix: TMatrixClass4D;  // Gerade dabei gewesen Viewtransformation einzubauen!! Seite 86 in TeilB
-  LMoveMatrix: TMatrixClass4D;
-  LRotateXMatrix, LRotateYMatrix, LRotateZMatrix: TMatrixClass4D;
-  LVertexA, LVertexB, LVertexC, LNormal: TVectorClass4D;
-  LShader: TTextureShader;
 begin
-  LShader := TTextureShader.Create(); //TSolidColorShader.Create(FBackBuffer);
-  LShader.PixelBuffer := FBackBuffer;
-  LTimeStart := Now();
+  FTimer.Start();
+  FShader.PixelBuffer := FBackBuffer;
   FBackBuffer.Canvas.Brush.Color := clRed;
   FBackBuffer.Canvas.FillRect(FBackBuffer.Canvas.ClipRect);
   ClearDepthBuffer();
-  LWorldMatrix := TMatrixClass4D.Create();
-  LProjectionMatrix := TMatrixClass4D.Create();
-  LViewMatrix := TMatrixClass4D.Create();
-  LMoveMatrix := TMatrixClass4D.Create();
-  LRotateXMatrix := TMatrixClass4D.Create();
-  LRotateYMatrix := TMatrixClass4D.Create();
-  LRotateZMatrix := TMatrixClass4D.Create();
 
-  LVertexA := TVectorClass4D.Create();
-  LVertexB := TVectorClass4D.Create();
-  LVertexC := TVectorClass4D.Create();
-  LNormal := TVectorClass4D.Create();
-
-  LViewMatrix.SetAsMoveMatrix(0, 0, 0);
-  LRotateXMatrix.SetAsRotationXMatrix(DegToRad(0));
-  LRotateYMatrix.SetAsRotationYMatrix(DegToRad(0));
-  LRotateZMatrix.SetAsRotationZMatrix(DegToRad(0));
-  LViewMatrix.MultiplyMatrix4D(LRotateXMatrix);
-  LViewMatrix.MultiplyMatrix4D(LRotateYMatrix);
-  LViewMatrix.MultiplyMatrix4D(LRotateZMatrix);
+  FViewMatrix.SetAsMoveMatrix(0, 0, 0);
+  FRotateXMatrix.SetAsRotationXMatrix(DegToRad(0));
+  FRotateYMatrix.SetAsRotationYMatrix(DegToRad(0));
+  FRotateZMatrix.SetAsRotationZMatrix(DegToRad(0));
+  FViewMatrix.MultiplyMatrix4D(FRotateXMatrix);
+  FViewMatrix.MultiplyMatrix4D(FRotateYMatrix);
+  FViewMatrix.MultiplyMatrix4D(FRotateZMatrix);
 
 
   FPolyCount := 0;
   for LMesh in FMeshList do
   begin
-    LMoveMatrix.SetAsMoveMatrix(LMesh.Position.X, LMesh.Position.Y, LMesh.Position.Z);
-    LRotateXMatrix.SetAsRotationXMatrix(DegToRad(GTest));
-    LRotateYMatrix.SetAsRotationYMatrix(DegToRad(GTest2));
-    LRotateZMatrix.SetAsRotationZMatrix(DegToRad(0));
-    LWorldMatrix.CopyFromMatrix4D(LMoveMatrix);
-    LWorldMatrix.MultiplyMatrix4D(LRotateXMatrix);
-    LWorldMatrix.MultiplyMatrix4D(LRotateYMatrix);
-    LWorldMatrix.MultiplyMatrix4D(LRotateZMatrix);
-    LWorldMatrix.MultiplyMatrix4D(LViewMatrix);
-    LProjectionMatrix.SetAsPerspectiveProjectionMatrix(100, 200, 0.7, FResolutionX/FResolutionY);
-//    LProjectionMatrix.SetAsPerspectiveProjectionMatrix(100, 200, 12000, 12000);
-    LProjectionMatrix.MultiplyMatrix4D(LWorldMatrix);
-    TransformMesh(LMesh, LProjectionMatrix);
+    FMoveMatrix.SetAsMoveMatrix(LMesh.Position.X, LMesh.Position.Y, LMesh.Position.Z);
+    FRotateXMatrix.SetAsRotationXMatrix(DegToRad(GTest));
+    FRotateYMatrix.SetAsRotationYMatrix(DegToRad(GTest2));
+    FRotateZMatrix.SetAsRotationZMatrix(DegToRad(0));
+    FWorldMatrix.CopyFromMatrix4D(FMoveMatrix);
+    FWorldMatrix.MultiplyMatrix4D(FRotateXMatrix);
+    FWorldMatrix.MultiplyMatrix4D(FRotateYMatrix);
+    FWorldMatrix.MultiplyMatrix4D(FRotateZMatrix);
+    FWorldMatrix.MultiplyMatrix4D(FViewMatrix);
+    FProjectionMatrix.SetAsPerspectiveProjectionMatrix(100, 200, 0.7, FResolutionX/FResolutionY);
+    FProjectionMatrix.MultiplyMatrix4D(FWorldMatrix);
+    TransformMesh(LMesh, FProjectionMatrix);
     for LTriangle in LMesh.Triangles do
     begin
-      LVertexA.CopyFromVector4D(LMesh.TransformedVertices[LTriangle.VertexA]);
-      LVertexB.CopyFromVector4D(LMesh.TransformedVertices[LTriangle.VertexB]);
-      LVertexC.CopyFromVector4D(LMesh.TransformedVertices[LTriangle.VertexC]);
+      FVertexA.CopyFromVector4D(LMesh.TransformedVertices[LTriangle.VertexA]);
+      FVertexB.CopyFromVector4D(LMesh.TransformedVertices[LTriangle.VertexB]);
+      FVertexC.CopyFromVector4D(LMesh.TransformedVertices[LTriangle.VertexC]);
 
 
-      LNormal.CalculateSurfaceNormal(LVertexA, LVertexB, LVertexC);
-      if (LNormal.Z < 0)then
+      FNormal.CalculateSurfaceNormal(FVertexA, FVertexB, FVertexC);
+      if (FNormal.Z < 0)then
       begin
         //denormalize vectors to screenpos
-        LVertexA.Element[0] := (1-LVertexA.Element[0]) * FHalfResolutionX;//half screen size
-        LVertexA.Element[1] := (1-LVertexA.Element[1]) * FHalfResolutionY;
-        LVertexB.Element[0] := (1-LVertexB.Element[0]) * FHalfResolutionX;
-        LVertexB.Element[1] := (1-LVertexB.Element[1]) * FHalfResolutionY;
-        LVertexC.Element[0] := (1-LVertexC.Element[0]) * FHalfResolutionX;
-        LVertexC.Element[1] := (1-LVertexC.Element[1]) * FHalfResolutionY;
-//        LVertexA.MultiplyVector4D(256);
-//        LVertexB.MultiplyVector4D(256);
-//        LVertexC.MultiplyVector4D(256);
-        LShader.InitTriangle(LVertexA, LVertexB, LVertexC);
-        LShader.InitUV(LTriangle.UVA, LTriangle.UVB, LTriangle.UVC);
-        LShader.InitTexture(FTexture);
-        RasterizeTriangle(LVertexA, LVertexB,
-          LVertexC, LShader);
+        FVertexA.Element[0] := (1-FVertexA.Element[0]) * FHalfResolutionX;//half screen size
+        FVertexA.Element[1] := (1-FVertexA.Element[1]) * FHalfResolutionY;
+        FVertexB.Element[0] := (1-FVertexB.Element[0]) * FHalfResolutionX;
+        FVertexB.Element[1] := (1-FVertexB.Element[1]) * FHalfResolutionY;
+        FVertexC.Element[0] := (1-FVertexC.Element[0]) * FHalfResolutionX;
+        FVertexC.Element[1] := (1-FVertexC.Element[1]) * FHalfResolutionY;
+//        FVertexA.MultiplyVector4D(256);
+//        FVertexB.MultiplyVector4D(256);
+//        FVertexC.MultiplyVector4D(256);
+        FShader.InitTriangle(FVertexA, FVertexB, FVertexC);
+        TTextureShader(FShader).InitUV(LTriangle.UVA, LTriangle.UVB, LTriangle.UVC);
+        TTextureShader(FShader).InitTexture(FTexture);
+        RasterizeTriangle(FVertexA, FVertexB,
+          FVertexC, FShader);
 
 //        FBackBuffer.Canvas.Pen.Color := clWhite;
 //        FBackBuffer.Canvas.PolyLine([
-//          Point(Round(LVertexA.Element[0]), Round(LVertexA.Element[1])),
-//          Point(Round(LVertexB.Element[0]), Round(LVertexB.Element[1])),
-//          Point(Round(LVertexC.Element[0]), Round(LVertexC.Element[1])),
-//          Point(Round(LVertexA.Element[0]), Round(LVertexA.Element[1]))
+//          Point(Round(FVertexA.Element[0]), Round(FVertexA.Element[1])),
+//          Point(Round(FVertexB.Element[0]), Round(FVertexB.Element[1])),
+//          Point(Round(FVertexC.Element[0]), Round(FVertexC.Element[1])),
+//          Point(Round(FVertexA.Element[0]), Round(FVertexA.Element[1]))
 //          ]);
 //        FBackBuffer.Canvas.Brush.Color := clYellow;
 //        FBackBuffer.Canvas.Pen.Color := clYellow;
-//        FBackBuffer.Canvas.Rectangle(Round(LVertexA.Element[0])-2, Round(LVertexA.Element[1])-2, Round(LVertexA.Element[0])+2, Round(LVertexA.Element[1])+2);
-//        FBackBuffer.Canvas.Rectangle(Round(LVertexB.Element[0])-2, Round(LVertexB.Element[1])-2, Round(LVertexB.Element[0])+2, Round(LVertexB.Element[1])+2);
-//        FBackBuffer.Canvas.Rectangle(Round(LVertexC.Element[0])-2, Round(LVertexC.Element[1])-2, Round(LVertexC.Element[0])+2, Round(LVertexC.Element[1])+2);
+//        FBackBuffer.Canvas.Rectangle(Round(FVertexA.Element[0])-2, Round(FVertexA.Element[1])-2, Round(FVertexA.Element[0])+2, Round(FVertexA.Element[1])+2);
+//        FBackBuffer.Canvas.Rectangle(Round(FVertexB.Element[0])-2, Round(FVertexB.Element[1])-2, Round(FVertexB.Element[0])+2, Round(FVertexB.Element[1])+2);
+//        FBackBuffer.Canvas.Rectangle(Round(FVertexC.Element[0])-2, Round(FVertexC.Element[1])-2, Round(FVertexC.Element[0])+2, Round(FVertexC.Element[1])+2);
 //        FBackBuffer.Canvas.Brush.Color := clBlack;
 //        FBackBuffer.Canvas.Pen.Color := clBlack;
         FPolyCount := FPolyCount + 1;
@@ -374,22 +394,11 @@ begin
 //        Vector(25, 25,0), RGB32(255, 0, 0, 0), RGB32(255, 0, 0, 0), RGB32(255, 0, 0, 0));
   DoAfterFrame(FBackBuffer.Canvas);
   ACanvas.Draw(0, 0, FBackBuffer);
-  FFPS := 1000 div Max(1, MilliSecondsBetween(Now(), LTimeStart));
-  LWorldMatrix.Free();
-  LMoveMatrix.Free();
-  LProjectionMatrix.Free();
-  LRotateXMAtrix.Free();
-  LRotateYMatrix.Free();
-  LRotateZMatrix.Free();
-  LViewMatrix.Free();
-  LVertexA.Free;
-  LVertexB.Free;
-  LVertexC.Free;
-  LNormal.Free;
+  FTimer.Stop();
+  FFPS := 1000000 div FTimer.ElapsedMicroseconds; //1000 div Max(1, MilliSecondsBetween(Now(), LTimeStart));
+
   GTest := GTest + 0.25;
   GTest2 := 45;//GTest2 + 0.25;
-
-  LShader.Free();
 end;
 
 procedure TSoftwareRenderer.SetDepthBufferSize(AWidth, AHeight: Integer);
@@ -397,9 +406,12 @@ var
   i: Integer;
 begin
   SetLength(FDepthBuffer, AHeight);
+  SetLength(FZeroDepthBuffer, AHeight);
   for i := 0 to AHeight - 1 do
   begin
     SetLength(FDepthBuffer[i], AWidth);
+    SetLength(FZeroDepthBuffer[i], AWidth);
+    ZeroMemory(FZeroDepthBuffer[i], AWidth);
   end;
 end;
 
