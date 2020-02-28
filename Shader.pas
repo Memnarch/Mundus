@@ -3,7 +3,7 @@ unit Shader;
 interface
 
 uses
-  Classes, Types, Graphics, ColorTypes, Math3D, SiAuto, SmartInspect;
+  Classes, Types, Graphics, ColorTypes, Math3D;
 
 type
 

@@ -13,7 +13,8 @@ uses
   DepthColorShader in 'DepthColorShader.pas',
   Interpolation in 'Interpolation.pas',
   TextureShader in 'TextureShader.pas',
-  StopWatch in 'StopWatch.pas';
+  StopWatch in 'StopWatch.pas',
+  XMM in 'XMM.pas';
 
 {$R *.res}
 
