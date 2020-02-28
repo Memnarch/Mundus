@@ -14,7 +14,10 @@ uses
   Interpolation in 'Interpolation.pas',
   TextureShader in 'TextureShader.pas',
   StopWatch in 'StopWatch.pas',
-  XMM in 'XMM.pas';
+  XMM in 'XMM.pas',
+  DrawCall in 'DrawCall.pas',
+  RenderWorker in 'RenderWorker.pas',
+  Rasterizer in 'Rasterizer.pas';
 
 {$R *.res}
 
