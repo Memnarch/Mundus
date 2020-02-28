@@ -46,7 +46,7 @@ type
     FShader: TShader;
     procedure SetDepthBufferSize(AWidth, AHeight: Integer);
     procedure ClearDepthBuffer();
-    procedure RasterizeTriangle(AVerctorA, AvectorB, AvectorC: TVectorClass4D; AShader: TShader);
+    procedure RasterizeTriangle(AVerctorA, AvectorB, AvectorC: TVectorClass4D; AShader: TShader; ABlockOffset, ABlockStep: Integer);
     procedure TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrixClass4D);
     procedure DoAfterFrame(ACanvas: TCanvas);
   public
@@ -149,8 +149,7 @@ begin
   Result := FPolyCount;
 end;
 
-procedure TSoftwareRenderer.RasterizeTriangle(AVerctorA, AvectorB,
-  AvectorC: TVectorClass4D; AShader: TShader);
+procedure TSoftwareRenderer.RasterizeTriangle(AVerctorA, AvectorB, AvectorC: TVectorClass4D; AShader: TShader; ABlockOffset, ABlockStep: Integer);
 var
   Y1, Y2, Y3, X1, X2, X3, DX12, DX23, DX31, DY12, DY23, DY31, FDX12, FDX23, FDX31, FDY12, FDY23, FDY31: Integer;
   MinX, MinY, MAxX, MAxY, C1, C2, C3, BlockX, BlockY, CornerX0, CornerX1, CornerY0, CornerY1: Integer;
@@ -207,6 +206,8 @@ begin
 //    minx &= ~(q - 1);
 //    miny &= ~(q - 1);
     MinX := MinX div (QuadSize) * QuadSize;
+    //align to block matching stepping
+    Minx := MinX div (QuadSize*ABlockStep) * QuadSize*ABlockStep + ABlockOffset*QuadSize;
     MinY := MinY div (QuadSize) * QuadSize;
 
     // Half-edge constants
@@ -304,7 +305,7 @@ begin
                 end;
               end;
             end;
-          BlockX := BlockX + QuadSize;
+          BlockX := BlockX + QuadSize * ABlockStep;
         end;
       BlockY := BlockY + QuadSize;
     end;
@@ -367,7 +368,7 @@ begin
         TTextureShader(FShader).InitUV(LTriangle.UVA, LTriangle.UVB, LTriangle.UVC);
         TTextureShader(FShader).InitTexture(FTexture);
         RasterizeTriangle(FVertexA, FVertexB,
-          FVertexC, FShader);
+          FVertexC, FShader, 0, 3);
 
         FPolyCount := FPolyCount + 1;
       end;
