@@ -5,7 +5,7 @@ interface
 uses
   Types, Classes, Windows, SysUtils, Graphics,
   Generics.Collections, Math3D, BaseMesh,
-  ColorTypes, Shader, StopWatch;
+  ColorTypes, Shader, StopWatch, DrawCall;
 
 type
   TDepthBuffer = array of array of Single;
@@ -47,8 +47,9 @@ type
     procedure SetDepthBufferSize(AWidth, AHeight: Integer);
     procedure ClearDepthBuffer();
     procedure RasterizeTriangle(AVerctorA, AvectorB, AvectorC: TVectorClass4D; AShader: TShader; ABlockOffset, ABlockStep: Integer);
-    procedure TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrixClass4D);
+    procedure TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrixClass4D; ATargetCall: TDrawCall);
     procedure DoAfterFrame(ACanvas: TCanvas);
+    function GenerateDrawCalls: TObjectList<TDrawCall>;
   public
     constructor Create();
     destructor Destroy(); override;
@@ -136,6 +137,32 @@ begin
   if Assigned(FOnAfterFrame) then
   begin
     FOnAfterFrame(ACanvas);
+  end;
+end;
+
+function TSoftwareRenderer.GenerateDrawCalls: TObjectList<TDrawCall>;
+var
+  LMesh: TBaseMesh;
+  LCall: TDrawCall;
+begin
+  Result := TObjectList<TDrawCall>.Create();
+  FPolyCount := 0;
+  for LMesh in FMeshList do
+  begin
+    LCall := TDrawCall.Create();
+    Result.Add(LCall);
+    FMoveMatrix.SetAsMoveMatrix(LMesh.Position.X, LMesh.Position.Y, LMesh.Position.Z);
+    FRotateXMatrix.SetAsRotationXMatrix(DegToRad(GTest));
+    FRotateYMatrix.SetAsRotationYMatrix(DegToRad(GTest2));
+    FRotateZMatrix.SetAsRotationZMatrix(DegToRad(0));
+    FWorldMatrix.CopyFromMatrix4D(FMoveMatrix);
+    FWorldMatrix.MultiplyMatrix4D(FRotateXMatrix);
+    FWorldMatrix.MultiplyMatrix4D(FRotateYMatrix);
+    FWorldMatrix.MultiplyMatrix4D(FRotateZMatrix);
+    FWorldMatrix.MultiplyMatrix4D(FViewMatrix);
+    FProjectionMatrix.SetAsPerspectiveProjectionMatrix(100, 200, 0.7, FResolutionX/FResolutionY);
+    FProjectionMatrix.MultiplyMatrix4D(FWorldMatrix);
+    TransformMesh(LMesh, FProjectionMatrix, LCall);
   end;
 end;
 
@@ -313,8 +340,9 @@ end;
 
 procedure TSoftwareRenderer.RenderFrame(ACanvas: TCanvas);
 var
-  LMesh: TBaseMesh;
   LTriangle: TTriangleClass;
+  LDrawCalls: TObjectList<TDrawCall>;
+  LCall: TDrawCall;
 begin
   FTimer.Start();
   FShader.PixelBuffer := FBackBuffer;
@@ -329,50 +357,41 @@ begin
   FViewMatrix.MultiplyMatrix4D(FRotateXMatrix);
   FViewMatrix.MultiplyMatrix4D(FRotateYMatrix);
   FViewMatrix.MultiplyMatrix4D(FRotateZMatrix);
-
-
   FPolyCount := 0;
-  for LMesh in FMeshList do
-  begin
-    FMoveMatrix.SetAsMoveMatrix(LMesh.Position.X, LMesh.Position.Y, LMesh.Position.Z);
-    FRotateXMatrix.SetAsRotationXMatrix(DegToRad(GTest));
-    FRotateYMatrix.SetAsRotationYMatrix(DegToRad(GTest2));
-    FRotateZMatrix.SetAsRotationZMatrix(DegToRad(0));
-    FWorldMatrix.CopyFromMatrix4D(FMoveMatrix);
-    FWorldMatrix.MultiplyMatrix4D(FRotateXMatrix);
-    FWorldMatrix.MultiplyMatrix4D(FRotateYMatrix);
-    FWorldMatrix.MultiplyMatrix4D(FRotateZMatrix);
-    FWorldMatrix.MultiplyMatrix4D(FViewMatrix);
-    FProjectionMatrix.SetAsPerspectiveProjectionMatrix(100, 200, 0.7, FResolutionX/FResolutionY);
-    FProjectionMatrix.MultiplyMatrix4D(FWorldMatrix);
-    TransformMesh(LMesh, FProjectionMatrix);
-    for LTriangle in LMesh.Triangles do
+  LDrawCalls := GenerateDrawCalls();
+  try
+    for LCall in LDrawCalls do
     begin
-      FVertexA.CopyFromVector4D(LMesh.TransformedVertices[LTriangle.VertexA]);
-      FVertexB.CopyFromVector4D(LMesh.TransformedVertices[LTriangle.VertexB]);
-      FVertexC.CopyFromVector4D(LMesh.TransformedVertices[LTriangle.VertexC]);
-
-
-      FNormal.CalculateSurfaceNormal(FVertexA, FVertexB, FVertexC);
-      if (FNormal.Z < 0)then
+      for LTriangle in LCall.Triangles do
       begin
-        //denormalize vectors to screenpos
-        FVertexA.Element[0] := (1-FVertexA.Element[0]) * FHalfResolutionX;//half screen size
-        FVertexA.Element[1] := (1-FVertexA.Element[1]) * FHalfResolutionY;
-        FVertexB.Element[0] := (1-FVertexB.Element[0]) * FHalfResolutionX;
-        FVertexB.Element[1] := (1-FVertexB.Element[1]) * FHalfResolutionY;
-        FVertexC.Element[0] := (1-FVertexC.Element[0]) * FHalfResolutionX;
-        FVertexC.Element[1] := (1-FVertexC.Element[1]) * FHalfResolutionY;
+        FVertexA.CopyFromVector4D(LCall.Vertices[LTriangle.VertexA]);
+        FVertexB.CopyFromVector4D(LCall.Vertices[LTriangle.VertexB]);
+        FVertexC.CopyFromVector4D(LCall.Vertices[LTriangle.VertexC]);
 
-        FShader.InitTriangle(FVertexA, FVertexB, FVertexC);
-        TTextureShader(FShader).InitUV(LTriangle.UVA, LTriangle.UVB, LTriangle.UVC);
-        TTextureShader(FShader).InitTexture(FTexture);
-        RasterizeTriangle(FVertexA, FVertexB,
-          FVertexC, FShader, 0, 3);
 
-        FPolyCount := FPolyCount + 1;
+        FNormal.CalculateSurfaceNormal(FVertexA, FVertexB, FVertexC);
+        if (FNormal.Z < 0)then
+        begin
+          //denormalize vectors to screenpos
+          FVertexA.Element[0] := (1-FVertexA.Element[0]) * FHalfResolutionX;//half screen size
+          FVertexA.Element[1] := (1-FVertexA.Element[1]) * FHalfResolutionY;
+          FVertexB.Element[0] := (1-FVertexB.Element[0]) * FHalfResolutionX;
+          FVertexB.Element[1] := (1-FVertexB.Element[1]) * FHalfResolutionY;
+          FVertexC.Element[0] := (1-FVertexC.Element[0]) * FHalfResolutionX;
+          FVertexC.Element[1] := (1-FVertexC.Element[1]) * FHalfResolutionY;
+
+          FShader.InitTriangle(FVertexA, FVertexB, FVertexC);
+          TTextureShader(FShader).InitUV(LTriangle.UVA, LTriangle.UVB, LTriangle.UVC);
+          TTextureShader(FShader).InitTexture(FTexture);
+          RasterizeTriangle(FVertexA, FVertexB,
+            FVertexC, FShader, 0, 1);
+
+          FPolyCount := FPolyCount + 1;
+        end;
       end;
     end;
+  finally
+    LDrawCalls.Free;
   end;
 
   DoAfterFrame(FBackBuffer.Canvas);
@@ -415,19 +434,28 @@ begin
   FHalfResolutionY := FResolutionY div 2;
 end;
 
-procedure TSoftwareRenderer.TransformMesh(AMesh: TBaseMesh;
-  AMatrix: TMatrixClass4D);
+procedure TSoftwareRenderer.TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrixClass4D; ATargetCall: TDrawCall);
 var
   i: Integer;
+  LVertex: TVectorClass4D;
+  LTriangle, LCopyTriangle: TTriangleClass;
 begin
   for i := 0 to AMesh.Vertices.Count - 1 do
   begin
-    AMesh.TransformedVertices[i].Element[0] := AMesh.Vertices[i].X;
-    AMesh.TransformedVertices[i].Element[1] := AMesh.Vertices[i].Y;
-    AMesh.TransformedVertices[i].Element[2] := AMesh.Vertices[i].Z;
-    AMesh.TransformedVertices[i].Element[3] := 1;
-    AMesh.TransformedVertices[i].MultiplyWithMatrix4D(AMatrix);
-    AMesh.TransformedVertices[i].Rescale(True);
+    LVertex := TVectorClass4D.Create();
+    ATargetCall.Vertices.Add(LVertex);
+    LVertex.Element[0] := AMesh.Vertices[i].X;
+    LVertex.Element[1] := AMesh.Vertices[i].Y;
+    LVertex.Element[2] := AMesh.Vertices[i].Z;
+    LVertex.Element[3] := 1;
+    LVertex.MultiplyWithMatrix4D(AMatrix);
+    LVertex.Rescale(True);
+  end;
+  for LTriangle in AMesh.Triangles do
+  begin
+    LCopyTriangle := TTriangleClass.Create(LTriangle.VertexA, LTriangle.VertexB, LTriangle.VertexC);
+    LCopyTriangle.SetUV(LTriangle.UVA, LTriangle.UVB, LTriangle.UVC);
+    ATargetCall.Triangles.Add(LCopyTriangle);
   end;
 end;
 
