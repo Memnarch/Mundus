@@ -14,9 +14,9 @@ type
 
   TSoftwareRenderer = class
   private
-    FDepthBuffer: TDepthBuffer;
+    FDepthBuffer: array[boolean] of TDepthBuffer;
     FZeroDepthBuffer: TDepthBuffer;
-    FBackBuffer: TBitmap;
+    FBackBuffer: array[boolean] of TBitmap;
     FTexture: TBitmap;
     FMeshList: TObjectList<TBaseMesh>;
     FFPS: Integer;
@@ -42,15 +42,16 @@ type
     FNormal: TVectorClass4D;
     FShader: TShader;
     FWorkers: TObjectList<TRenderWorker>;
-    procedure SetDepthBufferSize(AWidth, AHeight: Integer);
-    procedure ClearDepthBuffer();
+    FCurrentBuffer: Boolean;
+    procedure SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);
+    procedure ClearDepthBuffer(ABuffer: Boolean);
     procedure TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrixClass4D; ATargetCall: TDrawCall);
     procedure DoAfterFrame(ACanvas: TCanvas);
     function GenerateDrawCalls: TObjectList<TDrawCall>;
     procedure DispatchCalls(ACanvas: TCanvas; ACalls: TObjectList<TDrawCall>);
     procedure SpinupWorkers(AWorkerCount: Integer);
     procedure TerminateWorkers;
-    procedure UpdateBufferResolution(AWidth, AHeight: Integer);
+    procedure UpdateBufferResolution(ABuffer: Boolean; AWidth, AHeight: Integer);
   public
     constructor Create();
     destructor Destroy(); override;
@@ -85,13 +86,15 @@ var
 
 procedure TSoftwareRenderer.ClearDepthBuffer;
 begin
-  FDepthBuffer := FZeroDepthBuffer;
+  FDepthBuffer[ABuffer] := FZeroDepthBuffer;
 end;
 
 constructor TSoftwareRenderer.Create;
 begin
-  FBackBuffer := TBitmap.Create();
-  FBackbuffer.PixelFormat := pf32bit;
+  FBackBuffer[True] := TBitmap.Create();
+  FBackbuffer[True].PixelFormat := pf32bit;
+  FBackBuffer[False] := TBitmap.Create();
+  FBackbuffer[False].PixelFormat := pf32bit;
   SetResolution(512, 512);
   FMeshList := TObjectList<TBaseMesh>.Create();
   FQuadSize := 8;
@@ -117,7 +120,7 @@ begin
   FNormal := TVectorClass4D.Create();
 
   FWorkers := TObjectList<TRenderWorker>.Create();
-  SpinupWorkers(2);
+  SpinupWorkers(1);
 end;
 
 destructor TSoftwareRenderer.Destroy;
@@ -125,7 +128,8 @@ begin
   TerminateWorkers;
   FWorkers.Free;
   FMeshList.Free();
-  FBackBuffer.Free();
+  FBackBuffer[True].Free();
+  FBackBuffer[False].Free();
   FTexture.Free;
   FTimer.Free;
   //destroy objects used while rendering a frame
@@ -147,31 +151,41 @@ end;
 procedure TSoftwareRenderer.DispatchCalls(ACanvas: TCanvas; ACalls: TObjectList<TDrawCall>);
 var
   LWorker: TRenderWorker;
+  LBackBuffer, LFrontBuffer: Boolean;
+  LLastCalls: TObjectList<TDrawCall>;
 begin
+  LBackBuffer := FCurrentBuffer;
+  LFrontBuffer := not FCurrentBuffer;
+
+  //ResetBackBuffer from last frame
+  UpdateBufferResolution(LFrontBuffer, FResolutionX, FResolutionY);
+  FBackBuffer[LFrontBuffer].Canvas.Brush.Color := clRed;
+  FBackBuffer[LFrontBuffer].Canvas.FillRect(FBackBuffer[LFrontBuffer].Canvas.ClipRect);
+  ClearDepthBuffer(LFrontBuffer);
+
+  //wait for workers to finish frame
   for LWorker in FWorkers do
     LWorker.WaitForRender;
-
-  if Assigned(FWorkers[0].DrawCalls) then
-    FWorkers[0].DrawCalls.Free;
-
-  //Draw Backbuffer to FrontBuffer
-  DoAfterFrame(FBackBuffer.Canvas);
-  ACanvas.Draw(0, 0, FBackBuffer);
-  //ResetBackBuffer
-  UpdateBufferResolution(FResolutionX, FResolutionY);
-  FBackBuffer.Canvas.Brush.Color := clRed;
-  FBackBuffer.Canvas.FillRect(FBackBuffer.Canvas.ClipRect);
-  ClearDepthBuffer();
-
+//
+  LLastCalls := FWorkers[0].DrawCalls;
+//
+//  //load workers with new stuff and start
   for LWorker in FWorkers do
   begin
     LWorker.DrawCalls := ACalls;
     LWorker.Shader.InitTexture(FTexture);
-    LWorker.Shader.PixelBuffer := FBackBuffer;
+    LWorker.Shader.PixelBuffer := FBackBuffer[LFrontBuffer];
     LWorker.ResolutionX := FResolutionX;
     LWorker.ResolutionY := FResolutionY;
     LWorker.StartRender;
   end;
+  if Assigned(LLastCalls) then
+    LLastCalls.Free;
+  //Draw Backbuffer to FrontBuffer
+  DoAfterFrame(FBackBuffer[LBackBuffer].Canvas);
+  ACanvas.Draw(0, 0, FBackBuffer[LBackBuffer]);
+  //flip buffers
+  FCurrentBuffer := not FCurrentBuffer;
 end;
 
 procedure TSoftwareRenderer.DoAfterFrame(ACanvas: TCanvas);
@@ -243,15 +257,15 @@ begin
   GTest2 := 45;
 end;
 
-procedure TSoftwareRenderer.SetDepthBufferSize(AWidth, AHeight: Integer);
+procedure TSoftwareRenderer.SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);
 var
   i: Integer;
 begin
-  SetLength(FDepthBuffer, AHeight);
+  SetLength(FDepthBuffer[ABuffer], AHeight);
   SetLength(FZeroDepthBuffer, AHeight);
   for i := 0 to AHeight - 1 do
   begin
-    SetLength(FDepthBuffer[i], AWidth);
+    SetLength(FDepthBuffer[ABuffer][i], AWidth);
     SetLength(FZeroDepthBuffer[i], AWidth);
     ZeroMemory(FZeroDepthBuffer[i], AWidth);
   end;
@@ -313,17 +327,17 @@ begin
   end;
 end;
 
-procedure TSoftwareRenderer.UpdateBufferResolution(AWidth, AHeight: Integer);
+procedure TSoftwareRenderer.UpdateBufferResolution(ABuffer: Boolean; AWidth, AHeight: Integer);
 begin
-  if (FBackBuffer.Width <> AWidth) or (FBackBuffer.Height <> AHeight) then
+  if (FBackBuffer[ABuffer].Width <> AWidth) or (FBackBuffer[ABuffer].Height <> AHeight) then
   begin
-    FBackBuffer.SetSize(AWidth, Aheight);
-    FFirstLIne := FBackBuffer.ScanLine[0];
-    FLineLength := (Longint(FBackBuffer.Scanline[1]) - Longint(FFirstLine)) div SizeOf(TRGB32);
-    FBackBuffer.Canvas.Pen.Color := clBlack;
-    FBackBuffer.Canvas.Brush.Color := clBlack;
-    SetDepthBufferSize(AWidth, AHeight);
-    ClearDepthBuffer();
+    FBackBuffer[ABuffer].SetSize(AWidth, Aheight);
+    FFirstLIne := FBackBuffer[ABuffer].ScanLine[0];
+    FLineLength := (Longint(FBackBuffer[ABuffer].Scanline[1]) - Longint(FFirstLine)) div SizeOf(TRGB32);
+    FBackBuffer[ABuffer].Canvas.Pen.Color := clBlack;
+    FBackBuffer[ABuffer].Canvas.Brush.Color := clBlack;
+    SetDepthBufferSize(ABuffer, AWidth, AHeight);
+    ClearDepthBuffer(ABuffer);
   end;
 end;
 
