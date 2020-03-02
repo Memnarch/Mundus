@@ -6,18 +6,44 @@ uses
   Types, Classes, SysUtils, Math;
 
 type
+  TFloatArray = TArray<Single>;
 
-  TFloatArray = array of Double;
-
-  TMatrix = array of TFloatArray;
-
-  TMatrixClass4D = class; //dummy
-
-  TVector4D = record
-    X, Y, Z, W: Double;
+  TFloat2 = record
+    case byte of
+      0: (X, Y: Single);
+      1: (U, V: Single);
   end;
 
-  PVector4D = ^TVector4D;
+  TFloat3 = record
+    X, Y, Z: Single;
+    procedure Add(const ARight: TFloat3);
+    procedure Sub(const ARight: TFloat3);
+    procedure Mul(const AFactor: Single); overload;
+    procedure Mul(const ARight: TFloat3); overload;
+    procedure CalculateSurfaceNormal(const AVecA, AVecB, AVecC: TFloat3);
+  end;
+
+  TFloat4 = record
+    procedure Add(const ARight: TFloat4);
+    procedure Sub(const ARight: TFloat4);
+    procedure Mul(const AFactor: Single); overload;
+    procedure Mul(const ARight: TFloat4); overload;
+    procedure Dot(const ARight: TFloat4); overload;
+    procedure Cross(const ARight: TFloat4); overload;
+    procedure CalculateSurfaceNormal(const AVecA, AVecB, AVecC: TFloat4);
+    procedure Normalize;
+    procedure NormalizeKeepW;
+    case byte of
+      0: (X, Y, Z, W: Single);
+      1: (XY, ZW: TFloat2);
+      2: (Element: array[0..3] of Single);
+  end;
+
+  TMatrix4D = record
+    Values: array[0..3] of TFloat4;
+  end;
+
+  PVector4D = ^TFloat4;
 
   TVectorClass3D = class
   private
@@ -45,30 +71,12 @@ type
     property Z: Double read GetZ write SetZ;
   end;
 
-  TVectorClass4D = class(TVectorClass3D)
+  TMatrix4x4 = record
   private
-
+    FMatrix: array[0..3] of array[0..3] of Single;
+    function GetMatrixElement(IndexX, IndexY: Integer): Single;
+    procedure SetMatrixElement(IndexX, IndexY: Integer; const Value: Single);
   public
-    constructor Create(); reintroduce;
-    destructor Destroy(); override;
-    procedure Rescale(AKeepW: Boolean = False);
-    procedure Clear(); override;
-    procedure CopyFromVector4D(AVector: TVectorClass4D); overload;
-    procedure CopyFromVector4D(const AVector: TVector4D); overload;
-    procedure AddVector4D(AVector: TVectorClass4D);
-    procedure SubtractVector4D(AVector: TVectorClass4D);
-    procedure MultiplyVector4D(AFactor: Double);
-    procedure MultiplyWithMatrix4D(AMatrix: TMatrixClass4D);
-  end;
-
-  TMatrixClass4D = class
-  private
-    FMatrix: TMatrix;
-    function GetMatrixElement(IndexX, IndexY: Integer): Double;
-    procedure SetMatrixElement(IndexX, IndexY: Integer; const Value: Double);
-  public
-    constructor Create();
-    destructor Destroy(); override;
     procedure SetAsNullMatrix4D();
     procedure SetAsNullMatrix3D();
     procedure SetAsIdentMatrix4D();
@@ -79,15 +87,15 @@ type
     procedure SetAsRotationZMatrix(AAlpha: Double);
     procedure SetAsPerspectiveProjectionMatrix(ZNear, ZFar, FOV, AspectRation: Double);
     procedure Clear();
-    procedure CopyFromMatrix4D(AMatrix: TMatrixClass4D);
-    procedure AddMatrix4D(AMatrix: TMatrixClass4D);
-    procedure AddMatrix3D(AMatrix: TMatrixClass4D);
-    procedure SubtractMatrix4D(AMatrix: TMatrixClass4D);
-    procedure SubtractMatrix3D(AMatrix:TMatrixClass4D);
+    procedure AddMatrix4D(AMatrix: TMatrix4x4);
+    procedure AddMatrix3D(AMatrix: TMatrix4x4);
+    procedure SubtractMatrix4D(AMatrix: TMatrix4x4);
+    procedure SubtractMatrix3D(AMatrix:TMatrix4x4);
     procedure MultiplyMatrix4DWithFloat(AValue: Double);
     procedure MultiplyMatrix3DWithFloat(AValue: Double);
-    procedure MultiplyMatrix4D(AMatrix: TMatrixClass4D);
-    property Matrix[IndexX, IndexY: Integer]: Double read GetMatrixElement write SetMatrixElement;
+    procedure MultiplyMatrix4D(AMatrix: TMatrix4x4);
+    function Transform(const AVector: TFloat4): TFloat4;
+    property Matrix[IndexX, IndexY: Integer]: Single read GetMatrixElement write SetMatrixElement;
   end;
 
 implementation
@@ -217,114 +225,9 @@ begin
   end;
 end;
 
-{ TVectorClass4D }
+{ TMatrix4x4 }
 
-procedure TVectorClass4D.AddVector4D(AVector: TVectorClass4D);
-var
-  i: Integer;
-begin
-  for i := 0 to 3 do
-  begin
-    FElement[i] := FElement[i] + AVector.Element[i];
-  end;
-end;
-
-procedure TVectorClass4D.Clear;
-begin
-  inherited;
-  FElement[3] := 1;
-end;
-
-procedure TVectorClass4D.CopyFromVector4D(const AVector: TVector4D);
-begin
-  FElement[0] := AVector.X;
-  FElement[1] := AVector.Y;
-  FElement[2] := AVector.Z;
-  FElement[3] := AVector.W;
-end;
-
-procedure TVectorClass4D.CopyFromVector4D(AVector: TVectorClass4D);
-var
-  i: Integer;
-begin
-  for i := 0 to 3 do
-  begin
-    FElement[i] := AVector.Element[i];
-  end;
-end;
-
-constructor TVectorClass4D.Create;
-begin
-  SetLength(FElement, 4);
-  Clear();
-end;
-
-destructor TVectorClass4D.Destroy;
-begin
-  SetLength(FElement, 0);
-  inherited;
-end;
-
-procedure TVectorClass4D.MultiplyVector4D(AFactor: Double);
-var
-  i: Integer;
-begin
-  for i := 0 to 3 do
-  begin
-    FElement[i] := FElement[i] * AFactor;
-  end;
-end;
-
-procedure TVectorClass4D.MultiplyWithMatrix4D(AMatrix: TMatrixClass4D);
-var
-  i, k: Integer;
-  LVector: TVectorClass4D;
-begin
-  LVector := TVectorClass4D.Create();
-
-  for i := 0 to 3 do
-  begin
-    LVector.Element[i] := 0;
-    for k := 0 to 3 do
-    begin
-      LVector.Element[i] := LVector.Element[i] + Amatrix.FMatrix[k, i] * Self.Element[k];
-    end;
-  end;
-  Self.CopyFromVector4D(LVector);
-//  if Self.Element[3] <> 1 then
-//  begin
-//    Self.Rescale();
-//  end;
-  LVector.Free();
-end;
-
-procedure TVectorClass4D.Rescale;
-var
-  i: Integer;
-begin
-  for i := 0 to 2 do
-  begin
-    Self.FElement[i] := Self.FElement[i] / Self.FElement[3];
-  end;
-  if not AKeepW then
-  begin
-    Self.FElement[3] := 1;
-  end;
-end;
-
-procedure TVectorClass4D.SubtractVector4D(AVector: TVectorClass4D);
-var
-  i: Integer;
-begin
-  for i := 0 to 3 do
-  begin
-    FElement[i] := FElement[i] - AVector.Element[i];
-  end;
-end;
-
-{ TMatrixClass4D }
-
-procedure TMatrixClass4D.AddMatrix3D(AMatrix: TMatrixClass4D);
+procedure TMatrix4x4.AddMatrix3D(AMatrix: TMatrix4x4);
 var
   i, k: Integer;
 begin
@@ -337,7 +240,7 @@ begin
   end;
 end;
 
-procedure TMatrixClass4D.AddMatrix4D(AMatrix: TMatrixClass4D);
+procedure TMatrix4x4.AddMatrix4D(AMatrix: TMatrix4x4);
 var
   i, k: Integer;
 begin
@@ -350,7 +253,7 @@ begin
   end;
 end;
 
-procedure TMatrixClass4D.Clear;
+procedure TMatrix4x4.Clear;
 var
   i, k: Integer;
 begin
@@ -363,52 +266,12 @@ begin
   end;
 end;
 
-procedure TMatrixClass4D.CopyFromMatrix4D(AMatrix: TMatrixClass4D);
-var
-  i, k: Integer;
-begin
-  for i := 0 to 3 do
-  begin
-    for k := 0 to 3 do
-    begin
-      FMatrix[i, k] := AMatrix.FMatrix[i, k];
-    end;
-  end;
-
-end;
-
-constructor TMatrixClass4D.Create;
-var
-  i: Integer;
-begin
-  SetLength(FMatrix, 4);
-  for i := 0 to 3 do
-  begin
-    SetLength(FMatrix[i], 4);
-  end;
-  Clear();
-end;
-
-destructor TMatrixClass4D.Destroy;
-var
-  i: Integer;
-begin
-  for i := 0 to 3 do
-  begin
-    SetLength(FMatrix[i], 0);
-  end;
-  SetLength(FMatrix, 0);
-  inherited;
-end;
-
-
-
-function TMatrixClass4D.GetMatrixElement(IndexX, IndexY: Integer): Double;
+function TMatrix4x4.GetMatrixElement(IndexX, IndexY: Integer): Single;
 begin
   Result := FMatrix[IndexX, IndexY];
 end;
 
-procedure TMatrixClass4D.MultiplyMatrix3DWithFloat(AValue: Double);
+procedure TMatrix4x4.MultiplyMatrix3DWithFloat(AValue: Double);
 var
   i, k: Integer;
 begin
@@ -421,13 +284,11 @@ begin
   end;
 end;
 
-procedure TMatrixClass4D.MultiplyMatrix4D(AMatrix: TMatrixClass4D);
+procedure TMatrix4x4.MultiplyMatrix4D(AMatrix: TMatrix4x4);
 var
   i, k, m: Integer;
-  LMatrix: TMatrixClass4D;
+  LMatrix: TMatrix4x4;
 begin
-  LMatrix := TMatrixClass4D.Create();
-//  LMatrix.CopyFromMatrix4D(Self);
   for i := 0 to 3 do
   begin
     for k := 0 to 3 do
@@ -440,11 +301,10 @@ begin
     end;
   end;
 
-  Self.CopyFromMatrix4D(LMatrix);
-  LMatrix.Free();
+  Self := LMatrix;
 end;
 
-procedure TMatrixClass4D.MultiplyMatrix4DWithFloat(AValue: Double);
+procedure TMatrix4x4.MultiplyMatrix4DWithFloat(AValue: Double);
 var
   i, k: Integer;
 begin
@@ -458,7 +318,7 @@ begin
 end;
 
 
-procedure TMatrixClass4D.SetAsIdentMatrix4D;
+procedure TMatrix4x4.SetAsIdentMatrix4D;
 var
   i, k: Integer;
 begin
@@ -478,7 +338,7 @@ begin
   end;
 end;
 
-procedure TMatrixClass4D.SetAsMoveMatrix(AX, AY, AZ: Double);
+procedure TMatrix4x4.SetAsMoveMatrix(AX, AY, AZ: Double);
 begin
   Clear();
   FMatrix[0, 0] := 1;
@@ -490,18 +350,18 @@ begin
   FMatrix[3, 2] := AZ;
 end;
 
-procedure TMatrixClass4D.SetAsNullMatrix3D;
+procedure TMatrix4x4.SetAsNullMatrix3D;
 begin
   Clear();
   FMatrix[3, 3] := 1;
 end;
 
-procedure TMatrixClass4D.SetAsNullMatrix4D;
+procedure TMatrix4x4.SetAsNullMatrix4D;
 begin
   Clear();
 end;
 
-procedure TMatrixClass4D.SetAsPerspectiveProjectionMatrix(ZNear, ZFar, FOV, AspectRation: Double);
+procedure TMatrix4x4.SetAsPerspectiveProjectionMatrix(ZNear, ZFar, FOV, AspectRation: Double);
 begin
   Clear();
   FMatrix[0, 0] := Cotan(FOV/2)/AspectRation;// 2*ZNear/AspectRation;
@@ -511,7 +371,7 @@ begin
   FMatrix[2, 3] := 1;
 end;
 
-procedure TMatrixClass4D.SetAsRotationXMatrix(AAlpha: Double);
+procedure TMatrix4x4.SetAsRotationXMatrix(AAlpha: Double);
 var
   LC, LS: Double;
 begin
@@ -526,7 +386,7 @@ begin
   FMatrix[2][1] := -LS;
 end;
 
-procedure TMatrixClass4D.SetAsRotationYMatrix(AAlpha: Double);
+procedure TMatrix4x4.SetAsRotationYMatrix(AAlpha: Double);
 var
   LC, LS: Double;
 begin
@@ -541,7 +401,7 @@ begin
   FMatrix[2][0] := LS;
 end;
 
-procedure TMatrixClass4D.SetAsRotationZMatrix(AAlpha: Double);
+procedure TMatrix4x4.SetAsRotationZMatrix(AAlpha: Double);
 var
   LC, LS: Double;
 begin
@@ -556,7 +416,7 @@ begin
   FMatrix[1][0] := -LS;
 end;
 
-procedure TMatrixClass4D.SetAsScaleMatrix(AX, AY, AZ: Double);
+procedure TMatrix4x4.SetAsScaleMatrix(AX, AY, AZ: Double);
 begin
   Clear;
   FMatrix[0, 0] := AX;
@@ -565,13 +425,13 @@ begin
   FMatrix[3, 3] := 1;
 end;
 
-procedure TMatrixClass4D.SetMatrixElement(IndexX, IndexY: Integer;
-  const Value: Double);
+procedure TMatrix4x4.SetMatrixElement(IndexX, IndexY: Integer;
+  const Value: Single);
 begin
   FMatrix[IndexX, IndexY] := Value;
 end;
 
-procedure TMatrixClass4D.SubtractMatrix3D(AMatrix: TMatrixClass4D);
+procedure TMatrix4x4.SubtractMatrix3D(AMatrix: TMatrix4x4);
 var
   i, k: Integer;
 begin
@@ -584,7 +444,7 @@ begin
   end;
 end;
 
-procedure TMatrixClass4D.SubtractMatrix4D(AMatrix: TMatrixClass4D);
+procedure TMatrix4x4.SubtractMatrix4D(AMatrix: TMatrix4x4);
 var
   i, k: Integer;
 begin
@@ -595,6 +455,232 @@ begin
       FMatrix[i, k] := FMatrix[i, k] + AMatrix.FMatrix[i, k];
     end;
   end;
+end;
+
+function TMatrix4x4.Transform(const AVector: TFloat4): TFloat4;
+var
+  i, k: Integer;
+begin
+  for i := 0 to 3 do
+  begin
+    Result.Element[i] := 0;
+    for k := 0 to 3 do
+    begin
+      Result.Element[i] := Result.Element[i] + FMatrix[k, i] * AVector.Element[k];
+    end;
+  end;
+end;
+
+{ TFloat4 }
+
+procedure TFloat4.Add(const ARight: TFloat4);
+asm
+  movups xmm0, [Self]
+  movups xmm1, [ARight]
+  addps xmm0, xmm1
+  movups [Self], xmm0
+end;
+//begin
+//  X := X + ARight.X;
+//  Y := Y + ARight.Y;
+//  Z := Z + ARight.Z;
+//  W := W + ARight.W;
+//end;
+
+procedure TFloat4.Mul(const AFactor: Single);
+asm
+  //load factor into lowest part of xmm1
+  movss xmm0, [AFactor]
+//  //set all parts of xmm1 to the value in the lowest part of xmm1
+  shufps xmm0, xmm0, 0
+  movups xmm1, [Self]
+  mulps xmm0, xmm1
+  movups [Self], xmm0
+end;
+
+procedure TFloat4.CalculateSurfaceNormal(const AVecA, AVecB, AVecC: TFloat4);
+var
+  LVecU, LVecV: TFloat4;
+begin
+  LVecU := AVecB;
+  LVecU.Sub(AVecA);
+
+  LVecV := AVecC;
+  LVecV.Sub(AVecA);
+
+  LVecU.Cross(LVecV);
+  Self := LVecU;
+//  X := (LVecU.Y*LVecV.Z) - (LVecU.Z*LVecV.Y);
+//  Y := (LVecU.Z*LVecV.X) - (LVecU.X*LVecV.Z);
+//  Z := (LVecU.X*LVecV.Y) - (LVecU.Y*LVecV.X);
+end;
+
+procedure TFloat4.Cross(const ARight: TFloat4);
+asm
+  movups xmm0, [Self]
+  movups xmm1, [ARight]
+  //vshufps xmm3, xmm1, xmm1, 201
+  movaps xmm3, xmm1
+  shufps xmm3, xmm3, 201
+
+  //vshufps xmm2, xmm0, xmm0
+  movaps xmm2, xmm0
+  shufps xmm2, xmm0, 201
+  mulps xmm0, xmm3
+  mulps xmm1, xmm2
+  subps xmm0, xmm1
+  shufps xmm0, xmm0, 201
+  movups [Self], xmm0
+end;
+
+procedure TFloat4.Dot(const ARight: TFloat4);
+asm
+  movups xmm0, [Self]
+  movups xmm1, [ARight]
+  dpps xmm0, xmm1, $FF
+  movups [Self], xmm0
+end;
+
+procedure TFloat4.Mul(const ARight: TFloat4);
+asm
+  movups xmm0, [Self]
+  movups xmm1, [ARight]
+  mulps xmm0, xmm1
+  movups [Self], xmm0
+end;
+
+procedure TFloat4.Normalize;
+asm
+  movups xmm0, [Self]
+  movaps xmm1, xmm0
+  //move highest (w) into all elements
+  shufps xmm1, xmm1, $FF//0//$FF
+  divps xmm0, xmm1
+  movups [Self], xmm0
+end;
+
+procedure TFloat4.NormalizeKeepW;
+var
+  LW: Single;
+begin
+  LW := W;
+  Normalize;
+  W := LW;
+end;
+
+procedure TFloat4.Sub(const ARight: TFloat4);
+asm
+  movups xmm0, [Self]
+  movups xmm1, [ARight]
+  subps xmm0, xmm1
+  movups [Self], xmm0
+end;
+//begin
+//  X := X - ARight.X;
+//  Y := Y - ARight.Y;
+//  Z := Z - ARight.Z;
+//  W := W - ARight.W;
+//end;
+
+{ TFloat3 }
+
+procedure TFloat3.Add(const ARight: TFloat3);
+asm
+  //load xy
+  movq xmm0, [Self]
+  //load z
+  insertps xmm0, [Self.z], 3 shl 4
+  //load xy
+  movq xmm1, [ARight]
+  //load z
+  insertps xmm1, [ARight.Z], 3 shl 4
+  addps xmm0, xmm1
+  //extract z
+  extractps [Self.Z], xmm0, 3 shl 0
+  //extract xy
+  movq [Self], xmm0
+//begin
+//  X := X + ARight.X;
+//  Y := Y + ARight.Y;
+//  Z := Z + ARight.Z;
+end;
+
+procedure TFloat3.Mul(const AFactor: Single);
+asm
+  //load xy
+  movq xmm0, [Self]
+  //load z
+  insertps xmm0, [Self.z], 3 shl 4
+
+  //load factor into lowest part of xmm1
+  movss xmm1, [AFactor]
+  //set all parts of xmm1 to the value in the lowest part of xmm1
+  shufps xmm1, xmm1, 0
+
+  mulps xmm0, xmm1
+  //extract z
+  extractps [Self.Z], xmm0, 3 shl 0
+  //extract xy
+  movq [Self], xmm0
+//begin
+//  X := X * AFactor;
+//  Y := Y * AFactor;
+//  Z := Z * AFactor;
+end;
+
+procedure TFloat3.CalculateSurfaceNormal(const AVecA, AVecB, AVecC: TFloat3);
+var
+  LVecU, LVecV: TFloat3;
+begin
+  LVecU := AVecB;
+  LVecU.Sub(AVecA);
+
+  LVecV := AVecC;
+  LVecV.Sub(AVecA);
+  X := (LVecU.Y*LVecV.Z) - (LVecU.Z*LVecV.Y);
+  Y := (LVecU.Z*LVecV.X) - (LVecU.X*LVecV.Z);
+  Z := (LVecU.X*LVecV.Y) - (LVecU.Y*LVecV.X);
+end;
+
+procedure TFloat3.Mul(const ARight: TFloat3);
+asm
+  //load xy
+  movq xmm0, [Self]
+  //load z
+  insertps xmm0, [Self.z], 3 shl 4
+
+  //load xy
+  movq xmm1, [ARight]
+  //load z
+  insertps xmm1, [ARight.z], 3 shl 4
+
+  mulps xmm0, xmm1
+  //extract z
+  extractps [Self.Z], xmm0, 3 shl 0
+  //extract xy
+  movq [Self], xmm0
+end;
+
+procedure TFloat3.Sub(const ARight: TFloat3);
+asm
+  //load xy
+  movq xmm0, [Self]
+  //load z
+  insertps xmm0, [Self.z], 3 shl 4
+  //load xy
+  movq xmm1, [ARight]
+  //load z
+  insertps xmm1, [ARight.Z], 3 shl 4
+
+  subps xmm0, xmm1
+  //extract z
+  extractps [Self.Z], xmm0, 3 shl 0
+  //extract xy
+  movq [Self], xmm0
+//begin
+//  X := X - ARight.X;
+//  Y := Y - ARight.Y;
+//  Z := Z - ARight.Z;
 end;
 
 end.
