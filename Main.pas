@@ -17,10 +17,10 @@ type
   private
     { Private-Deklarationen }
     FSoftwareRenderer: TSoftwareRenderer;
-    FLastCall: TDateTime;
     FWatch: TStopWatch;
     FMinFPS, FMaxFPS: Integer;
     FCube: TCube;
+    FLastReset: TDateTime;
     procedure HandleAfterFrame(ACanvas: TCanvas);
   public
     { Public-Deklarationen }
@@ -54,7 +54,7 @@ begin
 //  LCube := TCube.Create();
 //  LCube.Position := Vector(-20, 0, LCube.Position.Z);
 //  FSoftwareRenderer.MeshList.Add(LCube);
-  FLastCall := Now();
+  FLastReset := Now();
   FMinFPS := 1000;
   FMaxFPS := 0;
   FWatch := TStopWatch.Create(False);
@@ -104,24 +104,55 @@ begin
 end;
 
 procedure TForm1.GameTimerTimer(Sender: TObject);
+var
+  LFPS: Integer;
+  LNow: TDateTime;
 begin
   FSoftwareRenderer.RenderFrame(Canvas);
+  Canvas.Brush.Color := clWhite;
+  LFPS := FSoftwareRenderer.GetCurrentFPS;
+  if LFPS > 0 then
+  begin
+    LNow := Now();
+    if SecondsBetween(FLastReset, LNow) >= 5 then
+    begin
+      FMaxFPS := LFPS;
+      FMinFPS := LFPS;
+      FLastReset := LNow;
+    end
+    else
+    begin
+      FMaxFPS := Max(FMaxFPS, LFPS);
+      FMinFPS := Min(FMinFPS, LFPS);
+    end;
+    Canvas.TextOut(10, 10, IntToStr(FSoftwareRenderer.ResolutionX) + 'x' + IntToStr(FSoftwareRenderer.ResolutionY));
+    Canvas.TextOut(10, 30, Format('FPS: %.3d MinFPS: %.3d MaxFPS: %.3d', [LFPS, FMinFPS, FMaxFPS]));
+  end;
 end;
 
 procedure TForm1.HandleAfterFrame(ACanvas: TCanvas);
 var
   LFPS: Integer;
+  LNow: TDateTime;
 begin
   ACanvas.Brush.Color := clWhite;
   LFPS := FSoftwareRenderer.GetCurrentFPS;
   if LFPS > 0 then
   begin
-    FMaxFPS := Max(FMaxFPS, LFPS);
-    FMinFPS := Min(FMinFPS, LFPS);
+    LNow := Now();
+    if SecondsBetween(FLastReset, LNow) >= 5 then
+    begin
+      FMaxFPS := LFPS;
+      FMinFPS := LFPS;
+      FLastReset := LNow;
+    end
+    else
+    begin
+      FMaxFPS := Max(FMaxFPS, LFPS);
+      FMinFPS := Min(FMinFPS, LFPS);
+    end;
     ACanvas.TextOut(10, 10, IntToStr(FSoftwareRenderer.ResolutionX) + 'x' + IntToStr(FSoftwareRenderer.ResolutionY));
-    ACanvas.TextOut(10, 30, 'FPS: ' + IntToStr(LFPS) + ' Min-Fps: ' +
-        IntToStr(FMinFPS) + ' Max-Fps: ' + IntToStr(FMaxFPS) + ' PolyCount: ' +
-        IntToStr(FSoftwareRenderer.GetCurrentPolyCount));
+    ACanvas.TextOut(10, 30, Format('FPS: %.3d MinFPS: %.3d MaxFPS: %.3d', [LFPS, FMinFPS, FMaxFPS]));
   end;
 end;
 
