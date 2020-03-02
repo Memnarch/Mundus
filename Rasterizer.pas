@@ -74,9 +74,9 @@ begin
 //    minx &= ~(q - 1);
 //    miny &= ~(q - 1);
     MinX := MinX div (QuadSize) * QuadSize;
-    //align to block matching stepping
-    Minx := MinX div (QuadSize*ABlockStep) * QuadSize*ABlockStep + ABlockOffset*QuadSize;
     MinY := MinY div (QuadSize) * QuadSize;
+        //align to block matching stepping
+    MinY := MinY div (QuadSize*ABlockStep) * QuadSize*ABlockStep + ABlockOffset*QuadSize;
 
     // Half-edge constants
     C1 := DY12 * X1 - DX12 * Y1;
@@ -173,9 +173,9 @@ begin
                 end;
               end;
             end;
-          BlockX := BlockX + QuadSize * ABlockStep;
+          BlockX := BlockX + QuadSize;
         end;
-      BlockY := BlockY + QuadSize;
+      BlockY := BlockY + QuadSize * ABlockStep;
     end;
 end;
 
