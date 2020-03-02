@@ -13,6 +13,12 @@ type
 
   TMatrixClass4D = class; //dummy
 
+  TVector4D = record
+    X, Y, Z, W: Double;
+  end;
+
+  PVector4D = ^TVector4D;
+
   TVectorClass3D = class
   private
     FElement: TFloatArray;
@@ -47,7 +53,8 @@ type
     destructor Destroy(); override;
     procedure Rescale(AKeepW: Boolean = False);
     procedure Clear(); override;
-    procedure CopyFromVector4D(AVector: TVectorClass4D);
+    procedure CopyFromVector4D(AVector: TVectorClass4D); overload;
+    procedure CopyFromVector4D(const AVector: TVector4D); overload;
     procedure AddVector4D(AVector: TVectorClass4D);
     procedure SubtractVector4D(AVector: TVectorClass4D);
     procedure MultiplyVector4D(AFactor: Double);
@@ -226,6 +233,14 @@ procedure TVectorClass4D.Clear;
 begin
   inherited;
   FElement[3] := 1;
+end;
+
+procedure TVectorClass4D.CopyFromVector4D(const AVector: TVector4D);
+begin
+  FElement[0] := AVector.X;
+  FElement[1] := AVector.Y;
+  FElement[2] := AVector.Z;
+  FElement[3] := AVector.W;
 end;
 
 procedure TVectorClass4D.CopyFromVector4D(AVector: TVectorClass4D);

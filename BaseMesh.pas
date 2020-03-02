@@ -10,13 +10,16 @@ type
     X, Y, Z: Integer;
   end;
 
-  TTriangle = record
-    VertexA, VertexB, VertexC: Integer;
-  end;
-
   TUV = record
     U, V: Single;
   end;
+
+  TTriangle = record
+    VertexA, VertexB, VertexC: Integer;
+    UVA, UVB, UVC: TUV;
+  end;
+
+  PTriangle = ^TTriangle;
 
   TVectorClass = class
   private

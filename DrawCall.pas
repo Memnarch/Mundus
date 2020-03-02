@@ -10,31 +10,45 @@ uses
 type
   TDrawCall = class
   private
-    FVertices: TObjectList<TVectorClass4D>;
-    FTriangles: TObjectList<TTriangleClass>;
+    FVertices: TArray<TVector4D>;
+    FTriangles: TArray<TTriangle>;
   public
-    constructor Create;
-    destructor Destroy; override;
-    property Vertices: TObjectList<TVectorClass4D> read FVertices write FVertices;
-    property Triangles: TObjectList<TTriangleClass> read FTriangles;
+    procedure AddVertex(const AVertex: TVectorClass4D);
+    procedure AddTriangle(const ATriangle: TTriangleClass);
+    property Vertices: TArray<TVector4D> read FVertices write FVertices;
+    property Triangles: TArray<TTriangle> read FTriangles;
   end;
 
 implementation
 
 { TDrawCall }
 
-constructor TDrawCall.Create;
+{ TDrawCall }
+
+procedure TDrawCall.AddTriangle(const ATriangle: TTriangleClass);
+var
+  LTriangle: PTriangle;
 begin
-  inherited;
-  FVertices := TObjectList<TVectorClass4D>.Create();
-  FTriangles := TObjectList<TTriangleClass>.Create();
+  SetLength(FTriangles, Length(FTriangles)+1);
+  LTriangle := @FTriangles[High(FTriangles)];
+  LTriangle.VertexA := ATriangle.VertexA;
+  LTriangle.VertexB := ATriangle.VertexB;
+  LTriangle.VertexC := ATriangle.VertexC;
+  LTriangle.UVA := ATriangle.UVA;
+  LTriangle.UVB := ATriangle.UVB;
+  LTriangle.UVC := ATriangle.UVC;
 end;
 
-destructor TDrawCall.Destroy;
+procedure TDrawCall.AddVertex(const AVertex: TVectorClass4D);
+var
+  LVertex: PVector4D;
 begin
-  FVertices.Free;
-  FTriangles.Free;
-  inherited;
+  SetLength(FVertices, Length(FVertices)+1);
+  LVertex := @FVertices[High(FVertices)];
+  LVertex.X := AVertex.X;
+  LVertex.Y := AVertex.Y;
+  LVertex.Z := AVertex.Z;
+  LVertex.W := AVertex.Element[3];
 end;
 
 end.

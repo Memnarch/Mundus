@@ -82,7 +82,7 @@ end;
 procedure TRenderWorker.Execute;
 var
   LCall: TDrawCall;
-  LTriangle: TTriangleClass;
+  LTriangle: TTriangle;
 begin
   while not Terminated do
   begin

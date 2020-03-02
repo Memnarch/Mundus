@@ -120,7 +120,7 @@ begin
   FNormal := TVectorClass4D.Create();
 
   FWorkers := TObjectList<TRenderWorker>.Create();
-  SpinupWorkers(1);
+  SpinupWorkers(2);
 end;
 
 destructor TSoftwareRenderer.Destroy;
@@ -306,25 +306,22 @@ procedure TSoftwareRenderer.TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrixClas
 var
   i: Integer;
   LVertex: TVectorClass4D;
-  LTriangle, LCopyTriangle: TTriangleClass;
+  LTriangle: TTriangleClass;
 begin
+  LVertex := TVectorClass4D.Create();
   for i := 0 to AMesh.Vertices.Count - 1 do
   begin
-    LVertex := TVectorClass4D.Create();
-    ATargetCall.Vertices.Add(LVertex);
     LVertex.Element[0] := AMesh.Vertices[i].X;
     LVertex.Element[1] := AMesh.Vertices[i].Y;
     LVertex.Element[2] := AMesh.Vertices[i].Z;
     LVertex.Element[3] := 1;
     LVertex.MultiplyWithMatrix4D(AMatrix);
     LVertex.Rescale(True);
+    ATargetCall.AddVertex(LVertex);
   end;
+  LVertex.Free;
   for LTriangle in AMesh.Triangles do
-  begin
-    LCopyTriangle := TTriangleClass.Create(LTriangle.VertexA, LTriangle.VertexB, LTriangle.VertexC);
-    LCopyTriangle.SetUV(LTriangle.UVA, LTriangle.UVB, LTriangle.UVC);
-    ATargetCall.Triangles.Add(LCopyTriangle);
-  end;
+    ATargetCall.AddTriangle(LTriangle);
 end;
 
 procedure TSoftwareRenderer.UpdateBufferResolution(ABuffer: Boolean; AWidth, AHeight: Integer);
