@@ -8,14 +8,16 @@ uses
   BaseMesh;
 
 type
+//  TFloat4 = TVector4D;
+
   TDrawCall = class
   private
-    FVertices: TArray<TVector4D>;
+    FVertices: TArray<TFloat4>;
     FTriangles: TArray<TTriangle>;
   public
     procedure AddVertex(const AVertex: TVectorClass4D);
     procedure AddTriangle(const ATriangle: TTriangleClass);
-    property Vertices: TArray<TVector4D> read FVertices write FVertices;
+    property Vertices: TArray<TFloat4> read FVertices write FVertices;
     property Triangles: TArray<TTriangle> read FTriangles;
   end;
 
