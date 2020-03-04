@@ -29,23 +29,18 @@ type
     FOnAfterFrame: TRenderEvent;
     FTimer: TStopWatch;
     //buffers for rendering the frame
-    FWorldMatrix: TMatrixClass4D;
-    FViewMatrix: TMatrixClass4D;
-    FProjectionMatrix: TMatrixClass4D;  // Gerade dabei gewesen Viewtransformation einzubauen!! Seite 86 in TeilB
-    FMoveMatrix: TMatrixClass4D;
-    FRotateXMatrix: TMatrixClass4D;
-    FRotateYMatrix: TMatrixClass4D;
-    FRotateZMatrix: TMatrixClass4D;
-    FVertexA: TVectorClass4D;
-    FVertexB: TVectorClass4D;
-    FVertexC: TVectorClass4D;
-    FNormal: TVectorClass4D;
-    FShader: TShader;
+    FWorldMatrix: TMatrix4x4;
+    FViewMatrix: TMatrix4x4;
+    FProjectionMatrix: TMatrix4x4;  // Gerade dabei gewesen Viewtransformation einzubauen!! Seite 86 in TeilB
+    FMoveMatrix: TMatrix4x4;
+    FRotateXMatrix: TMatrix4x4;
+    FRotateYMatrix: TMatrix4x4;
+    FRotateZMatrix: TMatrix4x4;
     FWorkers: TObjectList<TRenderWorker>;
     FCurrentBuffer: Boolean;
     procedure SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);
     procedure ClearDepthBuffer(ABuffer: Boolean);
-    procedure TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrixClass4D; ATargetCall: TDrawCall);
+    procedure TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrix4x4; ATargetCall: TDrawCall);
     procedure DoAfterFrame(ACanvas: TCanvas);
     function GenerateDrawCalls: TObjectList<TDrawCall>;
     procedure DispatchCalls(ACanvas: TCanvas; ACalls: TObjectList<TDrawCall>);
@@ -104,21 +99,6 @@ begin
   FTexture.PixelFormat := pf32bit;
   FTimer := TStopWatch.Create(False);
 
-  //setting up objects used while rendering a frame
-  FShader := TTextureShader.Create(); //TSolidColorShader.Create(FBackBuffer);
-  FWorldMatrix := TMatrixClass4D.Create();
-  FProjectionMatrix := TMatrixClass4D.Create();
-  FViewMatrix := TMatrixClass4D.Create();
-  FMoveMatrix := TMatrixClass4D.Create();
-  FRotateXMatrix := TMatrixClass4D.Create();
-  FRotateYMatrix := TMatrixClass4D.Create();
-  FRotateZMatrix := TMatrixClass4D.Create();
-
-  FVertexA := TVectorClass4D.Create();
-  FVertexB := TVectorClass4D.Create();
-  FVertexC := TVectorClass4D.Create();
-  FNormal := TVectorClass4D.Create();
-
   FWorkers := TObjectList<TRenderWorker>.Create();
   SpinupWorkers(2);
 end;
@@ -133,18 +113,7 @@ begin
   FTexture.Free;
   FTimer.Free;
   //destroy objects used while rendering a frame
-  FShader.Free();
-  FWorldMatrix.Free();
-  FMoveMatrix.Free();
-  FProjectionMatrix.Free();
-  FRotateXMAtrix.Free();
-  FRotateYMatrix.Free();
-  FRotateZMatrix.Free();
-  FViewMatrix.Free();
-  FVertexA.Free;
-  FVertexB.Free;
-  FVertexC.Free;
-  FNormal.Free;
+
   inherited;
 end;
 
@@ -211,7 +180,7 @@ begin
     FRotateXMatrix.SetAsRotationXMatrix(DegToRad(GTest));
     FRotateYMatrix.SetAsRotationYMatrix(DegToRad(GTest2));
     FRotateZMatrix.SetAsRotationZMatrix(DegToRad(0));
-    FWorldMatrix.CopyFromMatrix4D(FMoveMatrix);
+    FWorldMatrix  := FMoveMatrix;
     FWorldMatrix.MultiplyMatrix4D(FRotateXMatrix);
     FWorldMatrix.MultiplyMatrix4D(FRotateYMatrix);
     FWorldMatrix.MultiplyMatrix4D(FRotateZMatrix);
@@ -246,7 +215,6 @@ begin
   FViewMatrix.MultiplyMatrix4D(FRotateYMatrix);
   FViewMatrix.MultiplyMatrix4D(FRotateZMatrix);
   FPolyCount := 0;
-  TTextureShader(FShader).InitTexture(FTexture);
   LDrawCalls := GenerateDrawCalls();
   DispatchCalls(ACanvas, LDrawCalls);
 
@@ -254,6 +222,7 @@ begin
   FFPS := 1000000 div FTimer.ElapsedMicroseconds;
 
   GTest := GTest + 0.25;
+//  GTest := 45;//GTest + 0.25;
   GTest2 := 45;
 end;
 
@@ -302,24 +271,22 @@ begin
     FWorkers[0].DrawCalls.Free;
 end;
 
-procedure TSoftwareRenderer.TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrixClass4D; ATargetCall: TDrawCall);
+procedure TSoftwareRenderer.TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrix4x4; ATargetCall: TDrawCall);
 var
   i: Integer;
-  LVertex: TVectorClass4D;
+  LVertex: TFloat4;
   LTriangle: TTriangleClass;
 begin
-  LVertex := TVectorClass4D.Create();
   for i := 0 to AMesh.Vertices.Count - 1 do
   begin
     LVertex.Element[0] := AMesh.Vertices[i].X;
     LVertex.Element[1] := AMesh.Vertices[i].Y;
     LVertex.Element[2] := AMesh.Vertices[i].Z;
     LVertex.Element[3] := 1;
-    LVertex.MultiplyWithMatrix4D(AMatrix);
-    LVertex.Rescale(True);
+    LVertex := AMatrix.Transform(LVertex);
+    LVertex.NormalizeKeepW;
     ATargetCall.AddVertex(LVertex);
   end;
-  LVertex.Free;
   for LTriangle in AMesh.Triangles do
     ATargetCall.AddTriangle(LTriangle);
 end;

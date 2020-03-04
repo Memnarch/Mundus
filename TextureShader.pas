@@ -12,7 +12,7 @@ type
 //    FVA, FVB, FVC, FVD: Single;
 //    FZA, FZB, FZC, FZD: Single;
 //    FAW, FBW, FCW: Single;
-    FVecA, FVecB, FVecC: TVectorClass4D;
+    FVecA, FVecB, FVecC: TFloat4;
     FTexHeight, FTexWidth, FTexMaxX, FTexMaxY: Integer;
     FTexture: TBitmap;
     FTexFirstLine: PRGB32Array;
@@ -21,7 +21,7 @@ type
     FStepA, FStepB, FStepC, FStepD: TFloat4;
   public
     constructor Create();
-    procedure InitTriangle(AVecA, AvecB, AvecC: TVectorClass4D); override;
+    procedure InitTriangle(AVecA, AvecB, AvecC: TFloat4); override;
     procedure InitUV(AUVA, AUVB, AUVC: TUV);
     procedure InitTexture(ATexture: TBitmap);
     procedure Shade8X8Quad(); override;
@@ -52,7 +52,7 @@ begin
   FTexLineLength := (Longint(FTexture.Scanline[1]) - Longint(FTexFirstLine)) div SizeOf(TRGB32);
 end;
 
-procedure TTextureShader.InitTriangle(AVecA, AvecB, AvecC: TVectorClass4D);
+procedure TTextureShader.InitTriangle(AVecA, AvecB, AvecC: TFloat4);
 begin
   FVecA := AVecA;
   FVecB := AVecB;
@@ -117,7 +117,6 @@ begin
 //      LTexX := Round(LFUX*LMaxX*LZ);
       LFUV := LFX.XY;
       LTexX := Round(LFX.XY.U*LMaxX*LZ);
-      LTexY := Round(LFX.XY.V*FTexMaxY*LZ);
 //      asm
 //        fild LMaxX
 //        FMul LFUX
@@ -126,7 +125,7 @@ begin
 //        wait
 //      end;
 //      LTexY := Round(LFVX*FTexMaxY*LZ);
-        LTexY := Round(LFX.XY.V*FTexMaxY*LZ);
+        LTexY := Round(LFX.XY.V*LMaxY*LZ);
 //      asm
 //        fild LMaxY
 //        FMul LFVX

@@ -19,10 +19,10 @@ type
     FBlockSteps: Integer;
     FBlockOffset: Integer;
     FShader: TTextureShader;
-    FVertexA: TVectorClass4D;
-    FVertexB: TVectorClass4D;
-    FVertexC: TVectorClass4D;
-    FNormal: TVectorClass4D;
+    FVertexA: TFloat4;
+    FVertexB: TFloat4;
+    FVertexC: TFloat4;
+    FNormal: TFloat4;
     FResolutionX: Integer;
     FResolutionY: Integer;
     FMaxResolutionX: Integer;
@@ -61,10 +61,6 @@ begin
   FDone := TEvent.Create(nil, False, True, '');
   FStart := TEvent.Create(nil, False, False, '');
   FShader := TTextureShader.Create();
-  FVertexA := TVectorClass4D.Create();
-  FVertexB := TVectorClass4D.Create();
-  FVertexC := TVectorClass4D.Create();
-  FNormal := TVectorClass4D.Create();
 end;
 
 destructor TRenderWorker.Destroy;
@@ -73,10 +69,6 @@ begin
   FStart.Free;
   FDone.Free;
   FShader.Free;
-  FVertexA.Free;
-  FVertexB.Free;
-  FVertexC.Free;
-  FNormal.Free;
 end;
 
 procedure TRenderWorker.Execute;
@@ -91,11 +83,9 @@ begin
     begin
       for LTriangle in LCall.Triangles do
       begin
-        FVertexA.CopyFromVector4D(LCall.Vertices[LTriangle.VertexA]);
-        FVertexB.CopyFromVector4D(LCall.Vertices[LTriangle.VertexB]);
-        FVertexC.CopyFromVector4D(LCall.Vertices[LTriangle.VertexC]);
-
-
+        FVertexA := LCall.Vertices[LTriangle.VertexA];
+        FVertexB := LCall.Vertices[LTriangle.VertexB];
+        FVertexC := LCall.Vertices[LTriangle.VertexC];
         FNormal.CalculateSurfaceNormal(FVertexA, FVertexB, FVertexC);
         if (FNormal.Z < 0)then
         begin

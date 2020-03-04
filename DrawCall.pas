@@ -15,7 +15,7 @@ type
     FVertices: TArray<TFloat4>;
     FTriangles: TArray<TTriangle>;
   public
-    procedure AddVertex(const AVertex: TVectorClass4D);
+    procedure AddVertex(const AVertex: TFloat4);
     procedure AddTriangle(const ATriangle: TTriangleClass);
     property Vertices: TArray<TFloat4> read FVertices write FVertices;
     property Triangles: TArray<TTriangle> read FTriangles;
@@ -41,16 +41,10 @@ begin
   LTriangle.UVC := ATriangle.UVC;
 end;
 
-procedure TDrawCall.AddVertex(const AVertex: TVectorClass4D);
-var
-  LVertex: PVector4D;
+procedure TDrawCall.AddVertex(const AVertex: TFloat4);
 begin
   SetLength(FVertices, Length(FVertices)+1);
-  LVertex := @FVertices[High(FVertices)];
-  LVertex.X := AVertex.X;
-  LVertex.Y := AVertex.Y;
-  LVertex.Z := AVertex.Z;
-  LVertex.W := AVertex.Element[3];
+  FVertices[High(FVertices)] := AVertex;
 end;
 
 end.

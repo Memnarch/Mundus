@@ -12,15 +12,15 @@ type
     FStepB: Single;
     FStepC: Single;
     FStepD: Single;
-    FVecA: TVectorClass4D;
-    FVecB: TVectorClass4D;
-    FVecC: TVectorClass4D;
+    FVecA: TFloat4;
+    FVecB: TFloat4;
+    FVecC: TFloat4;
   public
     constructor Create(); reintroduce;
     destructor Destroy(); override;
     procedure Shade8X8Quad(); override;
     procedure ShadeSinglePixel(); override;
-    procedure InitTriangle(AVecA, AVecB, AVecC: TVectorClass4D); override;
+    procedure InitTriangle(AVecA, AVecB, AVecC: TFloat4); override;
   end;
 
 implementation
@@ -39,7 +39,7 @@ begin
   inherited;
 end;
 
-procedure TDepthColorShader.InitTriangle(AVecA, AVecB, AVecC: TVectorClass4D);
+procedure TDepthColorShader.InitTriangle(AVecA, AVecB, AVecC: TFloat4);
 var
   R1, R2, R3: Single;
 begin

@@ -6,7 +6,7 @@ uses
   Math3D,
   Shader;
 
-procedure RasterizeTriangle(AMaxResolutionX, AMaxResolutionY: Integer; AVerctorA, AvectorB, AvectorC: TVectorClass4D; AShader: TShader; ABlockOffset, ABlockStep: Integer);
+procedure RasterizeTriangle(AMaxResolutionX, AMaxResolutionY: Integer; const AVerctorA, AvectorB, AvectorC: TFloat4; AShader: TShader; ABlockOffset, ABlockStep: Integer);
 
 implementation
 
@@ -17,7 +17,7 @@ uses
 const
   QuadSize = 8;
 
-procedure RasterizeTriangle(AMaxResolutionX, AMaxResolutionY: Integer; AVerctorA, AvectorB, AvectorC: TVectorClass4D; AShader: TShader; ABlockOffset, ABlockStep: Integer);
+procedure RasterizeTriangle(AMaxResolutionX, AMaxResolutionY: Integer; const AVerctorA, AvectorB, AvectorC: TFloat4; AShader: TShader; ABlockOffset, ABlockStep: Integer);
 var
   Y1, Y2, Y3, X1, X2, X3, DX12, DX23, DX31, DY12, DY23, DY31, FDX12, FDX23, FDX31, FDY12, FDY23, FDY31: Integer;
   MinX, MinY, MAxX, MAxY, C1, C2, C3, BlockX, BlockY, CornerX0, CornerX1, CornerY0, CornerY1: Integer;

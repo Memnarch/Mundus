@@ -25,7 +25,7 @@ type
     constructor Create();
     procedure Shade8X8Quad(); virtual; abstract;
     procedure ShadeSinglePixel(); virtual; abstract;
-    procedure InitTriangle(AVecA, AVecB, AVecC: TVectorClass4D); virtual; abstract;
+    procedure InitTriangle(AVecA, AVecB, AVecC: TFloat4); virtual; abstract;
     property Pixel: TPoint read FPixel write FPixel;
     property LineLength: Integer read FLineLength;
     property FirstLine: PRGB32Array read FFirstLine;
