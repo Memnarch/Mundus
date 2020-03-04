@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ExtCtrls, SoftwareRenderer, StopWatch, Cube;
+  Dialogs, StdCtrls, ExtCtrls, SoftwareRenderer, StopWatch, Cube, SamplerGraph;
 
 type
   TForm1 = class(TForm)
@@ -21,6 +21,7 @@ type
     FMinFPS, FMaxFPS: Integer;
     FCube: TCube;
     FLastReset: TDateTime;
+    FGraph: TSamplerGraph;
     procedure HandleAfterFrame(ACanvas: TCanvas);
   public
     { Public-Deklarationen }
@@ -40,10 +41,12 @@ procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   FSoftwareRenderer.Free;
   FWatch.Free;
+  FGraph.Free;
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
+  FGraph := TSamplerGraph.Create();
   FCube := TCube.Create();
   FCube.Position := Vector(0, 0, 132);
   FSoftwareRenderer := TSoftwareRenderer.Create();
@@ -109,25 +112,25 @@ var
   LNow: TDateTime;
 begin
   FSoftwareRenderer.RenderFrame(Canvas);
-  Canvas.Brush.Color := clWhite;
-  LFPS := FSoftwareRenderer.GetCurrentFPS;
-  if LFPS > 0 then
-  begin
-    LNow := Now();
-    if SecondsBetween(FLastReset, LNow) >= 5 then
-    begin
-      FMaxFPS := LFPS;
-      FMinFPS := LFPS;
-      FLastReset := LNow;
-    end
-    else
-    begin
-      FMaxFPS := Max(FMaxFPS, LFPS);
-      FMinFPS := Min(FMinFPS, LFPS);
-    end;
-    Canvas.TextOut(10, 10, IntToStr(FSoftwareRenderer.ResolutionX) + 'x' + IntToStr(FSoftwareRenderer.ResolutionY));
-    Canvas.TextOut(10, 30, Format('FPS: %.3d MinFPS: %.3d MaxFPS: %.3d', [LFPS, FMinFPS, FMaxFPS]));
-  end;
+//  Canvas.Brush.Color := clWhite;
+//  LFPS := FSoftwareRenderer.GetCurrentFPS;
+//  if LFPS > 0 then
+//  begin
+//    LNow := Now();
+//    if SecondsBetween(FLastReset, LNow) >= 5 then
+//    begin
+//      FMaxFPS := LFPS;
+//      FMinFPS := LFPS;
+//      FLastReset := LNow;
+//    end
+//    else
+//    begin
+//      FMaxFPS := Max(FMaxFPS, LFPS);
+//      FMinFPS := Min(FMinFPS, LFPS);
+//    end;
+//    Canvas.TextOut(10, 10, IntToStr(FSoftwareRenderer.ResolutionX) + 'x' + IntToStr(FSoftwareRenderer.ResolutionY));
+//    Canvas.TextOut(10, 30, Format('FPS: %.3d MinFPS: %.3d MaxFPS: %.3d', [LFPS, FMinFPS, FMaxFPS]));
+//  end;
 end;
 
 procedure TForm1.HandleAfterFrame(ACanvas: TCanvas);
@@ -139,6 +142,8 @@ begin
   LFPS := FSoftwareRenderer.GetCurrentFPS;
   if LFPS > 0 then
   begin
+    FGraph.AddSample(LFPS);
+    FGraph.DrawGraph(ACanvas, ACanvas.ClipRect);
     LNow := Now();
     if SecondsBetween(FLastReset, LNow) >= 5 then
     begin

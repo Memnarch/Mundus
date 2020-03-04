@@ -17,7 +17,8 @@ uses
   XMM in 'XMM.pas',
   DrawCall in 'DrawCall.pas',
   RenderWorker in 'RenderWorker.pas',
-  Rasterizer in 'Rasterizer.pas';
+  Rasterizer in 'Rasterizer.pas',
+  SamplerGraph in 'SamplerGraph.pas';
 
 {$R *.res}
 
