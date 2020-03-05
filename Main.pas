@@ -142,7 +142,7 @@ begin
       FMinFPS := Min(FMinFPS, LFPS);
     end;
     ACanvas.TextOut(10, 10, IntToStr(FSoftwareRenderer.ResolutionX) + 'x' + IntToStr(FSoftwareRenderer.ResolutionY));
-    ACanvas.TextOut(10, 30, Format('FPS: %.3d MinFPS: %.3d MaxFPS: %.3d', [LFPS, FMinFPS, FMaxFPS]));
+    ACanvas.TextOut(10, 30, Format('FPS: %.4d MinFPS: %.4d MaxFPS: %.4d', [LFPS, FMinFPS, FMaxFPS]));
   end;
 end;
 
