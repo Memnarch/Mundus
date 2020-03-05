@@ -39,6 +39,7 @@ type
     FRotateZMatrix: TMatrix4x4;
     FWorkers: TObjectList<TRenderWorker>;
     FCurrentBuffer: Boolean;
+    FWorkerFPS: Integer;
     procedure SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);
     procedure ClearDepthBuffer(ABuffer: Boolean);
     procedure TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrix4x4; ATargetCall: PDrawCall);
@@ -124,6 +125,7 @@ procedure TSoftwareRenderer.DispatchCalls(ACanvas: TCanvas; ACalls: TDrawCalls);
 var
   LWorker: TRenderWorker;
   LBackBuffer, LFrontBuffer: Boolean;
+  LFPS: Integer;
 begin
   LBackBuffer := FCurrentBuffer;
   LFrontBuffer := not FCurrentBuffer;
@@ -139,6 +141,7 @@ begin
     LWorker.WaitForRender;
 
 //  //load workers with new stuff and start
+  FWorkerFPS := High(FWorkerFPS);
   for LWorker in FWorkers do
   begin
     LWorker.DrawCalls := ACalls;
@@ -146,6 +149,9 @@ begin
     LWorker.Shader.PixelBuffer := FBackBuffer[LFrontBuffer];
     LWorker.ResolutionX := FResolutionX;
     LWorker.ResolutionY := FResolutionY;
+    LFPS := LWorker.FPS;
+    if LFPS < FWorkerFPS then
+      FWorkerFPS := LFPS;
     LWorker.StartRender;
   end;
 
@@ -218,7 +224,7 @@ begin
   DispatchCalls(ACanvas, LDrawCalls);
 
   FTimer.Stop();
-  FFPS := 1000000 div FTimer.ElapsedMicroseconds;
+  FFPS := Min(FWorkerFPS, 1000000 div FTimer.ElapsedMicroseconds);
 
   GTest := GTest + 0.25;
 //  GTest := 45;//GTest + 0.25;

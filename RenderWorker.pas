@@ -8,7 +8,8 @@ uses
   Generics.Collections,
   DrawCall,
   TextureShader,
-  Math3D;
+  Math3D,
+  StopWatch;
 
 type
   TRenderWorker = class(TThread)
@@ -25,8 +26,10 @@ type
     FMaxResolutionY: Integer;
     FHalfResolutionX: Integer;
     FHalfResolutionY: Integer;
+    FWatch: TStopWatch;
     procedure SetResolutionX(const Value: Integer);
     procedure SetResolutionY(const Value: Integer);
+    function GetFPS: Integer;
   protected
     procedure Execute; override;
     procedure TerminatedSet; override;
@@ -41,6 +44,7 @@ type
     property Shader: TTextureShader read FShader;
     property ResolutionX: Integer read FResolutionX write SetResolutionX;
     property ResolutionY: Integer read FResolutionY write SetResolutionY;
+    property FPS: Integer read GetFPS;
   end;
 
 implementation
@@ -57,6 +61,7 @@ begin
   FDone := TEvent.Create(nil, False, True, '');
   FStart := TEvent.Create(nil, False, False, '');
   FShader := TTextureShader.Create();
+  FWatch := TStopWatch.Create();
 end;
 
 destructor TRenderWorker.Destroy;
@@ -65,6 +70,7 @@ begin
   FStart.Free;
   FDone.Free;
   FShader.Free;
+  FWatch.Free;
 end;
 
 procedure TRenderWorker.Execute;
@@ -77,6 +83,7 @@ begin
   while not Terminated do
   begin
     FStart.WaitFor();
+    FWatch.Start;
     for i := 0 to Pred(FDrawCalls.Count) do
     begin
       LCall := FDrawCalls[i];
@@ -107,8 +114,20 @@ begin
         end;
       end;
     end;
+    FWatch.Stop;
     FDone.SetEvent;
   end;
+end;
+
+function TRenderWorker.GetFPS: Integer;
+var
+  LMicro: Int64;
+begin
+  LMicro := FWatch.ElapsedMicroseconds;
+  if LMicro > 0 then
+    Result := 1000000 div LMicro
+  else
+    Result := 1000;
 end;
 
 procedure TRenderWorker.SetResolutionX(const Value: Integer);
