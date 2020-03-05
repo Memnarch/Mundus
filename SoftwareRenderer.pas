@@ -17,6 +17,7 @@ type
     FDepthBuffer: array[boolean] of TDepthBuffer;
     FZeroDepthBuffer: TDepthBuffer;
     FBackBuffer: array[boolean] of TBitmap;
+    FDrawCalls: array[boolean] of TDrawCalls;
     FTexture: TBitmap;
     FMeshList: TObjectList<TBaseMesh>;
     FFPS: Integer;
@@ -40,10 +41,10 @@ type
     FCurrentBuffer: Boolean;
     procedure SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);
     procedure ClearDepthBuffer(ABuffer: Boolean);
-    procedure TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrix4x4; ATargetCall: TDrawCall);
+    procedure TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrix4x4; ATargetCall: PDrawCall);
     procedure DoAfterFrame(ACanvas: TCanvas);
-    function GenerateDrawCalls: TObjectList<TDrawCall>;
-    procedure DispatchCalls(ACanvas: TCanvas; ACalls: TObjectList<TDrawCall>);
+    function GenerateDrawCalls: TDrawCalls;
+    procedure DispatchCalls(ACanvas: TCanvas; ACalls: TDrawCalls);
     procedure SpinupWorkers(AWorkerCount: Integer);
     procedure TerminateWorkers;
     procedure UpdateBufferResolution(ABuffer: Boolean; AWidth, AHeight: Integer);
@@ -90,6 +91,8 @@ begin
   FBackbuffer[True].PixelFormat := pf32bit;
   FBackBuffer[False] := TBitmap.Create();
   FBackbuffer[False].PixelFormat := pf32bit;
+  FDrawCalls[True] := TDrawCalls.Create();
+  FDrawCalls[False] := TDrawCalls.Create();
   SetResolution(512, 512);
   FMeshList := TObjectList<TBaseMesh>.Create();
   FQuadSize := 8;
@@ -110,18 +113,17 @@ begin
   FMeshList.Free();
   FBackBuffer[True].Free();
   FBackBuffer[False].Free();
+  FDrawCalls[True].Free;
+  FDrawCalls[False].Free;
   FTexture.Free;
   FTimer.Free;
-  //destroy objects used while rendering a frame
-
   inherited;
 end;
 
-procedure TSoftwareRenderer.DispatchCalls(ACanvas: TCanvas; ACalls: TObjectList<TDrawCall>);
+procedure TSoftwareRenderer.DispatchCalls(ACanvas: TCanvas; ACalls: TDrawCalls);
 var
   LWorker: TRenderWorker;
   LBackBuffer, LFrontBuffer: Boolean;
-  LLastCalls: TObjectList<TDrawCall>;
 begin
   LBackBuffer := FCurrentBuffer;
   LFrontBuffer := not FCurrentBuffer;
@@ -135,9 +137,7 @@ begin
   //wait for workers to finish frame
   for LWorker in FWorkers do
     LWorker.WaitForRender;
-//
-  LLastCalls := FWorkers[0].DrawCalls;
-//
+
 //  //load workers with new stuff and start
   for LWorker in FWorkers do
   begin
@@ -148,8 +148,7 @@ begin
     LWorker.ResolutionY := FResolutionY;
     LWorker.StartRender;
   end;
-  if Assigned(LLastCalls) then
-    LLastCalls.Free;
+
   //Draw Backbuffer to FrontBuffer
   DoAfterFrame(FBackBuffer[LBackBuffer].Canvas);
   ACanvas.Draw(0, 0, FBackBuffer[LBackBuffer]);
@@ -165,17 +164,17 @@ begin
   end;
 end;
 
-function TSoftwareRenderer.GenerateDrawCalls: TObjectList<TDrawCall>;
+function TSoftwareRenderer.GenerateDrawCalls: TDrawCalls;
 var
   LMesh: TBaseMesh;
-  LCall: TDrawCall;
+  LCall: PDrawCall;
 begin
-  Result := TObjectList<TDrawCall>.Create();
+  Result := FDrawCalls[not FCurrentBuffer];
+  Result.Reset;
   FPolyCount := 0;
   for LMesh in FMeshList do
   begin
-    LCall := TDrawCall.Create();
-    Result.Add(LCall);
+    LCall := Result.Add;;
     FMoveMatrix.SetAsMoveMatrix(LMesh.Position.X, LMesh.Position.Y, LMesh.Position.Z);
     FRotateXMatrix.SetAsRotationXMatrix(DegToRad(GTest));
     FRotateYMatrix.SetAsRotationYMatrix(DegToRad(GTest2));
@@ -203,7 +202,7 @@ end;
 
 procedure TSoftwareRenderer.RenderFrame(ACanvas: TCanvas);
 var
-  LDrawCalls: TObjectList<TDrawCall>;
+  LDrawCalls: TDrawCalls;
 begin
   FTimer.Start();
 
@@ -267,11 +266,9 @@ var
 begin
   for LWorker in FWorkers do
     LWorker.Terminate;
-  if Assigned(FWorkers[0].DrawCalls) then
-    FWorkers[0].DrawCalls.Free;
 end;
 
-procedure TSoftwareRenderer.TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrix4x4; ATargetCall: TDrawCall);
+procedure TSoftwareRenderer.TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrix4x4; ATargetCall: PDrawCall);
 var
   i: Integer;
   LVertex: TFloat4;

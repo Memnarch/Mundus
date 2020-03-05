@@ -13,16 +13,12 @@ uses
 type
   TRenderWorker = class(TThread)
   private
-    FDrawCalls: TObjectList<TDrawCall>;
+    FDrawCalls: TDrawCalls;
     FDone: TEvent;
     FStart: TEvent;
     FBlockSteps: Integer;
     FBlockOffset: Integer;
     FShader: TTextureShader;
-    FVertexA: TFloat4;
-    FVertexB: TFloat4;
-    FVertexC: TFloat4;
-    FNormal: TFloat4;
     FResolutionX: Integer;
     FResolutionY: Integer;
     FMaxResolutionX: Integer;
@@ -39,7 +35,7 @@ type
     destructor Destroy; override;
     procedure StartRender;
     procedure WaitForRender;
-    property DrawCalls: TObjectList<TDrawCall> read FDrawCalls write FDrawCalls;
+    property DrawCalls: TDrawCalls read FDrawCalls write FDrawCalls;
     property BlockSteps: Integer read FBlockSteps write FBlockSteps;
     property BlockOffset: Integer read FBlockOffset write FBlockOffset;
     property Shader: TTextureShader read FShader;
@@ -73,35 +69,39 @@ end;
 
 procedure TRenderWorker.Execute;
 var
-  LCall: TDrawCall;
+  LCall: PDrawCall;
   LTriangle: TTriangle;
+  i, k: Integer;
+  LVertexA, LVertexB, LVertexC, LNormal: TFloat4;
 begin
   while not Terminated do
   begin
     FStart.WaitFor();
-    for LCall in FDrawCalls do
+    for i := 0 to Pred(FDrawCalls.Count) do
     begin
-      for LTriangle in LCall.Triangles do
+      LCall := FDrawCalls[i];
+      for k := 0 to Pred(LCall.TriangleCount) do
       begin
-        FVertexA := LCall.Vertices[LTriangle.VertexA];
-        FVertexB := LCall.Vertices[LTriangle.VertexB];
-        FVertexC := LCall.Vertices[LTriangle.VertexC];
-        FNormal.CalculateSurfaceNormal(FVertexA, FVertexB, FVertexC);
-        if (FNormal.Z < 0)then
+        LTriangle := LCall.Triangles[k];
+        LVertexA := LCall.Vertices[LTriangle.VertexA];
+        LVertexB := LCall.Vertices[LTriangle.VertexB];
+        LVertexC := LCall.Vertices[LTriangle.VertexC];
+        LNormal.CalculateSurfaceNormal(LVertexA, LVertexB, LVertexC);
+        if (LNormal.Z < 0)then
         begin
           //denormalize vectors to screenpos
-          FVertexA.Element[0] := (1-FVertexA.Element[0]) * FHalfResolutionX;//half screen size
-          FVertexA.Element[1] := (1-FVertexA.Element[1]) * FHalfResolutionY;
-          FVertexB.Element[0] := (1-FVertexB.Element[0]) * FHalfResolutionX;
-          FVertexB.Element[1] := (1-FVertexB.Element[1]) * FHalfResolutionY;
-          FVertexC.Element[0] := (1-FVertexC.Element[0]) * FHalfResolutionX;
-          FVertexC.Element[1] := (1-FVertexC.Element[1]) * FHalfResolutionY;
+          LVertexA.Element[0] := (1-LVertexA.Element[0]) * FHalfResolutionX;//half screen size
+          LVertexA.Element[1] := (1-LVertexA.Element[1]) * FHalfResolutionY;
+          LVertexB.Element[0] := (1-LVertexB.Element[0]) * FHalfResolutionX;
+          LVertexB.Element[1] := (1-LVertexB.Element[1]) * FHalfResolutionY;
+          LVertexC.Element[0] := (1-LVertexC.Element[0]) * FHalfResolutionX;
+          LVertexC.Element[1] := (1-LVertexC.Element[1]) * FHalfResolutionY;
 
-          FShader.InitTriangle(FVertexA, FVertexB, FVertexC);
+          FShader.InitTriangle(LVertexA, LVertexB, LVertexC);
           TTextureShader(FShader).InitUV(LTriangle.UVA, LTriangle.UVB, LTriangle.UVC);
 
-          RasterizeTriangle(FMaxResolutionX, FMaxResolutionY, FVertexA, FVertexB,
-            FVertexC, FShader, FBlockOffset, FBlockSteps);
+          RasterizeTriangle(FMaxResolutionX, FMaxResolutionY, LVertexA, LVertexB,
+            LVertexC, FShader, FBlockOffset, FBlockSteps);
 
 //          FPolyCount := FPolyCount + 1;
         end;
