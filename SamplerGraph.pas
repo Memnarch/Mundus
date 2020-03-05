@@ -9,8 +9,12 @@ uses
 
 type
   TSamplerGraph = class
+  private
     FSamples: TArray<Integer>;
+    FAverages: TArray<Integer>;
+    FMax: Integer;
     FStart: Integer;
+    procedure DrawValues(ATarget: TCanvas; ARect: TRect; const AValues: TArray<Integer>; AColor: TColor);
   public
     constructor Create;
     destructor Destroy; override;
@@ -23,14 +27,29 @@ implementation
 { TSamplerGraph }
 
 procedure TSamplerGraph.AddSample(const ASanple: Integer);
+var
+  LAverage, LValue: Integer;
 begin
   FStart := (FStart + 1) mod Length(FSamples);
   FSamples[FStart] := ASanple;
+  FMax := 0;
+  LAverage := 0;
+  for LValue in FSamples do
+  begin
+    Inc(LAverage, LValue);
+    if LValue > FMax then
+      FMax := LValue;
+  end;
+  LAverage := LAverage div Length(FSamples);
+  if LAverage > FMax then
+    FMax := LAverage;
+  FAverages[FStart] := LAverage;
 end;
 
 constructor TSamplerGraph.Create;
 begin
-  SetLength(FSamples, 1024);
+  SetLength(FSamples, 512);
+  SetLength(FAverages, 512);
 end;
 
 destructor TSamplerGraph.Destroy;
@@ -39,25 +58,41 @@ begin
 end;
 
 procedure TSamplerGraph.DrawGraph(ATarget: TCanvas; ARect: TRect);
+begin
+  DrawValues(ATarget, ARect, FSamples, clGreen);
+  DrawValues(ATarget, ARect, FAverages, clBlue);
+  ATarget.Pen.Color := clBlack;
+  ATarget.MoveTo(ARect.Left, ARect.Top);
+  ATarget.LineTo(ARect.Left, ARect.Bottom);
+  ATarget.LineTo(ARect.Right, ARect.Bottom);
+  ATarget.LineTo(ARect.Right, ARect.Top);
+end;
+
+procedure TSamplerGraph.DrawValues(ATarget: TCanvas; ARect: TRect;
+  const AValues: TArray<Integer>; AColor: TColor);
 var
   LSample: Integer;
   LEnd, LIndex, LY: Integer;
-  LX, LXStep: Double;
+  LX, LXStep, LYStep: Double;
 begin
-  LEnd := (FStart - 1) mod Length(FSamples);
+  LEnd := (FStart - 1) mod Length(AValues);
   if LEnd < 0 then
-    LEnd := High(FSamples);
+    LEnd := High(AValues);
   LIndex := FStart;
-  LX := 0;
+  LX := ARect.Left;
   LY := ARect.Bottom;
+  if FMax > 0 then
+    LYStep := ARect.Height / FMax
+  else
+    LYStep := 0;
   ATarget.Pen.Width := 1;
-  ATarget.Pen.Color := clGreen;
+  ATarget.Pen.Color := AColor;
   ATarget.MoveTo(Trunc(LX), LY);
-  LXStep := ARect.Width / Length(FSamples);
+  LXStep := ARect.Width / Length(AValues);
   repeat
-    LY := ARect.Bottom - FSamples[LIndex];
+    LY := Trunc(ARect.Bottom - AValues[LIndex] * LYStep);
     ATarget.LineTo(Trunc(LX), LY);
-    LIndex := (LIndex + 1) mod Length(FSamples);
+    LIndex := (LIndex + 1) mod Length(AValues);
     LX := LX + LXStep;
   until LIndex = LEnd;
 end;

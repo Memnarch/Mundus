@@ -22,6 +22,7 @@ type
     FCube: TCube;
     FLastReset: TDateTime;
     FGraph: TSamplerGraph;
+    FDrawGraph: Boolean;
     procedure HandleAfterFrame(ACanvas: TCanvas);
   public
     { Public-Deklarationen }
@@ -87,6 +88,9 @@ begin
   begin
     WindowState := wsNormal;
   end;
+
+  if Key = VK_F1 then
+    FDrawGraph := not FDrawGraph;
 end;
 
 procedure TForm1.FormResize(Sender: TObject);
@@ -107,30 +111,8 @@ begin
 end;
 
 procedure TForm1.GameTimerTimer(Sender: TObject);
-var
-  LFPS: Integer;
-  LNow: TDateTime;
 begin
   FSoftwareRenderer.RenderFrame(Canvas);
-//  Canvas.Brush.Color := clWhite;
-//  LFPS := FSoftwareRenderer.GetCurrentFPS;
-//  if LFPS > 0 then
-//  begin
-//    LNow := Now();
-//    if SecondsBetween(FLastReset, LNow) >= 5 then
-//    begin
-//      FMaxFPS := LFPS;
-//      FMinFPS := LFPS;
-//      FLastReset := LNow;
-//    end
-//    else
-//    begin
-//      FMaxFPS := Max(FMaxFPS, LFPS);
-//      FMinFPS := Min(FMinFPS, LFPS);
-//    end;
-//    Canvas.TextOut(10, 10, IntToStr(FSoftwareRenderer.ResolutionX) + 'x' + IntToStr(FSoftwareRenderer.ResolutionY));
-//    Canvas.TextOut(10, 30, Format('FPS: %.3d MinFPS: %.3d MaxFPS: %.3d', [LFPS, FMinFPS, FMaxFPS]));
-//  end;
 end;
 
 procedure TForm1.HandleAfterFrame(ACanvas: TCanvas);
@@ -142,8 +124,11 @@ begin
   LFPS := FSoftwareRenderer.GetCurrentFPS;
   if LFPS > 0 then
   begin
-    FGraph.AddSample(LFPS);
-    FGraph.DrawGraph(ACanvas, ACanvas.ClipRect);
+    if FDrawGraph then
+    begin
+      FGraph.AddSample(LFPS);
+      FGraph.DrawGraph(ACanvas, Rect(10, ACanvas.ClipRect.Bottom-200, 10+400, ACanvas.ClipRect.Bottom-10));
+    end;
     LNow := Now();
     if SecondsBetween(FLastReset, LNow) >= 5 then
     begin
