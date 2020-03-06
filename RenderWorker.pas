@@ -30,6 +30,7 @@ type
     procedure SetResolutionX(const Value: Integer);
     procedure SetResolutionY(const Value: Integer);
     function GetFPS: Integer;
+    function GetRenderFence: THandle;
   protected
     procedure Execute; override;
     procedure TerminatedSet; override;
@@ -37,7 +38,6 @@ type
     constructor Create;
     destructor Destroy; override;
     procedure StartRender;
-    procedure WaitForRender;
     property DrawCalls: TDrawCalls read FDrawCalls write FDrawCalls;
     property BlockSteps: Integer read FBlockSteps write FBlockSteps;
     property BlockOffset: Integer read FBlockOffset write FBlockOffset;
@@ -45,6 +45,7 @@ type
     property ResolutionX: Integer read FResolutionX write SetResolutionX;
     property ResolutionY: Integer read FResolutionY write SetResolutionY;
     property FPS: Integer read GetFPS;
+    property RenderFence: THandle read GetRenderFence;
   end;
 
 implementation
@@ -130,6 +131,11 @@ begin
     Result := 1000;
 end;
 
+function TRenderWorker.GetRenderFence: THandle;
+begin
+  Result := FDone.Handle;
+end;
+
 procedure TRenderWorker.SetResolutionX(const Value: Integer);
 begin
   FResolutionX := Value;
@@ -153,11 +159,6 @@ procedure TRenderWorker.TerminatedSet;
 begin
   inherited;
   FStart.SetEvent;
-end;
-
-procedure TRenderWorker.WaitForRender;
-begin
-  FDone.WaitFor();
 end;
 
 end.

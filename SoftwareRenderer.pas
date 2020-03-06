@@ -38,6 +38,7 @@ type
     FRotateYMatrix: TMatrix4x4;
     FRotateZMatrix: TMatrix4x4;
     FWorkers: TObjectList<TRenderWorker>;
+    FRenderFences: TArray<THandle>;
     FCurrentBuffer: Boolean;
     FWorkerFPS: Integer;
     procedure SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);
@@ -48,6 +49,7 @@ type
     procedure DispatchCalls(ACanvas: TCanvas; ACalls: TDrawCalls);
     procedure SpinupWorkers(AWorkerCount: Integer);
     procedure TerminateWorkers;
+    procedure WaitForRender;
     procedure UpdateBufferResolution(ABuffer: Boolean; AWidth, AHeight: Integer);
   public
     constructor Create();
@@ -137,8 +139,7 @@ begin
   ClearDepthBuffer(LFrontBuffer);
 
   //wait for workers to finish frame
-  for LWorker in FWorkers do
-    LWorker.WaitForRender;
+  WaitForRender;
 
 //  //load workers with new stuff and start
   FWorkerFPS := High(FWorkerFPS);
@@ -256,12 +257,14 @@ var
   i: Integer;
   LWorker: TRenderWorker;
 begin
+  SetLength(FRenderFences, AWorkerCount);
   for i := 0 to Pred(AWorkerCount) do
   begin
     LWorker := TRenderWorker.Create();
     LWorker.BlockSteps := AWorkerCount;
     LWorker.BlockOffset := i;
     FWorkers.Add(LWorker);
+    FRenderFences[i] := LWorker.RenderFence;
     LWorker.Start;
   end;
 end;
@@ -306,6 +309,11 @@ begin
     SetDepthBufferSize(ABuffer, AWidth, AHeight);
     ClearDepthBuffer(ABuffer);
   end;
+end;
+
+procedure TSoftwareRenderer.WaitForRender;
+begin
+  WaitForMultipleObjects(Length(FRenderFences), @FRenderFences[0], True, INFINITE);
 end;
 
 { some functions }
