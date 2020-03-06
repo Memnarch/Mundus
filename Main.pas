@@ -24,6 +24,7 @@ type
     FGraph: TSamplerGraph;
     FDrawGraph: Boolean;
     procedure HandleAfterFrame(ACanvas: TCanvas);
+    procedure HandleException(Sender: TObject; E: Exception);
   public
     { Public-Deklarationen }
     procedure SetResolution(AWidth, AHeight: Integer);
@@ -43,10 +44,12 @@ begin
   FSoftwareRenderer.Free;
   FWatch.Free;
   FGraph.Free;
+  Application.OnException := nil;
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
+  Application.OnException := HandleException;
   FGraph := TSamplerGraph.Create();
   FCube := TCube.Create();
   FCube.Position := Vector(0, 0, 132);
@@ -144,6 +147,12 @@ begin
     ACanvas.TextOut(10, 10, IntToStr(FSoftwareRenderer.ResolutionX) + 'x' + IntToStr(FSoftwareRenderer.ResolutionY));
     ACanvas.TextOut(10, 30, Format('FPS: %.4d MinFPS: %.4d MaxFPS: %.4d', [LFPS, FMinFPS, FMaxFPS]));
   end;
+end;
+
+procedure TForm1.HandleException(Sender: TObject; E: Exception);
+begin
+  GameTimer.Enabled := False;
+  MessageDlg('Renderer crashed with: ' + sLineBreak + E.ToString, mtError, [], 0);
 end;
 
 procedure TForm1.SetResolution(AWidth, AHeight: Integer);
