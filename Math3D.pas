@@ -72,7 +72,16 @@ type
     property Matrix[IndexX, IndexY: Integer]: Single read GetMatrixElement write SetMatrixElement;
   end;
 
+function Float3(X, Y, Z: Single): TFloat3;
+
 implementation
+
+function Float3(X, Y, Z: Single): TFloat3;
+begin
+  Result.X := X;
+  Result.Y := Y;
+  Result.Z := Z;
+end;
 
 { TMatrix4x4 }
 

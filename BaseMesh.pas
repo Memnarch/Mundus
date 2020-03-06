@@ -49,17 +49,19 @@ type
   end;
 
   TBaseMesh = class
-  private
+  protected
     FVertexList: TObjectList<TVectorClass>;
     FTriangleList: TObjectList<TTriangleClass>;
-    FPosition: TVector;
+    FRotation: TFloat3;
+    FPosition: TFloat3;
   public
     constructor Create();
     destructor Destroy(); override;
     procedure AddVertice(AVertice: TVectorClass);
     property Triangles: TObjectList<TTriangleClass> read FTriangleList;
     property Vertices: TObjectList<TVectorClass> read FVertexList;
-    property Position: TVector read FPosition write FPosition;
+    property Position: TFloat3 read FPosition write FPosition;
+    property Rotation: TFloat3 read FRotation write Frotation;
   end;
 
   function Vector(AX, AY, AZ: Integer): TVector;

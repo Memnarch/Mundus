@@ -80,7 +80,7 @@ begin
   LTriangle := TTriangleClass.Create(7, 4, 3);
   LTriangle.SetUV(UV(0, 1), UV(1, 1), UV(0, 0));
   Triangles.Add(LTriangle);
-  Position := Vector(0, 0, 200);
+  FPosition.Z := 200;
 end;
 
 end.

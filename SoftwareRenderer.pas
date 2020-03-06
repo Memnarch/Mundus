@@ -6,7 +6,7 @@ uses
   Types, Classes, Windows, SysUtils, Graphics,
   Generics.Collections, Math3D, BaseMesh,
   ColorTypes, Shader, StopWatch, DrawCall,
-  RenderWorker;
+  RenderWorker, Camera;
 
 type
   TDepthBuffer = array of array of Single;
@@ -29,23 +29,16 @@ type
     FResolutionY: Integer;
     FOnAfterFrame: TRenderEvent;
     FTimer: TStopWatch;
-    //buffers for rendering the frame
-    FWorldMatrix: TMatrix4x4;
-    FViewMatrix: TMatrix4x4;
-    FProjectionMatrix: TMatrix4x4;  // Gerade dabei gewesen Viewtransformation einzubauen!! Seite 86 in TeilB
-    FMoveMatrix: TMatrix4x4;
-    FRotateXMatrix: TMatrix4x4;
-    FRotateYMatrix: TMatrix4x4;
-    FRotateZMatrix: TMatrix4x4;
     FWorkers: TObjectList<TRenderWorker>;
     FRenderFences: TArray<THandle>;
     FCurrentBuffer: Boolean;
     FWorkerFPS: Integer;
+    FCamera: TCamera;
     procedure SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);
     procedure ClearDepthBuffer(ABuffer: Boolean);
     procedure TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrix4x4; ATargetCall: PDrawCall);
     procedure DoAfterFrame(ACanvas: TCanvas);
-    function GenerateDrawCalls: TDrawCalls;
+    function GenerateDrawCalls(const AViewMatrix: TMatrix4x4): TDrawCalls;
     procedure DispatchCalls(ACanvas: TCanvas; ACalls: TDrawCalls);
     procedure SpinupWorkers(AWorkerCount: Integer);
     procedure TerminateWorkers;
@@ -63,6 +56,7 @@ type
     property OnAfterFrame: TRenderEvent read FOnAfterFrame write FOnAfterFrame;
     property ResolutionX: Integer read FResolutionX;
     property ResolutionY: Integer read FResolutionY;
+    property Camera: TCamera read FCamera;
   end;
 
   function RGB32(ARed, AGreen, ABlue, AAlpha: Byte): TRGB32;
@@ -76,10 +70,6 @@ uses
   DepthColorShader,
   TextureShader,
   Rasterizer;
-
-var
-  GTest: Single  = 0;
-  GTest2: Single = 0;
 
 { TSoftwareRenderer }
 
@@ -96,6 +86,7 @@ begin
   FBackbuffer[False].PixelFormat := pf32bit;
   FDrawCalls[True] := TDrawCalls.Create();
   FDrawCalls[False] := TDrawCalls.Create();
+  FCamera := TCamera.Create();
   SetResolution(512, 512);
   FMeshList := TObjectList<TBaseMesh>.Create();
   FQuadSize := 8;
@@ -120,6 +111,7 @@ begin
   FDrawCalls[False].Free;
   FTexture.Free;
   FTimer.Free;
+  FCamera.Free;
   inherited;
 end;
 
@@ -171,10 +163,13 @@ begin
   end;
 end;
 
-function TSoftwareRenderer.GenerateDrawCalls: TDrawCalls;
+function TSoftwareRenderer.GenerateDrawCalls(const AViewMatrix: TMatrix4x4): TDrawCalls;
 var
   LMesh: TBaseMesh;
   LCall: PDrawCall;
+  LMove: TMatrix4x4;
+  LRotationX, LRotationY, LRotationZ: TMatrix4x4;
+  LProjection: TMatrix4x4;
 begin
   Result := FDrawCalls[not FCurrentBuffer];
   Result.Reset;
@@ -182,18 +177,17 @@ begin
   for LMesh in FMeshList do
   begin
     LCall := Result.Add;;
-    FMoveMatrix.SetAsMoveMatrix(LMesh.Position.X, LMesh.Position.Y, LMesh.Position.Z);
-    FRotateXMatrix.SetAsRotationXMatrix(DegToRad(GTest));
-    FRotateYMatrix.SetAsRotationYMatrix(DegToRad(GTest2));
-    FRotateZMatrix.SetAsRotationZMatrix(DegToRad(0));
-    FWorldMatrix  := FMoveMatrix;
-    FWorldMatrix.MultiplyMatrix4D(FRotateXMatrix);
-    FWorldMatrix.MultiplyMatrix4D(FRotateYMatrix);
-    FWorldMatrix.MultiplyMatrix4D(FRotateZMatrix);
-    FWorldMatrix.MultiplyMatrix4D(FViewMatrix);
-    FProjectionMatrix.SetAsPerspectiveProjectionMatrix(100, 200, 0.7, FResolutionX/FResolutionY);
-    FProjectionMatrix.MultiplyMatrix4D(FWorldMatrix);
-    TransformMesh(LMesh, FProjectionMatrix, LCall);
+    LMove.SetAsMoveMatrix(LMesh.Position.X, LMesh.Position.Y, LMesh.Position.Z);
+    LRotationX.SetAsRotationXMatrix(DegToRad(LMesh.Rotation.X));
+    LRotationY.SetAsRotationYMatrix(DegToRad(LMesh.Rotation.Y));
+    LRotationZ.SetAsRotationZMatrix(DegToRad(LMesh.Rotation.Z));
+    LMove.MultiplyMatrix4D(LRotationX);
+    LMove.MultiplyMatrix4D(LRotationY);
+    LMove.MultiplyMatrix4D(LRotationZ);
+    LMove.MultiplyMatrix4D(AViewMatrix);
+    LProjection.SetAsPerspectiveProjectionMatrix(100, 200, 0.7, FResolutionX/FResolutionY);
+    LProjection.MultiplyMatrix4D(LMove);
+    TransformMesh(LMesh, LProjection, LCall);
   end;
 end;
 
@@ -210,26 +204,24 @@ end;
 procedure TSoftwareRenderer.RenderFrame(ACanvas: TCanvas);
 var
   LDrawCalls: TDrawCalls;
+  LViewMoveMatrix: TMatrix4x4;
+  LRotationX, LRotationY, LRotationZ: TMatrix4x4;
 begin
   FTimer.Start();
 
-  FViewMatrix.SetAsMoveMatrix(0, 0, 0);
-  FRotateXMatrix.SetAsRotationXMatrix(DegToRad(0));
-  FRotateYMatrix.SetAsRotationYMatrix(DegToRad(0));
-  FRotateZMatrix.SetAsRotationZMatrix(DegToRad(0));
-  FViewMatrix.MultiplyMatrix4D(FRotateXMatrix);
-  FViewMatrix.MultiplyMatrix4D(FRotateYMatrix);
-  FViewMatrix.MultiplyMatrix4D(FRotateZMatrix);
+  LViewMoveMatrix.SetAsMoveMatrix(FCamera.Position.X, FCamera.Position.Y, FCamera.Position.Z);
+  LRotationX.SetAsRotationXMatrix(DegToRad(FCamera.Rotation.X));
+  LRotationY.SetAsRotationYMatrix(DegToRad(FCamera.Rotation.Y));
+  LRotationZ.SetAsRotationZMatrix(DegToRad(FCamera.Rotation.Z));
+  LViewMoveMatrix.MultiplyMatrix4D(LRotationX);
+  LViewMoveMatrix.MultiplyMatrix4D(LRotationY);
+  LViewMoveMatrix.MultiplyMatrix4D(LRotationZ);
   FPolyCount := 0;
-  LDrawCalls := GenerateDrawCalls();
+  LDrawCalls := GenerateDrawCalls(LViewMoveMatrix);
   DispatchCalls(ACanvas, LDrawCalls);
 
   FTimer.Stop();
   FFPS := Min(FWorkerFPS, 1000000 div FTimer.ElapsedMicroseconds);
-
-  GTest := GTest + 0.25;
-//  GTest := 45;//GTest + 0.25;
-  GTest2 := 45;
 end;
 
 procedure TSoftwareRenderer.SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);

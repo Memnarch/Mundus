@@ -18,7 +18,8 @@ uses
   DrawCall in 'DrawCall.pas',
   RenderWorker in 'RenderWorker.pas',
   Rasterizer in 'Rasterizer.pas',
-  SamplerGraph in 'SamplerGraph.pas';
+  SamplerGraph in 'SamplerGraph.pas',
+  Camera in 'Camera.pas';
 
 {$R *.res}
 

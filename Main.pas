@@ -36,7 +36,7 @@ var
 implementation
 
 uses
-  DateUtils, BaseMesh, Math;
+  DateUtils, BaseMesh, Math, Math3d;
 {$R *.dfm}
 
 procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -52,7 +52,8 @@ begin
   Application.OnException := HandleException;
   FGraph := TSamplerGraph.Create();
   FCube := TCube.Create();
-  FCube.Position := Vector(0, 0, 132);
+  FCube.Position := Float3(0, 0, 132);
+  FCube.Rotation := Float3(0, 0, 45);
   FSoftwareRenderer := TSoftwareRenderer.Create();
   FSoftwareRenderer.MeshList.Add(FCube);
 
@@ -73,19 +74,19 @@ procedure TForm1.FormKeyDown(Sender: TObject; var Key: Word;
 begin
   if (Key = VK_LEFT) then
   begin
-    FCube.Position := Vector(FCube.Position.X + 3, FCube.Position.Y, FCube.Position.Z);
+    FCube.Position := Float3(FCube.Position.X + 3, FCube.Position.Y, FCube.Position.Z);
   end;
   if (Key = VK_RIGHT) then
   begin
-    FCube.Position := Vector(FCube.Position.X - 3, FCube.Position.Y, FCube.Position.Z);
+    FCube.Position := Float3(FCube.Position.X - 3, FCube.Position.Y, FCube.Position.Z);
   end;
   if (Key = VK_UP) then
   begin
-    FCube.Position := Vector(FCube.Position.X, FCube.Position.Y, FCube.Position.Z + 3);
+    FCube.Position := Float3(FCube.Position.X, FCube.Position.Y, FCube.Position.Z + 3);
   end;
   if (Key = VK_DOWN) then
   begin
-    FCube.Position := Vector(FCube.Position.X, FCube.Position.Y, FCube.Position.Z - 3);
+    FCube.Position := Float3(FCube.Position.X, FCube.Position.Y, FCube.Position.Z - 3);
   end;
   if (Key = VK_ESCAPE) and (WindowState = wsMaximized) then
   begin
@@ -116,6 +117,7 @@ end;
 procedure TForm1.GameTimerTimer(Sender: TObject);
 begin
   FSoftwareRenderer.RenderFrame(Canvas);
+  FCube.Rotation := Float3(FCube.Rotation.X + 0.25, FCube.Rotation.Y, FCube.Rotation.Z);
 end;
 
 procedure TForm1.HandleAfterFrame(ACanvas: TCanvas);
