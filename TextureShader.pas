@@ -3,10 +3,14 @@ unit TextureShader;
 interface
 
 uses
-  Classes, Types, SysUtils, Shader, Math3D, BaseMesh, Graphics, ColorTypes;
+  Classes, Types, SysUtils, Shader, Math3D, RenderTypes, Graphics, ColorTypes;
 
 type
-  TTextureShader = class(TShader)
+  TTexturePSInput = record
+    UV: TFloat2;
+  end;
+
+  TTextureShader = class sealed(TShader<TTexturePSInput>)
   private
 //    FUA, FUB, FUC, FUD: Single;
 //    FVA, FVB, FVC, FVD: Single;
@@ -20,24 +24,36 @@ type
 
     FStepA, FStepB, FStepC, FStepD: TFloat4;
   public
-    constructor Create();
-    procedure InitTriangle(AVecA, AvecB, AvecC: TFloat4); override;
+    constructor Create(); override;
+//    procedure InitTriangle(AVecA, AvecB, AvecC: TFloat4); override;
     procedure InitUV(AUVA, AUVB, AUVC: TUV);
     procedure InitTexture(ATexture: TBitmap);
-    procedure Shade8X8Quad(); override;
-    procedure ShadeSinglePixel(); override;
+    procedure Shade8X8Quad(); override; final;
+    procedure ShadeSinglePixel(); override; final;
+    procedure Fragment(X, Y: Integer; const PSInput: TShader<TTexturePSInput>.PAttributeType); override; final;
+    class function GetRasterizer: TRasterizer; override; final;
   end;
 
 implementation
 
 uses
-  Interpolation, Math;
+  Interpolation, Math, Rasterizer;
 
 { TTextureShader }
 
 constructor TTextureShader.Create;
 begin
   inherited;
+end;
+
+procedure TTextureShader.Fragment(X, Y: Integer; const PSInput: TShader<TTexturePSInput>.PAttributeType);
+begin
+
+end;
+
+class function TTextureShader.GetRasterizer: TRasterizer;
+begin
+  Result := TRasterizer(@TRasterizerFactory.RasterizeTriangle<TTexturePSInput, TTextureShader>);
 end;
 
 procedure TTextureShader.InitTexture(ATexture: TBitmap);
@@ -52,19 +68,19 @@ begin
   FTexLineLength := (Longint(FTexture.Scanline[1]) - Longint(FTexFirstLine)) div SizeOf(TRGB32);
 end;
 
-procedure TTextureShader.InitTriangle(AVecA, AvecB, AvecC: TFloat4);
-begin
-  FVecA := AVecA;
-  FVecB := AVecB;
-  FVecC := AVecC;
-  FStepA.W := AVecA.Element[3];
-  FStepB.W := AvecB.Element[3];
-  FStepC.W := AvecC.Element[3];
-  FStepC.Z := CalculateFactorC(AVecA, AVecB, AVecC);
-  FStepA.Z := CalculateFactorA(AVecA, AVecB, AVecC, 1/FStepA.W, 1/FStepB.W, 1/FStepC.W) / FStepC.Z;
-  FStepB.Z := CalculateFactorB(AVecA, AVecB, AVecC, 1/FStepA.W, 1/FStepB.W, 1/FStepC.W) / FStepC.Z;
-  FStepD.Z := CalculateFactorD(AVecA, AVecB, AVecC, 1/FStepA.W, 1/FStepB.W, 1/FStepC.W) / FStepC.Z;
-end;
+//procedure TTextureShader.InitTriangle(AVecA, AvecB, AvecC: TFloat4);
+//begin
+//  FVecA := AVecA;
+//  FVecB := AVecB;
+//  FVecC := AVecC;
+//  FStepA.W := AVecA.Element[3];
+//  FStepB.W := AvecB.Element[3];
+//  FStepC.W := AvecC.Element[3];
+//  FStepC.Z := CalculateFactorC(AVecA, AVecB, AVecC);
+//  FStepA.Z := CalculateFactorA(AVecA, AVecB, AVecC, 1/FStepA.W, 1/FStepB.W, 1/FStepC.W) / FStepC.Z;
+//  FStepB.Z := CalculateFactorB(AVecA, AVecB, AVecC, 1/FStepA.W, 1/FStepB.W, 1/FStepC.W) / FStepC.Z;
+//  FStepD.Z := CalculateFactorD(AVecA, AVecB, AVecC, 1/FStepA.W, 1/FStepB.W, 1/FStepC.W) / FStepC.Z;
+//end;
 
 procedure TTextureShader.InitUV(AUVA, AUVB, AUVC: TUV);
 begin

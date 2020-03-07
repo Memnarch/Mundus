@@ -36,7 +36,7 @@ var
 implementation
 
 uses
-  DateUtils, BaseMesh, Math, Math3d;
+  DateUtils, BaseMesh, Math, Math3d, TextureShader, SolidColorShader;
 {$R *.dfm}
 
 procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -54,6 +54,7 @@ begin
   FCube := TCube.Create();
   FCube.Position := Float3(0, 0, 132);
   FCube.Rotation := Float3(0, 0, 45);
+  FCube.Shader := TSolidColorShader;
   FSoftwareRenderer := TSoftwareRenderer.Create();
   FSoftwareRenderer.MeshList.Add(FCube);
 

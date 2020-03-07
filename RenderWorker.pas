@@ -4,6 +4,7 @@ interface
 
 uses
   Classes,
+  Graphics,
   SyncObjs,
   Generics.Collections,
   DrawCall,
@@ -19,7 +20,6 @@ type
     FStart: TEvent;
     FBlockSteps: Integer;
     FBlockOffset: Integer;
-    FShader: TTextureShader;
     FResolutionX: Integer;
     FResolutionY: Integer;
     FMaxResolutionX: Integer;
@@ -27,6 +27,7 @@ type
     FHalfResolutionX: Integer;
     FHalfResolutionY: Integer;
     FWatch: TStopWatch;
+    FPixelBuffer: TBitmap;
     procedure SetResolutionX(const Value: Integer);
     procedure SetResolutionY(const Value: Integer);
     function GetFPS: Integer;
@@ -41,9 +42,9 @@ type
     property DrawCalls: TDrawCalls read FDrawCalls write FDrawCalls;
     property BlockSteps: Integer read FBlockSteps write FBlockSteps;
     property BlockOffset: Integer read FBlockOffset write FBlockOffset;
-    property Shader: TTextureShader read FShader;
     property ResolutionX: Integer read FResolutionX write SetResolutionX;
     property ResolutionY: Integer read FResolutionY write SetResolutionY;
+    property PixelBuffer: TBitmap read FPixelBuffer write FPixelBuffer;
     property FPS: Integer read GetFPS;
     property RenderFence: THandle read GetRenderFence;
   end;
@@ -52,7 +53,8 @@ implementation
 
 uses
   Rasterizer,
-  BaseMesh;
+  RenderTypes,
+  Shader;
 
 { TRenderWorker }
 
@@ -61,7 +63,6 @@ begin
   inherited Create(True);
   FDone := TEvent.Create(nil, False, True, '');
   FStart := TEvent.Create(nil, False, False, '');
-  FShader := TTextureShader.Create();
   FWatch := TStopWatch.Create();
 end;
 
@@ -70,7 +71,6 @@ begin
   inherited;
   FStart.Free;
   FDone.Free;
-  FShader.Free;
   FWatch.Free;
 end;
 
@@ -80,6 +80,8 @@ var
   LTriangle: TTriangle;
   i, k: Integer;
   LVertexA, LVertexB, LVertexC, LNormal: TFloat4;
+  LShader: TShader;
+  LRasterizer: TRasterizer;
 begin
   while not Terminated do
   begin
@@ -88,6 +90,9 @@ begin
     for i := 0 to Pred(FDrawCalls.Count) do
     begin
       LCall := FDrawCalls[i];
+      LShader := LCall.Shader.Create();
+      LShader.PixelBuffer := FPixelBuffer;
+      LRasterizer := LCall.Shader.GetRasterizer();
       for k := 0 to Pred(LCall.TriangleCount) do
       begin
         LTriangle := LCall.Triangles[k];
@@ -105,15 +110,20 @@ begin
           LVertexC.Element[0] := (1-LVertexC.Element[0]) * FHalfResolutionX;
           LVertexC.Element[1] := (1-LVertexC.Element[1]) * FHalfResolutionY;
 
-          FShader.InitTriangle(LVertexA, LVertexB, LVertexC);
-          TTextureShader(FShader).InitUV(LTriangle.UVA, LTriangle.UVB, LTriangle.UVC);
+//          FShader.InitTriangle(LVertexA, LVertexB, LVertexC);
+//          TTextureShader(FShader).InitUV(LTriangle.UVA, LTriangle.UVB, LTriangle.UVC);
 
-          RasterizeTriangle(FMaxResolutionX, FMaxResolutionY, LVertexA, LVertexB,
-            LVertexC, FShader, FBlockOffset, FBlockSteps);
-
-//          FPolyCount := FPolyCount + 1;
+          LRasterizer(
+            FMaxResolutionX, FMaxResolutionY,
+            LVertexA, LVertexB, LVertexC,
+            LCall.Attributes[LTriangle.VertexA],
+            LCall.Attributes[LTriangle.VertexB],
+            LCall.Attributes[LTriangle.VertexC],
+            LShader,
+            FBlockOffset, FBlockSteps);
         end;
       end;
+      LShader.Free;
     end;
     FWatch.Stop;
     FDone.SetEvent;

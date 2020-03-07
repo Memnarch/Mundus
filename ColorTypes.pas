@@ -6,6 +6,9 @@ type
   TRGB32 = packed record
     B, G, R, A: Byte;
   end;
+
+  PRGB32 = ^TRGB32;
+
   TRGB32Array = packed array[0..MaxInt div SizeOf(TRGB32)-1] of TRGB32;
   PRGB32Array = ^TRGB32Array;
 

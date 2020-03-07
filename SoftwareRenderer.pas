@@ -69,7 +69,8 @@ uses
   SolidColorShader,
   DepthColorShader,
   TextureShader,
-  Rasterizer;
+  Rasterizer,
+  RenderTypes;
 
 { TSoftwareRenderer }
 
@@ -97,7 +98,7 @@ begin
   FTimer := TStopWatch.Create(False);
 
   FWorkers := TObjectList<TRenderWorker>.Create();
-  SpinupWorkers(2);
+  SpinupWorkers(1);
 end;
 
 destructor TSoftwareRenderer.Destroy;
@@ -138,8 +139,8 @@ begin
   for LWorker in FWorkers do
   begin
     LWorker.DrawCalls := ACalls;
-    LWorker.Shader.InitTexture(FTexture);
-    LWorker.Shader.PixelBuffer := FBackBuffer[LFrontBuffer];
+//    LWorker.Shader.InitTexture(FTexture);
+    LWorker.PixelBuffer := FBackBuffer[LFrontBuffer];
     LWorker.ResolutionX := FResolutionX;
     LWorker.ResolutionY := FResolutionY;
     LFPS := LWorker.FPS;
@@ -188,6 +189,7 @@ begin
     LProjection.SetAsPerspectiveProjectionMatrix(100, 200, 0.7, FResolutionX/FResolutionY);
     LProjection.MultiplyMatrix4D(LMove);
     TransformMesh(LMesh, LProjection, LCall);
+    LCall.Shader := LMesh.Shader;
   end;
 end;
 
@@ -274,19 +276,31 @@ var
   i: Integer;
   LVertex: TFloat4;
   LTriangle: TTriangleClass;
+  LShader: TShader;
+  LBuffer: TVertexAttributeBuffer;
+  LBufferSize: Integer;
+  LVInput: TVertexShaderInput;
 begin
-  for i := 0 to AMesh.Vertices.Count - 1 do
-  begin
-    LVertex.Element[0] := AMesh.Vertices[i].X;
-    LVertex.Element[1] := AMesh.Vertices[i].Y;
-    LVertex.Element[2] := AMesh.Vertices[i].Z;
-    LVertex.Element[3] := 1;
-    LVertex := AMatrix.Transform(LVertex);
-    LVertex.NormalizeKeepW;
-    ATargetCall.AddVertex(LVertex);
+  LBufferSize := AMesh.Shader.GetAttributeBufferSize;
+  SetLength(LBuffer, LBufferSize);
+  LShader := AMesh.Shader.Create();
+  try
+    for i := 0 to AMesh.Vertices.Count - 1 do
+    begin
+      LVertex.Element[0] := AMesh.Vertices[i].X;
+      LVertex.Element[1] := AMesh.Vertices[i].Y;
+      LVertex.Element[2] := AMesh.Vertices[i].Z;
+      LVertex.Element[3] := 1;
+      LVInput.VertexID := i;
+      LShader.VertexShader(AMatrix, LVertex, LVInput, LBuffer);
+      LVertex.NormalizeKeepW;
+      ATargetCall.AddVertex(LVertex, LBuffer);
+    end;
+    for LTriangle in AMesh.Triangles do
+      ATargetCall.AddTriangle(LTriangle);
+  finally
+    LShader.Free;
   end;
-  for LTriangle in AMesh.Triangles do
-    ATargetCall.AddTriangle(LTriangle);
 end;
 
 procedure TSoftwareRenderer.UpdateBufferResolution(ABuffer: Boolean; AWidth, AHeight: Integer);

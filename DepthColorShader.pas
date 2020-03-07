@@ -20,7 +20,7 @@ type
     destructor Destroy(); override;
     procedure Shade8X8Quad(); override;
     procedure ShadeSinglePixel(); override;
-    procedure InitTriangle(AVecA, AVecB, AVecC: TFloat4); override;
+//    procedure InitTriangle(AVecA, AVecB, AVecC: TFloat4); override;
   end;
 
 implementation
@@ -39,25 +39,25 @@ begin
   inherited;
 end;
 
-procedure TDepthColorShader.InitTriangle(AVecA, AVecB, AVecC: TFloat4);
-var
-  R1, R2, R3: Single;
-begin
-  inherited;
-  FVecA := AVecA;
-  FVecB := AVecB;
-  FVecC := AvecC;
-  R1 := 255-255*AvecA.Z;
-  R2 := 255-255*AVecB.Z;
-  R3 := 255-255*AVecC.Z;
-  PixelBuffer.Canvas.Font.Color := clRed;
-  PixelBuffer.Canvas.TextOut(0, 0, 'Z1: ' + FloatToStr(AvecA.Z));
-
-  FStepA := CalculateFactorA(AVecA, AVecB, AVecC, R1, R2, R3);
-  FStepB := CalculateFactorB(AVecA, AVecB, AVecC, R1, R2, R3);
-  FStepC := CalculateFactorC(AVecA, AVecB, AVecC);
-  FStepD := CalculateFactorD(AVecA, AVecB, AVecC, R1, R2, R3);
-end;
+//procedure TDepthColorShader.InitTriangle(AVecA, AVecB, AVecC: TFloat4);
+//var
+//  R1, R2, R3: Single;
+//begin
+//  inherited;
+//  FVecA := AVecA;
+//  FVecB := AVecB;
+//  FVecC := AvecC;
+//  R1 := 255-255*AvecA.Z;
+//  R2 := 255-255*AVecB.Z;
+//  R3 := 255-255*AVecC.Z;
+//  PixelBuffer.Canvas.Font.Color := clRed;
+//  PixelBuffer.Canvas.TextOut(0, 0, 'Z1: ' + FloatToStr(AvecA.Z));
+//
+//  FStepA := CalculateFactorA(AVecA, AVecB, AVecC, R1, R2, R3);
+//  FStepB := CalculateFactorB(AVecA, AVecB, AVecC, R1, R2, R3);
+//  FStepC := CalculateFactorC(AVecA, AVecB, AVecC);
+//  FStepD := CalculateFactorD(AVecA, AVecB, AVecC, R1, R2, R3);
+//end;
 
 procedure TDepthColorShader.Shade8X8Quad;
 var

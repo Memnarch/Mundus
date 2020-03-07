@@ -14,6 +14,9 @@ type
 
 implementation
 
+uses
+  RenderTypes;
+
 { TCube }
 
 constructor TCube.Create;
@@ -22,7 +25,6 @@ var
 begin
   inherited Create();
   //front vertices
-   
   AddVertice(TVectorClass.Create(-32, -32, -32));
   AddVertice(TVectorClass.Create(-32, 32, -32));
   AddVertice(TVectorClass.Create(32, 32, -32));

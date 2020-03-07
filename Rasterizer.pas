@@ -6,7 +6,15 @@ uses
   Math3D,
   Shader;
 
-procedure RasterizeTriangle(AMaxResolutionX, AMaxResolutionY: Integer; const AVerctorA, AvectorB, AvectorC: TFloat4; AShader: TShader; ABlockOffset, ABlockStep: Integer);
+type
+  TRasterizerFactory = record
+    class procedure RasterizeTriangle<TAttributes: record; Shader: TShader<TAttributes>>(
+      AMaxResolutionX, AMaxResolutionY: Integer;
+      const AVerctorA, AvectorB, AvectorC: TFloat4;
+      const AAttributesA, AAttributesB, AAttributesC: Pointer;
+      AShader: Shader;
+      ABlockOffset, ABlockStep: Integer); static;
+  end;
 
 implementation
 
@@ -17,7 +25,11 @@ uses
 const
   QuadSize = 8;
 
-procedure RasterizeTriangle(AMaxResolutionX, AMaxResolutionY: Integer; const AVerctorA, AvectorB, AvectorC: TFloat4; AShader: TShader; ABlockOffset, ABlockStep: Integer);
+class procedure TRasterizerFactory.RasterizeTriangle<TAttributes, Shader>(
+  AMaxResolutionX, AMaxResolutionY: Integer;
+  const AVerctorA, AvectorB, AvectorC: TFloat4;
+  const AAttributesA, AAttributesB, AAttributesC: Pointer;
+  AShader: Shader; ABlockOffset, ABlockStep: Integer);
 var
   Y1, Y2, Y3, X1, X2, X3, DX12, DX23, DX31, DY12, DY23, DY31, FDX12, FDX23, FDX31, FDY12, FDY23, FDY31: Integer;
   MinX, MinY, MAxX, MAxY, C1, C2, C3, BlockX, BlockY, CornerX0, CornerX1, CornerY0, CornerY1: Integer;
@@ -138,8 +150,13 @@ begin
             // Accept whole block when totally covered
               if (ResultAndA and ResultAndB and ResultAndC)  then
               begin
-                AShader.Pixel := Point(BlockX, BlockY);
-                AShader.Shade8X8Quad();
+                for i := BlockY to BlockY + QuadSize - 1 do
+                begin
+                  for k := BlockX to BlockX + QuadSize - 1 do
+                  begin
+                    AShader.Fragment(k, i, AAttributesA);
+                  end;
+                end;
               end
               else //Partially covered Block
               begin
@@ -158,8 +175,7 @@ begin
                   begin
                     if(CX1 >= 0) and (CX2 >= 0) and (CX3 >= 0)then
                     begin
-                      AShader.Pixel := Point(k, i);
-                      AShader.ShadeSinglePixel();
+                      AShader.Fragment(k, i, AAttributesA);
                     end;
 
                     CX1 := CX1 - FDY12;

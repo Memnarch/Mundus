@@ -19,7 +19,8 @@ uses
   RenderWorker in 'RenderWorker.pas',
   Rasterizer in 'Rasterizer.pas',
   SamplerGraph in 'SamplerGraph.pas',
-  Camera in 'Camera.pas';
+  Camera in 'Camera.pas',
+  RenderTypes in 'RenderTypes.pas';
 
 {$R *.res}
 

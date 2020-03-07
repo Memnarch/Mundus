@@ -5,7 +5,8 @@ interface
 uses
   Generics.Collections,
   Math3D,
-  BaseMesh;
+  RenderTypes,
+  Shader;
 
 type
   TDrawCall = record
@@ -14,14 +15,18 @@ type
     FTriangles: TArray<TTriangle>;
     FVertexCount: Integer;
     FTriangleCount: Integer;
+    FAttributes: TArray<TVertexAttributeBuffer>;
+    FShader: TShaderClass;
   public
-    procedure AddVertex(const AVertex: TFloat4);
+    procedure AddVertex(const AVertex: TFloat4; const AAttributes: TVertexAttributeBuffer);
     procedure AddTriangle(const ATriangle: TTriangleClass);
     procedure Reset;
     property Vertices: TArray<TFloat4> read FVertices;
+    property Attributes: TArray<TVertexAttributeBuffer> read FAttributes;
     property Triangles: TArray<TTriangle> read FTriangles;
     property VertexCount: Integer read FVertexCount;
     property TriangleCount: Integer read FTriangleCount;
+    property Shader: TShaderClass read FShader write FShader;
   end;
 
   PDrawCall = ^TDrawCall;
@@ -63,11 +68,15 @@ begin
   Inc(FTriangleCount);
 end;
 
-procedure TDrawCall.AddVertex(const AVertex: TFloat4);
+procedure TDrawCall.AddVertex(const AVertex: TFloat4; const AAttributes: TVertexAttributeBuffer);
 begin
   if FVertexCount = Length(FVertices) then
+  begin
     SetLength(FVertices, Length(FVertices) + CBufferStep);
+    SetLength(FAttributes, Length(FVertices));
+  end;
   FVertices[FVertexCount] := AVertex;
+  FAttributes[FVertexCount] := Copy(AAttributes, 0);
   Inc(FVertexCount);
 end;
 

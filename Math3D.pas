@@ -37,6 +37,7 @@ type
       0: (X, Y, Z, W: Single);
       1: (XY, ZW: TFloat2);
       2: (Element: array[0..3] of Single);
+      3: (B, G, R, A: Single);
   end;
 
   TMatrix4D = record
