@@ -3,27 +3,259 @@ unit Rasterizer;
 interface
 
 uses
+  Math,
   Math3D,
-  Shader;
+  Shader,
+  Interpolation;
+
+  {$IFDEF Debug}
+    {$Inline Off}
+  {$ENDIF}
 
 type
   TRasterizerFactory = record
+  private
+    class procedure Factorize<TAttributes: record>(
+      const AVectorA, AVectorB, AVectorC: TFloat4;
+      AAttributeA, AAttributeB, AAttributeC: PSingle;
+      AStepA, AStepB, AStepD: PSingle;
+      var AVecZ: TFloat3); static; inline;
+
+      class procedure InitFactors4(
+        const ATarget: PSingle;
+        const ABase: PSingle;
+        const AMultiplier: Single;
+        const AAdd: PSingle
+      ); static; stdcall;
+    class procedure InitFactors<TAttributes: record>(
+        const ATarget: PSingle;
+        const ABase: PSingle;
+        const AMultiplier: Single;
+        const AAdd: PSingle
+      ); static; inline;
+    class procedure StepFactors4(
+        ATarget: PSingle;
+        AStep: PSingle
+      ); static;
+    class procedure StepFactors<TAttributes: record>(
+        ATarget: PSingle;
+        AStep: PSingle
+      ); static; inline;
+    class procedure DenormalizeFactors4(
+        ATarget: PSingle;
+        ASource: PSingle;
+        AZ: Single
+      ); static;
+    class procedure DenormalizeFactors<TAttributes: record>(
+        ATarget: PSingle;
+        ASource: PSingle;
+        AZ: Single
+      ); static; inline;
+
+    class procedure RenderFullBlock<TAttributes: record; Shader: TShader<TAttributes>>(
+      AX, AY: Integer;
+      const AStepA, AStepB, AStepD: TAttributes;
+      const AZValues: TFloat3; AShader: Shader); static;
+    class procedure InterpolateAttributes4(const AX, AY: Single; ATarget, AStepA, AStepB, AStepD: PSingle; AZ: Single); static;
+    class procedure InterpolateAttributes<TAttributes: record>(AX, AY: Integer; ATarget, AStepA, AStepB, AStepD: PSingle; const AZValues: TFloat3); static; inline;
+  public
     class procedure RasterizeTriangle<TAttributes: record; Shader: TShader<TAttributes>>(
       AMaxResolutionX, AMaxResolutionY: Integer;
       const AVerctorA, AvectorB, AvectorC: TFloat4;
       const AAttributesA, AAttributesB, AAttributesC: Pointer;
       AShader: Shader;
-      ABlockOffset, ABlockStep: Integer); static;
+      ABlockOffset, ABlockStep: Integer); static; inline;
   end;
 
 implementation
 
 uses
-  Types,
-  Math;
+  Types;
 
 const
   QuadSize = 8;
+
+{$PointerMath ON}
+
+class procedure TRasterizerFactory.DenormalizeFactors4(ATarget,
+  ASource: PSingle; AZ: Single);
+asm
+  movups xmm0, [ASource]
+  movss xmm1, [AZ]
+  shufps xmm1, xmm1, 0
+  rcpps xmm1, xmm1
+  mulps xmm0, xmm1
+  movups [ATarget], xmm0
+end;
+
+class procedure TRasterizerFactory.DenormalizeFactors<TAttributes>(ATarget,
+  ASource: PSingle; AZ: Single);
+begin
+  DenormalizeFactors4(ATarget, ASource, AZ);
+end;
+//var
+//  i: Integer;
+//  LZ: Single;
+//begin
+//  LZ := 1 / AZ;
+//  for i := 0 to Pred(SizeOf(TAttributes) div SizeOf(Single)) do
+//    ATarget[i] := ASource[i] * LZ;
+//end;
+
+class procedure TRasterizerFactory.Factorize<TAttributes>(
+  const AVectorA, AVectorB, AVectorC: TFloat4;
+  AAttributeA, AAttributeB, AAttributeC: PSingle;
+  AStepA, AStepB, AStepD: PSingle;
+  var AVecZ: TFloat3);
+var
+  LAW, LBW, LCW: Single;
+  LStepCZ: Single;
+  i: Integer;
+begin
+  LAW := AVectorA.W;
+  LBW := AVectorB.W;
+  LCW := AVectorC.W;
+  LStepCZ := CalculateFactorC(AVectorA, AVectorB, AVectorC);
+  AVecZ.X := CalculateFactorA(AVectorA, AVectorB, AVectorC, 1/LAW, 1/LBW, 1/LCW) / LStepCZ;
+  AVecZ.Y := CalculateFactorB(AVectorA, AVectorB, AVectorC, 1/LAW, 1/LBW, 1/LCW) / LStepCZ;
+  AVecZ.Z := CalculateFactorD(AVectorA, AVectorB, AVectorC, 1/LAW, 1/LBW, 1/LCW) / LStepCZ;
+
+  for i := 0 to Pred(SizeOf(TAttributes) div SizeOf(Single)) do
+  begin
+//    FStepC.XY.U := CalculateFactorC(FVecA, FVecB, FVecC);
+    AStepA[i] := CalculateFactorA(AVectorA, AVectorB, AVectorC, AAttributeA[i]/LAW, AAttributeB[i]/LBW, AAttributeC[i]/LCW) / LStepCZ;
+    AStepB[i] := CalculateFactorB(AVectorA, AVectorB, AVectorC, AAttributeA[i]/LAW, AAttributeB[i]/LBW, AAttributeC[i]/LCW) / LStepCZ;
+    AStepD[i] := CalculateFactorD(AVectorA, AVectorB, AVectorC, AAttributeA[i]/LAW, AAttributeB[i]/LBW, AAttributeC[i]/LCW) / LStepCZ;
+  end;
+end;
+
+class procedure TRasterizerFactory.InitFactors4(
+        const ATarget: PSingle;
+        const ABase: PSingle;
+        const AMultiplier: Single;
+        const AAdd: PSingle
+      );
+asm
+//  mov eax, [AMultiplier]
+  movss xmm0, [AMultiplier]
+//  //set all parts of xmm1 to the value in the lowest part of xmm1
+  shufps xmm0, xmm0, 0
+  mov eax, [ABase];
+  movups xmm1, [eax]
+  mov eax, [AAdd]
+  movups xmm2, [eax]
+  mulps xmm1, xmm0
+  addps xmm1, xmm2
+  mov eax, ATarget
+  movups [eax], xmm1
+end;
+
+class procedure TRasterizerFactory.InitFactors<TAttributes>(
+        const ATarget: PSingle;
+        const ABase: PSingle;
+        const AMultiplier: Single;
+        const AAdd: PSingle
+      );
+begin
+  InitFactors4(ATarget, ABase, AMultiplier, AAdd);
+end;
+
+//InitFactors<TAttributes>(@LAttributesY, @LStepB, i, @LStepD);
+//                      LDenormalizeZY := LStepsZ.Y * i + LStepsZ.Z;
+//                      InitFactors<TAttributes>(@LAttributesX, @LStepA, k, @LAttributesY);
+//                      LDenormalizeZX := LStepsZ.X * k + LDenormalizeZY;
+//                      DenormalizeFactors<TAttributes>(@LAttributesDenormalized, @LAttributesX, LDenormalizeZX);
+class procedure TRasterizerFactory.InterpolateAttributes4(const AX, AY: Single; ATarget, AStepA, AStepB, AStepD: PSingle; AZ: Single);
+asm
+  push eax
+  //initfactor StepB
+  movups xmm0, [AStepB]
+  movss xmm1, [AY]
+  shufps xmm1, xmm1, 0
+  mulps xmm0, xmm1
+  mov eax, [AStepD]
+  movups xmm1, [eax]
+  addps xmm0, xmm1
+  //initfactor StepA
+  movups xmm2, [AStepA]
+//  mov eax, ptr dword AX
+  movss xmm1, [ebp+$14]
+  shufps xmm1, xmm1, 0
+  mulps xmm2, xmm1
+  addps xmm2, xmm0
+  //denormalize
+  movss xmm1, [AZ]
+  shufps xmm1, xmm1, 0
+  rcpps xmm1, xmm1
+  mulps xmm2, xmm1
+  pop eax
+  movups [ATarget], xmm2
+end;
+
+class procedure TRasterizerFactory.InterpolateAttributes<TAttributes>(AX, AY: Integer; ATarget, AStepA, AStepB, AStepD: PSingle; const AZValues: TFloat3);
+var
+  LZ: Single;
+begin
+  LZ := ((AZValues.Y*AY + AZValues.Z) + AZValues.X * AX);
+  InterpolateAttributes4(AX, AY, ATarget, AStepA, AStepB, AStepD, LZ);
+end;
+
+//var
+//  i: Integer;
+//begin
+//  for i := 0 to Pred(SizeOf(TAttributes) div SizeOf(Single)) do
+//  begin
+//    ATarget[i] := ABase[i] * AMultiplier + AAdd[i];
+//  end;
+//end;
+
+class procedure TRasterizerFactory.StepFactors4(ATarget, AStep: PSingle);
+asm
+  movups xmm0, [ATarget]
+  movups xmm1, [AStep]
+  addps xmm0, xmm1
+  movups [ATarget], xmm0
+end;
+
+class procedure TRasterizerFactory.StepFactors<TAttributes>(ATarget, AStep: PSingle);
+begin
+  StepFactors4(ATarget, AStep);
+end;
+//var
+//  i: Integer;
+//begin
+//  for i := 0 to Pred(SizeOf(TAttributes) div SizeOf(Single)) do
+//    ATarget[i] := ATarget[i] + AStep[i];
+//end;
+
+
+class procedure TRasterizerFactory.RenderFullBlock<TAttributes, Shader>(AX,
+  AY: Integer; const AStepA, AStepB,
+  AStepD: TAttributes; const AZValues: TFloat3; AShader: Shader);
+var
+  LDenormalizeZY, LDenormalizeZX: Single;
+  i, k: Integer;
+  LAttributesX, LAttributesY, LAttributesDenormalized: TAttributes;
+begin
+  InitFactors<TAttributes>(@LAttributesY, @AStepB, AY, @AStepD);
+  LDenormalizeZY := AZValues.Y * AY + AZValues.Z;
+  for i := AY to AY + (QuadSize - 1) do
+  begin
+    InitFactors<TAttributes>(@LAttributesX, @AStepA, AX, @LAttributesY);
+    LDenormalizeZX := AZValues.X * AX + LDenormalizeZY;
+    for k := AX to AX + (QuadSize - 1) do
+    begin
+      DenormalizeFactors<TAttributes>(@LAttributesDenormalized, @LAttributesX, LDenormalizeZX);
+      AShader.Fragment(k, i, @LAttributesDenormalized);
+      StepFactors<TAttributes>(@LAttributesX, @AStepA);
+      LDenormalizeZX := LDenormalizeZX + AZValues.X;
+    end;
+    StepFactors<TAttributes>(@LAttributesY, @AStepB);
+    LDenormalizeZY := LDenormalizeZY + AZValues.Y;
+  end;
+end;
+
+{$PointerMath OFF}
 
 class procedure TRasterizerFactory.RasterizeTriangle<TAttributes, Shader>(
   AMaxResolutionX, AMaxResolutionY: Integer;
@@ -37,8 +269,14 @@ var
   A00, A10, A01, A11, B00, B10, B01, B11, C00, C10, C01, C11, ResultOrA, ResultAndA, ResultOrB, ResultAndB,
   ResultOrC, ResultAndC: Boolean;
   i, k: Integer;
+  LStepA, LStepB, LStepD: TAttributes;
+  LStepsZ: TFloat3;
+  LAttributesX, LAttributesY, LAttributesDenormalized: TAttributes;
+  LDenormalizeZX, LDenormalizeZY: Single;
 begin
-// 28.4 fixed-point coordinates
+  //calculate attribute factors
+  Factorize<TAttributes>(AVerctorA, AvectorB, AvectorC, AAttributesA, AAttributesB, AAttributesC, @LStepA, @LStepB, @LStepD, LStepsZ);
+  // 28.4 fixed-point coordinates
     X1 := Round(16*AVerctorA.Element[0]);
     X2 := Round(16*AVectorB.Element[0]);
     X3 := Round(16*AvectorC.Element[0]);
@@ -150,13 +388,7 @@ begin
             // Accept whole block when totally covered
               if (ResultAndA and ResultAndB and ResultAndC)  then
               begin
-                for i := BlockY to BlockY + QuadSize - 1 do
-                begin
-                  for k := BlockX to BlockX + QuadSize - 1 do
-                  begin
-                    AShader.Fragment(k, i, AAttributesA);
-                  end;
-                end;
+                RenderFullBlock<TAttributes, Shader>(BlockX, BlockY, LStepA, LStepB, LStepD, LStepsZ, AShader);
               end
               else //Partially covered Block
               begin
@@ -165,17 +397,18 @@ begin
                 CY2 := C2 + DX23 * CornerY0 - DY23 * CornerX0;
                 CY3 := C3 + DX31 * CornerY0 - DY31 * CornerX0;
 
-                for i := BlockY to Min(AMaxResolutionY, BlockY + QuadSize - 1) do
+                for i := BlockY to BlockY + (QuadSize - 1) do
                 begin
                   CX1 := CY1;
                   CX2 := CY2;
                   CX3 := CY3;
 
-                  for k := BlockX to Min(AMaxResolutionX, BlockX + QuadSize - 1) do
+                  for k := BlockX to BlockX + (QuadSize - 1) do
                   begin
                     if(CX1 >= 0) and (CX2 >= 0) and (CX3 >= 0)then
                     begin
-                      AShader.Fragment(k, i, AAttributesA);
+                      InterpolateAttributes<TAttributes>(k, i, @LAttributesDenormalized, @LStepA, @LStepB, @LStepD, LStepsZ);
+                      AShader.Fragment(k, i, @LAttributesDenormalized);
                     end;
 
                     CX1 := CX1 - FDY12;
