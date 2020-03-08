@@ -6,6 +6,13 @@ uses
   Types, Classes, SysUtils, Math;
 
 type
+  TInt4 = record
+    X, Y, Z, W: Integer;
+    procedure Add(const ARight: TInt4);
+    procedure Sub(const ARight: TInt4);
+    procedure Mul(const ARight: TInt4);
+  end;
+
   TFloatArray = TArray<Single>;
 
   TFloat2 = record
@@ -540,6 +547,32 @@ asm
 //  X := X - ARight.X;
 //  Y := Y - ARight.Y;
 //  Z := Z - ARight.Z;
+end;
+
+{ TInt4 }
+
+procedure TInt4.Add(const ARight: TInt4);
+asm
+  movdqu xmm0, [Self]
+  movdqu xmm1, [ARight]
+  PADDD xmm0, xmm1
+  movdqu [Self], xmm0
+end;
+
+procedure TInt4.Mul(const ARight: TInt4);
+asm
+  movdqu xmm0, [Self]
+  movdqu xmm1, [ARight]
+  PMULLD xmm0, xmm1
+  movdqu [Self], xmm0
+end;
+
+procedure TInt4.Sub(const ARight: TInt4);
+asm
+  movdqu xmm0, [Self]
+  movdqu xmm1, [ARight]
+  PSUBD xmm0, xmm1
+  movdqu [Self], xmm0
 end;
 
 end.
