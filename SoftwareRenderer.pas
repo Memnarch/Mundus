@@ -22,7 +22,7 @@ type
     FMeshList: TObjectList<TBaseMesh>;
     FFPS: Integer;
     FPolyCount: Cardinal;
-    FLineLength: LongInt;
+    FLineLength: NativeInt;
     FFirstLine: PRGB32Array;
     FQuadSize: Integer;
     FResolutionX: Integer;
@@ -309,7 +309,7 @@ begin
   begin
     FBackBuffer[ABuffer].SetSize(AWidth, Aheight);
     FFirstLIne := FBackBuffer[ABuffer].ScanLine[0];
-    FLineLength := (Longint(FBackBuffer[ABuffer].Scanline[1]) - Longint(FFirstLine)) div SizeOf(TRGB32);
+    FLineLength := (NativeInt(FBackBuffer[ABuffer].Scanline[1]) - NativeInt(FFirstLine)) div SizeOf(TRGB32);
     FBackBuffer[ABuffer].Canvas.Pen.Color := clBlack;
     FBackBuffer[ABuffer].Canvas.Brush.Color := clBlack;
     SetDepthBufferSize(ABuffer, AWidth, AHeight);

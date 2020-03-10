@@ -52,7 +52,7 @@ end;
 
 procedure TSolidColorShader.Fragment(X, Y: Integer; const PSInput: TShader<TSolidColorPSInput>.PAttributeType);
 var
-  LPixel: Cardinal;
+  LPixel: NativeInt;
   LTarget: PRGB32;
 begin
   LPixel := Y * LineLength + X;
