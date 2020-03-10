@@ -40,6 +40,7 @@ type
     procedure CalculateSurfaceNormal(const AVecA, AVecB, AVecC: TFloat4);
     procedure Normalize;
     procedure NormalizeKeepW;
+    function Length: Single;
     case byte of
       0: (X, Y, Z, W: Single);
       1: (XY, ZW: TFloat2);
@@ -405,6 +406,11 @@ asm
   movups xmm1, [ARight]
   dpps xmm0, xmm1, $FF
   movups [Self], xmm0
+end;
+
+function TFloat4.Length: Single;
+begin
+  Result := Sqrt(X*X+Y*Y+Z*Z);
 end;
 
 procedure TFloat4.Mul(const ARight: TFloat4);

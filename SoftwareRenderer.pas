@@ -36,7 +36,7 @@ type
     FCamera: TCamera;
     procedure SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);
     procedure ClearDepthBuffer(ABuffer: Boolean);
-    procedure TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrix4x4; ATargetCall: PDrawCall);
+    procedure TransformMesh(AMesh: TBaseMesh; AWorld, AProjection: TMatrix4x4; ATargetCall: PDrawCall);
     procedure DoAfterFrame(ACanvas: TCanvas);
     function GenerateDrawCalls(const AViewMatrix: TMatrix4x4): TDrawCalls;
     procedure DispatchCalls(ACanvas: TCanvas; ACalls: TDrawCalls);
@@ -44,6 +44,7 @@ type
     procedure TerminateWorkers;
     procedure WaitForRender;
     procedure UpdateBufferResolution(ABuffer: Boolean; AWidth, AHeight: Integer);
+    function GetRenderWorkers: Integer;
   public
     constructor Create();
     destructor Destroy(); override;
@@ -57,6 +58,7 @@ type
     property ResolutionX: Integer read FResolutionX;
     property ResolutionY: Integer read FResolutionY;
     property Camera: TCamera read FCamera;
+    property ReenderWorkers: Integer read GetRenderWorkers;
   end;
 
   function RGB32(ARed, AGreen, ABlue, AAlpha: Byte): TRGB32;
@@ -127,7 +129,7 @@ begin
 
   //ResetBackBuffer from last frame
   UpdateBufferResolution(LFrontBuffer, FResolutionX, FResolutionY);
-  FBackBuffer[LFrontBuffer].Canvas.Brush.Color := clRed;
+  FBackBuffer[LFrontBuffer].Canvas.Brush.Color := clBlack;// clRed;
   FBackBuffer[LFrontBuffer].Canvas.FillRect(FBackBuffer[LFrontBuffer].Canvas.ClipRect);
   ClearDepthBuffer(LFrontBuffer);
 
@@ -188,7 +190,7 @@ begin
     LMove.MultiplyMatrix4D(AViewMatrix);
     LProjection.SetAsPerspectiveProjectionMatrix(100, 200, 0.7, FResolutionX/FResolutionY);
     LProjection.MultiplyMatrix4D(LMove);
-    TransformMesh(LMesh, LProjection, LCall);
+    TransformMesh(LMesh, LMove, LProjection, LCall);
     LCall.Shader := LMesh.Shader;
   end;
 end;
@@ -201,6 +203,11 @@ end;
 function TSoftwareRenderer.GetCurrentPolyCount: Cardinal;
 begin
   Result := FPolyCount;
+end;
+
+function TSoftwareRenderer.GetRenderWorkers: Integer;
+begin
+  Result := FWorkers.Count;
 end;
 
 procedure TSoftwareRenderer.RenderFrame(ACanvas: TCanvas);
@@ -271,7 +278,7 @@ begin
     LWorker.Terminate;
 end;
 
-procedure TSoftwareRenderer.TransformMesh(AMesh: TBaseMesh; AMatrix: TMatrix4x4; ATargetCall: PDrawCall);
+procedure TSoftwareRenderer.TransformMesh(AMesh: TBaseMesh; AWorld, AProjection: TMatrix4x4; ATargetCall: PDrawCall);
 var
   i: Integer;
   LVertex: TFloat4;
@@ -292,7 +299,7 @@ begin
       LVertex.Element[2] := AMesh.Vertices[i].Z;
       LVertex.Element[3] := 1;
       LVInput.VertexID := i;
-      LShader.VertexShader(AMatrix, LVertex, LVInput, LBuffer);
+      LShader.VertexShader(AWorld, AProjection, LVertex, LVInput, LBuffer);
       LVertex.NormalizeKeepW;
       ATargetCall.AddVertex(LVertex, LBuffer);
     end;

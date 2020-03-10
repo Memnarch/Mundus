@@ -27,7 +27,7 @@ type
     procedure SetPixelBuffer(const Value: TBitmap);
   public
     constructor Create(); virtual;
-    procedure VertexShader(const AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: Pointer); virtual; abstract;
+    procedure VertexShader(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: Pointer); virtual; abstract;
     procedure Shade8X8Quad(); virtual; abstract;
     procedure ShadeSinglePixel(); virtual; abstract;
 //    procedure InitTriangle(AVecA, AVecB, AVecC: TFloat4); virtual; abstract;
@@ -47,8 +47,8 @@ type
       PAttributeType = ^T;
     class function GetRasterizer: TRasterizer; override;
     class function GetAttributeBufferSize: Integer; override;
-    procedure VertexShader(const AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: Pointer); override;
-    procedure Vertex(const AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: PAttributeType); virtual;
+    procedure VertexShader(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: Pointer); override;
+    procedure Vertex(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: PAttributeType); virtual;
     procedure Fragment(X, Y: Integer; const PSInput: PAttributeType); virtual; abstract;
   end;
 
@@ -96,14 +96,14 @@ begin
   Result := TRasterizer(@TRasterizerFactory.RasterizeTriangle<T, TShader<T>>);
 end;
 
-procedure TShader<T>.Vertex(const AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: PAttributeType);
+procedure TShader<T>.Vertex(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: PAttributeType);
 begin
   AVertex := AProjection.Transform(AVertex);
 end;
 
-procedure TShader<T>.VertexShader(const AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: Pointer);
+procedure TShader<T>.VertexShader(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: Pointer);
 begin
-  Vertex(AProjection, AVertex, AVInput, AAttributeBuffer);
+  Vertex(AWorld, AProjection, AVertex, AVInput, AAttributeBuffer);
 end;
 
 end.

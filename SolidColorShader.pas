@@ -18,7 +18,7 @@ type
     procedure Shade8X8Quad(); override;
     procedure ShadeSinglePixel(); override;
     procedure SetColor(R, G, B: Byte);
-    procedure Vertex(const AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: TShader<TSolidColorPSInput>.PAttributeType); override; final;
+    procedure Vertex(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: TShader<TSolidColorPSInput>.PAttributeType); override; final;
     procedure Fragment(X, Y: Integer; const PSInput: TShader<TSolidColorPSInput>.PAttributeType); override; final;
     class function GetRasterizer: TRasterizer; override;
   end;
@@ -26,7 +26,8 @@ type
 implementation
 
 uses
-  Rasterizer;
+  Rasterizer,
+  Math;
 
 const
   CDenormalizer: TFloat4 = (B: 255; G: 255; R: 255; A: 255);
@@ -118,11 +119,19 @@ begin
   FirstLine[LPixel].R := Color.R;
 end;
 
-procedure TSolidColorShader.Vertex(const AProjection: TMatrix4x4;
+procedure TSolidColorShader.Vertex(const AWorld, AProjection: TMatrix4x4;
   var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: TSolidColorShader.PAttributeType);
+var
+  LDist, LIntensity: Single;
+  LVec, LColors: TFloat4;
 begin
+  LVec := AWorld.Transform(AVertex);
+  LDist := LVec.Length;
+  LIntensity := Max(130-LDist, 0) / 50;
   inherited;
-  AAttributeBuffer^ := CColors[AVInput.VertexID mod Length(CColors)];
+  LColors := CColors[AVInput.VertexID mod Length(CColors)];
+  LColors.Mul(LIntensity);
+  AAttributeBuffer^ := LColors;
 end;
 
 end.
