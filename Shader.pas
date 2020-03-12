@@ -53,7 +53,7 @@ type
     class function GetAttributeBufferSize: Integer; override;
     procedure VertexShader(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: Pointer); override;
     procedure Vertex(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: PAttributeType); virtual;
-    procedure Fragment(X, Y: Integer; const PSInput: PAttributeType); virtual; abstract;
+    procedure Fragment(const APixel: PRGB32; const PSInput: PAttributeType); virtual; abstract;
   end;
 
   TShaderClass = class of TShader;

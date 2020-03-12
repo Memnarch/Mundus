@@ -22,7 +22,7 @@ type
     constructor Create; override;
     procedure BindBuffer(const ABuffer: PValueBuffers); override;
     procedure Vertex(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: TShader<TSolidColorPSInput>.PAttributeType); override; final;
-    procedure Fragment(X, Y: Integer; const PSInput: TShader<TSolidColorPSInput>.PAttributeType); override; final;
+    procedure Fragment(const APixel: PRGB32; const PSInput: TShader<TSolidColorPSInput>.PAttributeType); override; final;
     class function GetRasterizer: TRasterizer; override;
   end;
 
@@ -52,31 +52,22 @@ begin
 
 end;
 
-procedure TSolidColorShader.Fragment(X, Y: Integer; const PSInput: TShader<TSolidColorPSInput>.PAttributeType);
-var
-  LPixel: NativeInt;
-  LTarget: PRGB32;
-begin
-  LPixel := Y * LineLength + X;
-  LTarget := @FirstLine[LPixel];
-  asm
-    //load input
-    mov eax, [PSInput]
-    movups xmm2, [eax]
-    //load denormalizer
-    movups xmm1, [CDenormalizer];
-    //denormalize PSInput
-    mulps xmm2, xmm1
-    //convert Single to DWord
-    cvttps2dq xmm2, xmm2
-    //Pack DWord to Word
-    packusdw xmm2, xmm2
-    //Pack Word to Byte
-    packuswb xmm2, xmm2
-    //write final color values
-    mov eax, [LTarget]
-    PEXTRD [eax], xmm2, 0
-  end;
+procedure TSolidColorShader.Fragment(const APixel: PRGB32; const PSInput: TShader<TSolidColorPSInput>.PAttributeType);
+asm
+  //load input
+  movups xmm2, [PSInput]
+  //load denormalizer
+  movups xmm1, [CDenormalizer];
+  //denormalize PSInput
+  mulps xmm2, xmm1
+  //convert Single to DWord
+  cvttps2dq xmm2, xmm2
+  //Pack DWord to Word
+  packusdw xmm2, xmm2
+  //Pack Word to Byte
+  packuswb xmm2, xmm2
+  //write final color values
+  PEXTRD [APixel], xmm2, 0
 end;
 
 class function TSolidColorShader.GetRasterizer: TRasterizer;

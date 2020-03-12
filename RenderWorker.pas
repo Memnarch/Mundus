@@ -82,6 +82,7 @@ var
   LVertexA, LVertexB, LVertexC, LNormal: TFloat4;
   LShader: TShader;
   LRasterizer: TRasterizer;
+  LRenderTarget: Pointer;
 begin
   while not Terminated do
   begin
@@ -89,6 +90,7 @@ begin
     FWatch.Start;
     for i := 0 to Pred(FDrawCalls.Count) do
     begin
+      LRenderTarget := FPixelBuffer.ScanLine[0];
       LCall := FDrawCalls[i];
       LShader := LCall.Shader.Create();
       LShader.PixelBuffer := FPixelBuffer;
@@ -110,9 +112,6 @@ begin
           LVertexC.Element[0] := (1-LVertexC.Element[0]) * FHalfResolutionX;
           LVertexC.Element[1] := (1-LVertexC.Element[1]) * FHalfResolutionY;
 
-//          FShader.InitTriangle(LVertexA, LVertexB, LVertexC);
-//          TTextureShader(FShader).InitUV(LTriangle.UVA, LTriangle.UVB, LTriangle.UVC);
-
           LRasterizer(
             FMaxResolutionX, FMaxResolutionY,
             LVertexA, LVertexB, LVertexC,
@@ -120,6 +119,7 @@ begin
             LCall.Attributes[LTriangle.VertexB],
             LCall.Attributes[LTriangle.VertexC],
             LShader,
+            LRenderTarget,
             FBlockOffset, FBlockSteps);
         end;
       end;

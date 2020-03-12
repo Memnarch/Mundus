@@ -3,7 +3,8 @@ unit RenderTypes;
 interface
 
 uses
-  Math3D;
+  Math3D,
+  ColorTypes;
 
 type
   TVertexAttributeBuffer = TArray<Byte>;
@@ -12,6 +13,7 @@ type
     const AVerctorA, AvectorB, AvectorC: TFloat4;
     const AAttributesA, AAttributesB, AAttributesC: TVertexAttributeBuffer;
     AShader: TObject;
+    APixelBuffer: PRGB32Array;
     ABlockOffset, ABlockStep: Integer);
 
   TVector = record

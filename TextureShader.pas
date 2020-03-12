@@ -3,7 +3,14 @@ unit TextureShader;
 interface
 
 uses
-  Classes, Types, SysUtils, Shader, Math3D, RenderTypes, Graphics, ColorTypes;
+  Classes,
+  Types,
+  SysUtils,
+  Shader,
+  Math3D,
+  RenderTypes,
+  Graphics,
+  ColorTypes;
 
 type
   TTexturePSInput = record
@@ -30,7 +37,7 @@ type
     procedure InitTexture(ATexture: TBitmap);
     procedure Shade8X8Quad();
     procedure ShadeSinglePixel();
-    procedure Fragment(X, Y: Integer; const PSInput: TShader<TTexturePSInput>.PAttributeType); override; final;
+    procedure Fragment(const APixel: PRGB32; const PSInput: TShader<TTexturePSInput>.PAttributeType); override; final;
     class function GetRasterizer: TRasterizer; override; final;
   end;
 
@@ -46,7 +53,7 @@ begin
   inherited;
 end;
 
-procedure TTextureShader.Fragment(X, Y: Integer; const PSInput: TShader<TTexturePSInput>.PAttributeType);
+procedure TTextureShader.Fragment(const APixel: PRGB32; const PSInput: TShader<TTexturePSInput>.PAttributeType);
 begin
 
 end;

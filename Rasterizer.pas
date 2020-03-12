@@ -6,7 +6,8 @@ uses
   Math,
   Math3D,
   Shader,
-  Interpolation;
+  Interpolation,
+  ColorTypes;
 
   {$IFDEF Debug}
     {$Inline Off}
@@ -55,7 +56,10 @@ type
     class procedure RenderFullBlock<TAttributes: record; Shader: TShader<TAttributes>>(
       AX, AY: Integer;
       const AStepA, AStepB, AStepD: TAttributes;
-      const AZValues: TFloat3; AShader: Shader); static;
+      const AZValues: TFloat3;
+      AShader: Shader;
+      const AFirstPixel: PRGB32;
+      const ALineLength: NativeInt); static;
     class procedure InterpolateAttributes4(const AX, AY: Single; ATarget, AStepA, AStepB, AStepD: PSingle; AZ: Single); static;
     class procedure InterpolateAttributes<TAttributes: record>(AX, AY: Integer; ATarget, AStepA, AStepB, AStepD: PSingle; const AZValues: TFloat3); static; inline;
   public
@@ -64,6 +68,7 @@ type
       const AVerctorA, AvectorB, AvectorC: TFloat4;
       const AAttributesA, AAttributesB, AAttributesC: Pointer;
       AShader: Shader;
+      APixelBuffer: PRGB32Array;
       ABlockOffset, ABlockStep: Integer); static; inline;
   end;
 
@@ -229,39 +234,50 @@ end;
 //end;
 
 
-class procedure TRasterizerFactory.RenderFullBlock<TAttributes, Shader>(AX,
-  AY: Integer; const AStepA, AStepB,
-  AStepD: TAttributes; const AZValues: TFloat3; AShader: Shader);
+class procedure TRasterizerFactory.RenderFullBlock<TAttributes, Shader>(
+      AX, AY: Integer;
+      const AStepA, AStepB, AStepD: TAttributes;
+      const AZValues: TFloat3;
+      AShader: Shader;
+      const AFirstPixel: PRGB32;
+      const ALineLength: NativeInt);
 var
   LDenormalizeZY, LDenormalizeZX: Single;
   i, k: Integer;
   LAttributesX, LAttributesY, LAttributesDenormalized: TAttributes;
+  LPixelX, LPixelY: PRGB32;
 begin
   InitFactors<TAttributes>(@LAttributesY, @AStepB, AY, @AStepD);
   LDenormalizeZY := AZValues.Y * AY + AZValues.Z;
+  LPixelY := AFirstPixel;
   for i := AY to AY + (QuadSize - 1) do
   begin
     InitFactors<TAttributes>(@LAttributesX, @AStepA, AX, @LAttributesY);
     LDenormalizeZX := AZValues.X * AX + LDenormalizeZY;
+    LPixelX := LPixelY;
     for k := AX to AX + (QuadSize - 1) do
     begin
       DenormalizeFactors<TAttributes>(@LAttributesDenormalized, @LAttributesX, LDenormalizeZX);
-      AShader.Fragment(k, i, @LAttributesDenormalized);
+      AShader.Fragment(LPixelX, @LAttributesDenormalized);
       StepFactors<TAttributes>(@LAttributesX, @AStepA);
       LDenormalizeZX := LDenormalizeZX + AZValues.X;
+      Inc(LPixelX);
     end;
     StepFactors<TAttributes>(@LAttributesY, @AStepB);
     LDenormalizeZY := LDenormalizeZY + AZValues.Y;
+    Inc(LPixelY, ALineLength);
   end;
 end;
 
 {$PointerMath OFF}
 
 class procedure TRasterizerFactory.RasterizeTriangle<TAttributes, Shader>(
-  AMaxResolutionX, AMaxResolutionY: Integer;
-  const AVerctorA, AvectorB, AvectorC: TFloat4;
-  const AAttributesA, AAttributesB, AAttributesC: Pointer;
-  AShader: Shader; ABlockOffset, ABlockStep: Integer);
+      AMaxResolutionX, AMaxResolutionY: Integer;
+      const AVerctorA, AvectorB, AvectorC: TFloat4;
+      const AAttributesA, AAttributesB, AAttributesC: Pointer;
+      AShader: Shader;
+      APixelBuffer: PRGB32Array;
+      ABlockOffset, ABlockStep: Integer);
 var
   Y1, Y2, Y3, X1, X2, X3, DX12, DX23, DX31, DY12, DY23, DY31, FDX12, FDX23, FDX31, FDY12, FDY23, FDY31: Integer;
   MinX, MinY, MAxX, MAxY, C1, C2, C3, BlockX, BlockY, CornerX0, CornerX1, CornerY0, CornerY1: Integer;
@@ -273,9 +289,12 @@ var
   LStepsZ: TFloat3;
   LAttributesX, LAttributesY, LAttributesDenormalized: TAttributes;
   LDenormalizeZX, LDenormalizeZY: Single;
+  LLineLength: NativeInt;
+  LFirstPixel, LPixelX, LPixelY: PRGB32;
 begin
   //calculate attribute factors
   Factorize<TAttributes>(AVerctorA, AvectorB, AvectorC, AAttributesA, AAttributesB, AAttributesC, @LStepA, @LStepB, @LStepD, LStepsZ);
+  LLineLength := -(AMaxResolutionX+1);
   // 28.4 fixed-point coordinates
     X1 := Round(16*AVerctorA.Element[0]);
     X2 := Round(16*AVectorB.Element[0]);
@@ -385,10 +404,12 @@ begin
             // Skip block when outside an edge
             if ResultOrA or ResultOrB or ResultOrC then
             begin
-            // Accept whole block when totally covered
+              //calculate first pixel of block
+              LFirstPixel := @APixelBuffer[BlockY*LLineLength + BlockX];
+              // Accept whole block when totally covered
               if (ResultAndA and ResultAndB and ResultAndC)  then
               begin
-                RenderFullBlock<TAttributes, Shader>(BlockX, BlockY, LStepA, LStepB, LStepD, LStepsZ, AShader);
+                RenderFullBlock<TAttributes, Shader>(BlockX, BlockY, LStepA, LStepB, LStepD, LStepsZ, AShader, LFirstPixel, LLineLength);
               end
               else //Partially covered Block
               begin
@@ -397,28 +418,31 @@ begin
                 CY2 := C2 + DX23 * CornerY0 - DY23 * CornerX0;
                 CY3 := C3 + DX31 * CornerY0 - DY31 * CornerX0;
 
+                LPixelY := LFirstPixel;
                 for i := BlockY to BlockY + (QuadSize - 1) do
                 begin
                   CX1 := CY1;
                   CX2 := CY2;
                   CX3 := CY3;
-
+                  LPixelX := LPixelY;
                   for k := BlockX to BlockX + (QuadSize - 1) do
                   begin
                     if(CX1 >= 0) and (CX2 >= 0) and (CX3 >= 0)then
                     begin
                       InterpolateAttributes<TAttributes>(k, i, @LAttributesDenormalized, @LStepA, @LStepB, @LStepD, LStepsZ);
-                      AShader.Fragment(k, i, @LAttributesDenormalized);
+                      AShader.Fragment(LPixelX, @LAttributesDenormalized);
                     end;
 
                     CX1 := CX1 - FDY12;
                     CX2 := CX2 - FDY23;
                     CX3 := CX3 - FDY31;
+                    Inc(LPixelX);
                   end;
 
                   CY1 := CY1 + FDX12;
                   CY2 := CY2 + FDX23;
                   CY3 := CY3 + FDX31;
+                  Inc(LPixelY, LLineLength);
                 end;
               end;
             end;
