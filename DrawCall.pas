@@ -6,7 +6,8 @@ uses
   Generics.Collections,
   Math3D,
   RenderTypes,
-  Shader;
+  Shader,
+  ValueBuffer;
 
 type
   TDrawCall = record
@@ -17,6 +18,7 @@ type
     FTriangleCount: Integer;
     FAttributes: TArray<TVertexAttributeBuffer>;
     FShader: TShaderClass;
+    FValues: TValueBuffers;
   public
     procedure AddVertex(const AVertex: TFloat4; const AAttributes: TVertexAttributeBuffer);
     procedure AddTriangle(const ATriangle: TTriangleClass);
@@ -27,6 +29,7 @@ type
     property VertexCount: Integer read FVertexCount;
     property TriangleCount: Integer read FTriangleCount;
     property Shader: TShaderClass read FShader write FShader;
+    property Values: TValueBuffers read FValues;
   end;
 
   PDrawCall = ^TDrawCall;
@@ -84,6 +87,7 @@ procedure TDrawCall.Reset;
 begin
   FTriangleCount := 0;
   FVertexCount := 0;
+  FValues.Reset;
 end;
 
 { TDrawCalls }

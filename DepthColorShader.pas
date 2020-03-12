@@ -18,8 +18,8 @@ type
   public
     constructor Create(); reintroduce;
     destructor Destroy(); override;
-    procedure Shade8X8Quad(); override;
-    procedure ShadeSinglePixel(); override;
+    procedure Shade8X8Quad();
+    procedure ShadeSinglePixel();
 //    procedure InitTriangle(AVecA, AVecB, AVecC: TFloat4); override;
   end;
 

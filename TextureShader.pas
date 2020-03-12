@@ -28,8 +28,8 @@ type
 //    procedure InitTriangle(AVecA, AvecB, AvecC: TFloat4); override;
     procedure InitUV(AUVA, AUVB, AUVC: TUV);
     procedure InitTexture(ATexture: TBitmap);
-    procedure Shade8X8Quad(); override; final;
-    procedure ShadeSinglePixel(); override; final;
+    procedure Shade8X8Quad();
+    procedure ShadeSinglePixel();
     procedure Fragment(X, Y: Integer; const PSInput: TShader<TTexturePSInput>.PAttributeType); override; final;
     class function GetRasterizer: TRasterizer; override; final;
   end;

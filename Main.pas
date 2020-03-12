@@ -4,7 +4,8 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ExtCtrls, SoftwareRenderer, StopWatch, Cube, SamplerGraph;
+  Dialogs, StdCtrls, ExtCtrls, SoftwareRenderer, StopWatch, Cube, SamplerGraph,
+  BaseMesh, ValueBuffer, Math3D;
 
 type
   TForm1 = class(TForm)
@@ -23,8 +24,10 @@ type
     FLastReset: TDateTime;
     FGraph: TSamplerGraph;
     FDrawGraph: Boolean;
+    FColors: TArray<TFloat4>;
     procedure HandleAfterFrame(ACanvas: TCanvas);
     procedure HandleException(Sender: TObject; E: Exception);
+    procedure HandleInitBuffer(AMesh: TBaseMesh; const ABuffer: PValueBuffers);
   public
     { Public-Deklarationen }
     procedure SetResolution(AWidth, AHeight: Integer);
@@ -36,8 +39,21 @@ var
 implementation
 
 uses
-  DateUtils, BaseMesh, Math, Math3d, TextureShader, SolidColorShader;
+  DateUtils, Math, TextureShader, SolidColorShader;
+
 {$R *.dfm}
+
+const
+  CColors: array[0..7] of TFloat4 = (
+    (B: 1; G: 0.5; R: 0.5; A: 0),
+    (B: 0.5; G: 1; R: 0.5; A: 0),
+    (B: 1; G: 1; R: 0.5; A: 0),
+    (B: 1; G: 0.5; R: 0.5; A: 0),
+    (B: 0.5; G: 1; R: 0.5; A: 0),
+    (B: 1; G: 1; R: 0.5; A: 0),
+    (B: 1; G: 0.5; R: 0.5; A: 0),
+    (B: 0.5; G: 1; R: 0.5; A: 0)
+  );
 
 procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
@@ -49,6 +65,8 @@ end;
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
+  SetLength(FColors, Length(CColors));
+  CopyMemory(@FColors[0], @CColors[0], SizeOf(CColors));
   Application.OnException := HandleException;
   FGraph := TSamplerGraph.Create();
   FCube := TCube.Create();
@@ -57,12 +75,10 @@ begin
   FCube.Shader := TSolidColorShader;
   FSoftwareRenderer := TSoftwareRenderer.Create();
   FSoftwareRenderer.MeshList.Add(FCube);
-
+  FSoftwareRenderer.OnInitValueBuffer := HandleInitBuffer;
   FSoftwareRenderer.OnAfterFrame := HandleAfterFrame;
   SetResolution(1280, 720);
-//  LCube := TCube.Create();
-//  LCube.Position := Vector(-20, 0, LCube.Position.Z);
-//  FSoftwareRenderer.MeshList.Add(LCube);
+
   FLastReset := Now();
   FMinFPS := 1000;
   FMaxFPS := 0;
@@ -156,6 +172,12 @@ procedure TForm1.HandleException(Sender: TObject; E: Exception);
 begin
   GameTimer.Enabled := False;
   MessageDlg('Renderer crashed with: ' + sLineBreak + E.ToString, mtError, [], 0);
+end;
+
+procedure TForm1.HandleInitBuffer(AMesh: TBaseMesh;
+  const ABuffer: PValueBuffers);
+begin
+  ABuffer.Float4Array[ABuffer.Float4Array.Bind('Color0')] := FColors;
 end;
 
 procedure TForm1.SetResolution(AWidth, AHeight: Integer);

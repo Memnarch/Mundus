@@ -3,7 +3,13 @@ unit Shader;
 interface
 
 uses
-  Classes, Types, Graphics, ColorTypes, Math3D, RenderTypes;
+  Classes,
+  Types,
+  Graphics,
+  ColorTypes,
+  Math3D,
+  RenderTypes,
+  ValueBuffer;
 
 type
 
@@ -28,9 +34,7 @@ type
   public
     constructor Create(); virtual;
     procedure VertexShader(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: Pointer); virtual; abstract;
-    procedure Shade8X8Quad(); virtual; abstract;
-    procedure ShadeSinglePixel(); virtual; abstract;
-//    procedure InitTriangle(AVecA, AVecB, AVecC: TFloat4); virtual; abstract;
+    procedure BindBuffer(const ABuffer: PValueBuffers); virtual;
     class function GetRasterizer: TRasterizer; virtual; abstract;
     class function GetAttributeBufferSize: Integer; virtual; abstract;
     property Pixel: TPoint read FPixel write FPixel;
@@ -68,6 +72,11 @@ begin
 end;
 
 { TShader }
+
+procedure TShader.BindBuffer(const ABuffer: PValueBuffers);
+begin
+
+end;
 
 constructor TShader.Create();
 begin

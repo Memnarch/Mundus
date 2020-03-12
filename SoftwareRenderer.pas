@@ -3,14 +3,26 @@ unit SoftwareRenderer;
 interface
 
 uses
-  Types, Classes, Windows, SysUtils, Graphics,
-  Generics.Collections, Math3D, BaseMesh,
-  ColorTypes, Shader, StopWatch, DrawCall,
-  RenderWorker, Camera;
+  Types,
+  Classes,
+  Windows,
+  SysUtils,
+  Graphics,
+  Generics.Collections,
+  Math3D,
+  BaseMesh,
+  ColorTypes,
+  Shader,
+  StopWatch,
+  DrawCall,
+  RenderWorker,
+  Camera,
+  ValueBuffer;
 
 type
   TDepthBuffer = array of array of Single;
   TRenderEvent = procedure(Canvas: TCanvas) of object;
+  TInitBufferEvent = reference to procedure(AMesh: TBaseMesh; const ABuffer: PValueBuffers);
 
   TSoftwareRenderer = class
   private
@@ -34,6 +46,7 @@ type
     FCurrentBuffer: Boolean;
     FWorkerFPS: Integer;
     FCamera: TCamera;
+    FOnInitValueBuffer: TInitBufferEvent;
     procedure SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);
     procedure ClearDepthBuffer(ABuffer: Boolean);
     procedure TransformMesh(AMesh: TBaseMesh; AWorld, AProjection: TMatrix4x4; ATargetCall: PDrawCall);
@@ -59,6 +72,7 @@ type
     property ResolutionY: Integer read FResolutionY;
     property Camera: TCamera read FCamera;
     property ReenderWorkers: Integer read GetRenderWorkers;
+    property OnInitValueBuffer: TInitBufferEvent read FOnInitValueBuffer write FOnInitValueBuffer;
   end;
 
   function RGB32(ARed, AGreen, ABlue, AAlpha: Byte): TRGB32;
@@ -292,6 +306,9 @@ begin
   SetLength(LBuffer, LBufferSize);
   LShader := AMesh.Shader.Create();
   try
+    if Assigned(FOnInitValueBuffer) then
+      FOnInitValueBuffer(AMesh, @ATargetCall.Values);
+    LShader.BindBuffer(@ATargetCall.Values);
     for i := 0 to AMesh.Vertices.Count - 1 do
     begin
       LVertex.Element[0] := AMesh.Vertices[i].X;

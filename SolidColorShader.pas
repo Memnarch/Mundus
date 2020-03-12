@@ -3,7 +3,13 @@ unit SolidColorShader;
 interface
 
 uses
-  Types, Classes, ColorTypes, Shader, Math3D, RenderTypes;
+  Types,
+  Classes,
+  ColorTypes,
+  Shader,
+  Math3D,
+  RenderTypes,
+  ValueBuffer;
 
 type
   TSolidColorPSInput = TFloat4;
@@ -11,13 +17,10 @@ type
 
   TSolidColorShader = class sealed(TShader<TSolidColorPSInput>)
   private
-    FColor: TRGB32;
+    FColors: ^TFloat4;
   public
     constructor Create; override;
-    property Color: TRGB32 read FColor write FColor;
-    procedure Shade8X8Quad(); override;
-    procedure ShadeSinglePixel(); override;
-    procedure SetColor(R, G, B: Byte);
+    procedure BindBuffer(const ABuffer: PValueBuffers); override;
     procedure Vertex(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: TShader<TSolidColorPSInput>.PAttributeType); override; final;
     procedure Fragment(X, Y: Integer; const PSInput: TShader<TSolidColorPSInput>.PAttributeType); override; final;
     class function GetRasterizer: TRasterizer; override;
@@ -29,26 +32,24 @@ uses
   Rasterizer,
   Math;
 
+  {$PointerMath On}
+
 const
   CDenormalizer: TFloat4 = (B: 255; G: 255; R: 255; A: 255);
-  CColors: array[0..2] of TFloat4 = (
-    (B: 1; G: 0.5; R: 0.5; A: 0),
-    (B: 0.5; G: 1; R: 0.5; A: 0),
-    (B: 1; G: 1; R: 0.5; A: 0)
-    );
-
-var
-  GNextColor : Integer = 0;
 
 
 { TSolidColorSHader }
 
+procedure TSolidColorShader.BindBuffer(const ABuffer: PValueBuffers);
+begin
+  inherited;
+  FColors := @ABuffer.Float4Array[ABuffer.Float4Array.GetBinding('Color0')][0];
+end;
+
 constructor TSolidColorShader.Create;
 begin
   inherited;
-  FColor.B := 255;
-  FColor.G := 128;
-  FColor.R := 128;
+
 end;
 
 procedure TSolidColorShader.Fragment(X, Y: Integer; const PSInput: TShader<TSolidColorPSInput>.PAttributeType);
@@ -83,42 +84,6 @@ begin
   Result := TRasterizer(@TRasterizerFactory.RasterizeTriangle<TSolidColorPSInput, TSolidColorShader>);
 end;
 
-procedure TSolidColorShader.SetColor(R, G, B: Byte);
-begin
-  FColor.B := B;
-  FColor.R := R;
-  FColor.G := G;
-end;
-
-procedure TSolidColorSHader.Shade8X8Quad;
-var
-  i, k: Integer;
-  LPixel: Cardinal;
-begin
-  for i := Pixel.Y to Pixel.Y + 7 do
-  begin
-    LPixel := i*LineLength + Pixel.X;
-    for k := 0 to 7 do
-    begin
-      FirstLine[LPixel].B := Color.B;
-      FirstLine[LPixel].G := Color.G;
-      FirstLine[LPixel].R := Color.R;
-      LPixel := LPixel + 1;
-    end;
-  end;
-
-end;
-
-procedure TSolidColorSHader.ShadeSinglePixel;
-var
-  LPixel: Cardinal;
-begin
-  LPixel := Pixel.Y * LineLength + Pixel.X;
-  FirstLine[LPixel].B := Color.B;
-  FirstLine[LPixel].G := Color.G;
-  FirstLine[LPixel].R := Color.R;
-end;
-
 procedure TSolidColorShader.Vertex(const AWorld, AProjection: TMatrix4x4;
   var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: TSolidColorShader.PAttributeType);
 var
@@ -129,7 +94,7 @@ begin
   LDist := LVec.Length;
   LIntensity := Max(130-LDist, 0) / 50;
   inherited;
-  LColors := CColors[AVInput.VertexID mod Length(CColors)];
+  LColors := FColors[AVInput.VertexID];
   LColors.Mul(LIntensity);
   AAttributeBuffer^ := LColors;
 end;

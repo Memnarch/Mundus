@@ -20,7 +20,8 @@ uses
   Rasterizer in 'Rasterizer.pas',
   SamplerGraph in 'SamplerGraph.pas',
   Camera in 'Camera.pas',
-  RenderTypes in 'RenderTypes.pas';
+  RenderTypes in 'RenderTypes.pas',
+  ValueBuffer in 'ValueBuffer.pas';
 
 {$R *.res}
 
