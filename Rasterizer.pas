@@ -72,6 +72,8 @@ type
       ABlockOffset, ABlockStep: Integer); static; inline;
   end;
 
+//  procedure CalculateZ(_AX, _AY: PInteger; const AZValues: TFloat3; ATargetX, ATargetY, ATargetZ: PSingle);
+
 implementation
 
 uses
@@ -197,12 +199,40 @@ asm
   movups [ATarget], xmm2
 end;
 
+//procedure CalculateZ(_AX, _AY: PInteger; const AZValues: TFloat3; ATargetX, ATargetY, ATargetZ: PSingle);
+//asm
+//  //(AZValues.Y*AY + AZValues.Z)
+//  push eax
+//  movss xmm0, [AZValues.Y]
+//  movss xmm1, [_AY]
+//  cvtdq2ps xmm1, xmm1
+//  mov eax, [ATargetY]
+//  movss [eax], xmm1
+//  mulss xmm0, xmm1
+//  movss xmm2, [AZValues.Z]
+//  addss xmm0, xmm2
+//  //+AZValues.X * AX
+//  movss xmm2, [AZValues.X]
+//  pop eax
+//  movss xmm1, [_AX]
+//  cvtdq2ps xmm1, xmm1
+//  mov eax, [ATargetX]
+//  movss [eax], xmm1
+//  mulss xmm2, xmm1
+//  addss xmm0, xmm2
+//  mov eax, [ATargetZ]
+//  movss [eax], xmm0
+//end;
+
 class procedure TRasterizerFactory.InterpolateAttributes<TAttributes>(AX, AY: Integer; ATarget, AStepA, AStepB, AStepD: PSingle; const AZValues: TFloat3);
 var
-  LZ: Single;
+  LZ, LX, LY: Single;
 begin
-  LZ := ((AZValues.Y*AY + AZValues.Z) + AZValues.X * AX);
-  InterpolateAttributes4(AX, AY, ATarget, AStepA, AStepB, AStepD, LZ);
+  LX := AX;
+  LY := AY;
+  LZ := ((AZValues.Y*LY + AZValues.Z) + AZValues.X * LX);
+//  CalculateZ(@AX, @AY, AZValues, @LX, @LY, @LZ);
+  InterpolateAttributes4(LX, LY, ATarget, AStepA, AStepB, AStepD, LZ);
 end;
 
 //var
