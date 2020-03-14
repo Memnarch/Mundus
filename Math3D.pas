@@ -16,9 +16,11 @@ type
   TFloatArray = TArray<Single>;
 
   TFloat2 = record
+    constructor Create(AX, AY: Single);
     case byte of
       0: (X, Y: Single);
       1: (U, V: Single);
+      2: (Element: array[0..1] of Single);
   end;
 
   TFloat3 = record
@@ -579,6 +581,14 @@ asm
   movdqu xmm1, [ARight]
   PSUBD xmm0, xmm1
   movdqu [Self], xmm0
+end;
+
+{ TFloat2 }
+
+constructor TFloat2.Create(AX, AY: Single);
+begin
+  X := AX;
+  Y := AY;
 end;
 
 end.

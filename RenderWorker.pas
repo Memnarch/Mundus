@@ -52,6 +52,7 @@ type
 implementation
 
 uses
+  Windows,
   Rasterizer,
   RenderTypes,
   Shader;
@@ -94,6 +95,7 @@ begin
       LCall := FDrawCalls[i];
       LShader := LCall.Shader.Create();
       LShader.PixelBuffer := FPixelBuffer;
+      LShader.BindBuffer(@LCall.Values);
       LRasterizer := LCall.Shader.GetRasterizer();
       for k := 0 to Pred(LCall.TriangleCount) do
       begin

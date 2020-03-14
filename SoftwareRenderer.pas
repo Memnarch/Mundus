@@ -309,7 +309,7 @@ begin
     if Assigned(FOnInitValueBuffer) then
       FOnInitValueBuffer(AMesh, @ATargetCall.Values);
     LShader.BindBuffer(@ATargetCall.Values);
-    for i := 0 to AMesh.Vertices.Count - 1 do
+    for i := 0 to High(AMesh.Vertices) do
     begin
       LVertex.Element[0] := AMesh.Vertices[i].X;
       LVertex.Element[1] := AMesh.Vertices[i].Y;

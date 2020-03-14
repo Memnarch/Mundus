@@ -18,6 +18,7 @@ type
 
   TVector = record
     X, Y, Z: Integer;
+    constructor Create(AX, AY, AZ: Integer);
   end;
 
   TUV = record
@@ -111,6 +112,15 @@ function UV(AU, AV: Single): TUV;
 begin
   Result.U := AU;
   Result.V := AV;
+end;
+
+{ TVector }
+
+constructor TVector.Create(AX, AY, AZ: Integer);
+begin
+  X := AX;
+  Y := AY;
+  Z := AZ;
 end;
 
 end.

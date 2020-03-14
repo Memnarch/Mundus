@@ -21,7 +21,8 @@ uses
   SamplerGraph in 'SamplerGraph.pas',
   Camera in 'Camera.pas',
   RenderTypes in 'RenderTypes.pas',
-  ValueBuffer in 'ValueBuffer.pas';
+  ValueBuffer in 'ValueBuffer.pas',
+  Texture in 'Texture.pas';
 
 {$R *.res}
 

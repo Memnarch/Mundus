@@ -4,7 +4,8 @@ interface
 
 uses
   SysUtils,
-  Math3D;
+  Math3D,
+  Texture;
 
 type
   TValueBinding = type SmallInt;
@@ -34,6 +35,7 @@ type
     FFloat3: TValueBuffer<TFloat3>;
     FFloat4: TValueBuffer<TFloat4>;
     FFloat: TValueBuffer<Single>;
+    FTexture: TValueBuffer<TTexture>;
   public
     procedure Reset; inline;
     property Float: TValueBuffer<Single> read FFloat;
@@ -41,6 +43,7 @@ type
     property Float3: TValueBuffer<TFloat3> read FFloat3;
     property Float4: TValueBuffer<TFloat4> read FFloat4;
     property Matrix4x4: TValueBuffer<TMatrix4x4> read FMatrix4X4;
+    property Texture: TValueBuffer<TTexture> read FTexture;
     property FloatArray: TValueBuffer<TArray<Single>> read FFloatArray;
     property Float2Array: TValueBuffer<TArray<TFloat2>> read FFloat2Array;
     property Float3Array: TValueBuffer<TArray<TFloat3>> read FFloat3Array;
@@ -94,6 +97,7 @@ begin
   FFloat3.Reset;
   FFloat4.Reset;
   FMatrix4X4.Reset;
+  FTexture.Reset;
   FFloatArray.Reset;
   FFloat2Array.Reset;
   FFloat3Array.Reset;

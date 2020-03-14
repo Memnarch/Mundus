@@ -5,7 +5,7 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ExtCtrls, SoftwareRenderer, StopWatch, Cube, SamplerGraph,
-  BaseMesh, ValueBuffer, Math3D;
+  BaseMesh, ValueBuffer, Math3D, Texture;
 
 type
   TForm1 = class(TForm)
@@ -25,6 +25,7 @@ type
     FGraph: TSamplerGraph;
     FDrawGraph: Boolean;
     FColors: TArray<TFloat4>;
+    FTexture: TTexture;
     procedure HandleAfterFrame(ACanvas: TCanvas);
     procedure HandleException(Sender: TObject; E: Exception);
     procedure HandleInitBuffer(AMesh: TBaseMesh; const ABuffer: PValueBuffers);
@@ -60,6 +61,7 @@ begin
   FSoftwareRenderer.Free;
   FWatch.Free;
   FGraph.Free;
+  FTexture.Free;
   Application.OnException := nil;
 end;
 
@@ -72,7 +74,9 @@ begin
   FCube := TCube.Create();
   FCube.Position := Float3(0, 0, 132);
   FCube.Rotation := Float3(0, 0, 45);
-  FCube.Shader := TSolidColorShader;
+  FCube.Shader := TTextureShader;
+  FTexture := TTexture.Create();
+  FTexture.LoadFromFile('Crate.bmp');
   FSoftwareRenderer := TSoftwareRenderer.Create();
   FSoftwareRenderer.MeshList.Add(FCube);
   FSoftwareRenderer.OnInitValueBuffer := HandleInitBuffer;
@@ -177,7 +181,9 @@ end;
 procedure TForm1.HandleInitBuffer(AMesh: TBaseMesh;
   const ABuffer: PValueBuffers);
 begin
-  ABuffer.Float4Array[ABuffer.Float4Array.Bind('Color0')] := FColors;
+  ABuffer.Float2Array[ABuffer.Float2Array.Bind('UV0')] := AMesh.UV;
+  ABuffer.Texture[ABuffer.Texture.Bind('Tex0')] := FTexture;
+//  ABuffer.Float4Array[ABuffer.Float4Array.Bind('Color0')] := FColors;
 end;
 
 procedure TForm1.SetResolution(AWidth, AHeight: Integer);
