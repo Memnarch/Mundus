@@ -7,6 +7,9 @@ uses
   ColorTypes;
 
 type
+  TDepthBuffer = array of array of Single;
+  PDepthsBuffer = ^TDepthBuffer;
+
   TVertexAttributeBuffer = TArray<Byte>;
   TRasterizer = procedure(
     AMaxResolutionX, AMaxResolutionY: Integer;
@@ -14,6 +17,7 @@ type
     const AAttributesA, AAttributesB, AAttributesC: TVertexAttributeBuffer;
     AShader: TObject;
     APixelBuffer: PRGB32Array;
+    ADepthBuffer: PDepthsBuffer;
     ABlockOffset, ABlockStep: Integer);
 
   TVector = record

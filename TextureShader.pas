@@ -68,7 +68,7 @@ end;
 
 class function TTextureShader.GetRasterizer: TRasterizer;
 begin
-  Result := TRasterizer(@TRasterizerFactory.RasterizeTriangle<TTexturePSInput, TTextureShader>);
+  Result := TRasterizer(@TRasterizerFactory.RasterizeTriangle<TTexturePSInput, TTextureShader, TDepthWrite>);
 end;
 
 procedure TTextureShader.Vertex(const AWorld, AProjection: TMatrix4x4;
@@ -81,3 +81,4 @@ begin
 end;
 
 end.
+

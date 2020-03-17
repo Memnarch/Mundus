@@ -22,6 +22,9 @@ type
     VertexID: Integer;
   end;
 
+  TNoAttributes = record
+  end;
+
   TShader = class(TObject)
   private
     FPixelBuffer: TBitmap;
@@ -102,7 +105,7 @@ end;
 
 class function TShader<T>.GetRasterizer: TRasterizer;
 begin
-  Result := TRasterizer(@TRasterizerFactory.RasterizeTriangle<T, TShader<T>>);
+  Result := TRasterizer(@TRasterizerFactory.RasterizeTriangle<T, TShader<T>, TNoDepth>);
 end;
 
 procedure TShader<T>.Vertex(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: PAttributeType);

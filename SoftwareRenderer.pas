@@ -17,17 +17,16 @@ uses
   DrawCall,
   RenderWorker,
   Camera,
+  RenderTypes,
   ValueBuffer;
 
 type
-  TDepthBuffer = array of array of Single;
   TRenderEvent = procedure(Canvas: TCanvas) of object;
   TInitBufferEvent = reference to procedure(AMesh: TBaseMesh; const ABuffer: PValueBuffers);
 
   TSoftwareRenderer = class
   private
     FDepthBuffer: array[boolean] of TDepthBuffer;
-    FZeroDepthBuffer: TDepthBuffer;
     FBackBuffer: array[boolean] of TBitmap;
     FDrawCalls: array[boolean] of TDrawCalls;
     FTexture: TBitmap;
@@ -85,14 +84,19 @@ uses
   SolidColorShader,
   DepthColorShader,
   TextureShader,
-  Rasterizer,
-  RenderTypes;
+  Rasterizer;
 
 { TSoftwareRenderer }
 
 procedure TSoftwareRenderer.ClearDepthBuffer;
+var
+  i, LBytes: Integer;
+  LBuffer: TDepthBuffer;
 begin
-  FDepthBuffer[ABuffer] := FZeroDepthBuffer;
+  LBuffer := FDepthBuffer[ABuffer];
+  LBytes := Length(LBuffer[0]) * SizeOf(Single);
+  for i := Low(LBuffer) to High(LBuffer) do
+    ZeroMemory(@LBuffer[i][0], LBytes);
 end;
 
 constructor TSoftwareRenderer.Create;
@@ -157,6 +161,7 @@ begin
     LWorker.DrawCalls := ACalls;
 //    LWorker.Shader.InitTexture(FTexture);
     LWorker.PixelBuffer := FBackBuffer[LFrontBuffer];
+    LWorker.DepthBuffer := @FDepthBuffer[LFrontBuffer];
     LWorker.ResolutionX := FResolutionX;
     LWorker.ResolutionY := FResolutionY;
     LFPS := LWorker.FPS;
@@ -252,13 +257,8 @@ var
   i: Integer;
 begin
   SetLength(FDepthBuffer[ABuffer], AHeight);
-  SetLength(FZeroDepthBuffer, AHeight);
   for i := 0 to AHeight - 1 do
-  begin
     SetLength(FDepthBuffer[ABuffer][i], AWidth);
-    SetLength(FZeroDepthBuffer[i], AWidth);
-    ZeroMemory(FZeroDepthBuffer[i], AWidth);
-  end;
 end;
 
 procedure TSoftwareRenderer.SetResolution(AWidth, AHeight: Integer);

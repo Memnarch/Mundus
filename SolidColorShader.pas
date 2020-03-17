@@ -72,7 +72,7 @@ end;
 
 class function TSolidColorShader.GetRasterizer: TRasterizer;
 begin
-  Result := TRasterizer(@TRasterizerFactory.RasterizeTriangle<TSolidColorPSInput, TSolidColorShader>);
+  Result := TRasterizer(@TRasterizerFactory.RasterizeTriangle<TSolidColorPSInput, TSolidColorShader, TNoDepth>);
 end;
 
 procedure TSolidColorShader.Vertex(const AWorld, AProjection: TMatrix4x4;

@@ -10,6 +10,7 @@ uses
   DrawCall,
   TextureShader,
   Math3D,
+  RenderTypes,
   StopWatch;
 
 type
@@ -28,6 +29,7 @@ type
     FHalfResolutionY: Integer;
     FWatch: TStopWatch;
     FPixelBuffer: TBitmap;
+    FDepthBuffer: PDepthsBuffer;
     procedure SetResolutionX(const Value: Integer);
     procedure SetResolutionY(const Value: Integer);
     function GetFPS: Integer;
@@ -45,6 +47,7 @@ type
     property ResolutionX: Integer read FResolutionX write SetResolutionX;
     property ResolutionY: Integer read FResolutionY write SetResolutionY;
     property PixelBuffer: TBitmap read FPixelBuffer write FPixelBuffer;
+    property DepthBuffer: PDepthsBuffer read FDepthBuffer write FDepthBuffer;
     property FPS: Integer read GetFPS;
     property RenderFence: THandle read GetRenderFence;
   end;
@@ -54,7 +57,6 @@ implementation
 uses
   Windows,
   Rasterizer,
-  RenderTypes,
   Shader;
 
 { TRenderWorker }
@@ -122,6 +124,7 @@ begin
             LCall.Attributes[LTriangle.VertexC],
             LShader,
             LRenderTarget,
+            FDepthBuffer,
             FBlockOffset, FBlockSteps);
         end;
       end;
