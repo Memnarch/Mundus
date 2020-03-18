@@ -19,10 +19,13 @@ type
     FBitmap: TBitmap;
     FFirst: PRGB32Array;
     FLineLengthInPixel: Integer;
+    FWidthMask: Integer;
+    FHeightMask: Integer;
     function GetHeight: Integer;
     function GetWidth: Integer;
     function GetMaxX: Integer;
     function GetMaxY: Integer;
+    function CalculateAndMask(AValue: Integer): Integer;
   public
     constructor Create;
     destructor Destroy; override;
@@ -36,7 +39,26 @@ type
 
 implementation
 
+uses
+  SysUtils;
+
 { TTexture }
+
+function TTexture.CalculateAndMask(AValue: Integer): Integer;
+var
+  LValue: Integer;
+begin
+  Result := 0;
+  LValue := AValue;
+  while (LValue and 1) = 0 do
+  begin
+    Result := Result shl 1;
+    Inc(Result);
+    LValue := LValue shr 1;
+  end;
+  if LValue > 1 then
+    raise Exception.Create('Texture sizes are limited to values with a power of 2 and ' + IntToStr(AValue) + ' is not');
+end;
 
 constructor TTexture.Create;
 begin
@@ -56,16 +78,14 @@ begin
 end;
 
 
-//instead of -1 we use -2 as single precision errors might cause oversampling
-//this extra pixel of safespace should protect us
 function TTexture.GetMaxX: Integer;
 begin
-  Result := FBitmap.Width - 2;
+  Result := FBitmap.Width - 1;
 end;
 
 function TTexture.GetMaxY: Integer;
 begin
-  Result := FBitmap.Height - 2;
+  Result := FBitmap.Height - 1;
 end;
 
 function TTexture.GetWidth: Integer;
@@ -79,11 +99,13 @@ begin
   FBitmap.PixelFormat := pf32bit;
   FFirst := FBitmap.ScanLine[0];
   FLineLengthInPixel := (Longint(FBitmap.Scanline[1]) - Longint(FFirst)) div SizeOf(TRGB32);
+  FWidthMask := CalculateAndMask(FBitmap.Width);
+  FHeightMask := CalculateAndMask(FBitmap.Height);
 end;
 
 procedure TTexture.Sample(AX, AY: Integer; const ATarget: PRGB32);
 begin
-  ATarget^ := FFirst[AY*FLineLengthInPixel + AX];
+  ATarget^ := FFirst[(AY and FHeightMask) * FLineLengthInPixel + (AX and FWidthMask)];
 end;
 
 end.
