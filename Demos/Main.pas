@@ -89,7 +89,7 @@ begin
   FCube.Rotation := Float3(0, 0, 45);
   FCube.Shader := TTextureShader;
   FTexture := TTexture.Create();
-  FTexture.LoadFromFile('Crate_256.bmp');
+  FTexture.LoadFromFile('..\..\Crate_256.bmp');
   FSoftwareRenderer := TMundusRenderer.Create();
   FSoftwareRenderer.MeshList.Add(FCube);
   FSoftwareRenderer.OnInitValueBuffer := HandleInitBuffer;
