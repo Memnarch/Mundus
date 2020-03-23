@@ -1,0 +1,9 @@
+{
+	"id": "{6278A0CF-8682-4069-A130-46BE47AB8595}",
+	"picture": "Logo.png",
+	"license_type": "MPL-2",
+	"license_file": "License.txt",
+	"platforms": "Win32",
+	"package_compiler_min": 31,
+	"compiler_min": 31
+}

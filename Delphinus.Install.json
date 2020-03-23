@@ -1,0 +1,18 @@
+{
+	"search_pathes": 
+	[
+		{
+			"pathes": ".",
+			"platforms": "Win32"
+		}
+	],
+	
+	"source_folders":
+	[
+		{
+			"folder": ".",
+			"recursive": true,
+			"filter": "*.*"
+		}
+	]
+}
