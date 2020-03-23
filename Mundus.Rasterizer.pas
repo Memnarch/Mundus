@@ -1,14 +1,13 @@
-unit Rasterizer;
+unit Mundus.Rasterizer;
 
 interface
 
 uses
   Math,
-  Math3D,
-  Shader,
-  RenderTypes,
-  Interpolation,
-  ColorTypes;
+  Mundus.Math,
+  Mundus.Shader,
+  Mundus.Types,
+  Mundus.Math.Interpolation;
 
   {$IFDEF Debug}
     {$Inline Off}
@@ -90,9 +89,6 @@ implementation
 
 uses
   Types;
-
-const
-  QuadSize = 8;
 
 {$PointerMath ON}
 
@@ -299,14 +295,14 @@ begin
   LPixelY := AFirstPixel;
   if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
     LLine := @ADepthBuffer^[AY];
-  for i := AY to AY + (QuadSize - 1) do
+  for i := AY to AY + (CQuadSize - 1) do
   begin
     InitFactors<TAttributes>(@LAttributesX, @AStepA, AX, @LAttributesY);
     LDenormalizeZX := AZValues.X * AX + LDenormalizeZY;
     LPixelX := LPixelY;
     if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
       LDepth := @LLine^[AX];
-    for k := AX to AX + (QuadSize - 1) do
+    for k := AX to AX + (CQuadSize - 1) do
     begin
       if (TypeInfo(DepthTest) = TypeInfo(TNoDepth)) or (LDenormalizeZX < LDepth^) then
       begin
@@ -403,10 +399,10 @@ begin
     // Start in corner of 8x8 block
 //    minx &= ~(q - 1);
 //    miny &= ~(q - 1);
-    MinX := MinX div (QuadSize) * QuadSize;
-    MinY := MinY div (QuadSize) * QuadSize;
+    MinX := MinX div (CQuadSize) * CQuadSize;
+    MinY := MinY div (CQuadSize) * CQuadSize;
         //align to block matching stepping
-    MinY := MinY div (QuadSize*ABlockStep) * QuadSize*ABlockStep + ABlockOffset*QuadSize;
+    MinY := MinY div (CQuadSize*ABlockStep) * CQuadSize*ABlockStep + ABlockOffset*CQuadSize;
 
     // Half-edge constants
     C1 := DY12 * X1 - DX12 * Y1;
@@ -436,9 +432,9 @@ begin
         begin
             // Corners of block
             CornerX0 := BlockX*16;// shl 4;
-            CornerX1 := (BlockX + QuadSize - 1)*16;// shl 4;
+            CornerX1 := (BlockX + CQuadSize - 1)*16;// shl 4;
             CornerY0 := BlockY*16;// shl 4;
-            CornerY1 := (BlockY + QuadSize - 1)*16;// shl 4;
+            CornerY1 := (BlockY + CQuadSize - 1)*16;// shl 4;
 
             // Evaluate half-space functions
             a00 := (C1 + DX12 * CornerY0 - DY12 * CornerX0) > 0;
@@ -482,7 +478,7 @@ begin
                 LPixelY := LFirstPixel;
                 if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
                   LLine := @ADepthBuffer^[BlockY];
-                for i := BlockY to BlockY + (QuadSize - 1) do
+                for i := BlockY to BlockY + (CQuadSize - 1) do
                 begin
                   CX1 := CY1;
                   CX2 := CY2;
@@ -490,7 +486,7 @@ begin
                   LPixelX := LPixelY;
                   if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
                     LDepth := @LLine^[BlockX];
-                  for k := BlockX to BlockX + (QuadSize - 1) do
+                  for k := BlockX to BlockX + (CQuadSize - 1) do
                   begin
                     if(CX1 >= 0) and (CX2 >= 0) and (CX3 >= 0)then
                     begin
@@ -521,9 +517,9 @@ begin
                 end;
               end;
             end;
-          BlockX := BlockX + QuadSize;
+          BlockX := BlockX + CQuadSize;
         end;
-      BlockY := BlockY + QuadSize * ABlockStep;
+      BlockY := BlockY + CQuadSize * ABlockStep;
     end;
 end;
 

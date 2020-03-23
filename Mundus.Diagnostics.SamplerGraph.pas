@@ -1,4 +1,4 @@
-unit SamplerGraph;
+unit Mundus.Diagnostics.SamplerGraph;
 
 interface
 
@@ -71,7 +71,6 @@ end;
 procedure TSamplerGraph.DrawValues(ATarget: TCanvas; ARect: TRect;
   const AValues: TArray<Integer>; AColor: TColor);
 var
-  LSample: Integer;
   LEnd, LIndex, LY: Integer;
   LX, LXStep, LYStep: Double;
 begin

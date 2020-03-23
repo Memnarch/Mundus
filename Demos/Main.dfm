@@ -1,0 +1,29 @@
+object Form1: TForm1
+  Left = 0
+  Top = 0
+  Caption = 'SoftwareRenderer'
+  ClientHeight = 542
+  ClientWidth = 512
+  Color = clNone
+  DoubleBuffered = True
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'Tahoma'
+  Font.Style = []
+  FormStyle = fsStayOnTop
+  OldCreateOrder = False
+  OnClose = FormClose
+  OnCreate = FormCreate
+  OnKeyDown = FormKeyDown
+  OnResize = FormResize
+  PixelsPerInch = 96
+  TextHeight = 13
+  object GameTimer: TTimer
+    Enabled = False
+    Interval = 1
+    OnTimer = GameTimerTimer
+    Left = 256
+    Top = 488
+  end
+end

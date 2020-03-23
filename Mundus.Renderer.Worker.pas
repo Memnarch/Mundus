@@ -1,4 +1,4 @@
-unit RenderWorker;
+unit Mundus.Renderer.Worker;
 
 interface
 
@@ -7,11 +7,11 @@ uses
   Graphics,
   SyncObjs,
   Generics.Collections,
-  DrawCall,
-  TextureShader,
-  Math3D,
-  RenderTypes,
-  StopWatch;
+  Mundus.DrawCall,
+  Mundus.Shader.Texture,
+  Mundus.Math,
+  Mundus.Types,
+  Mundus.Diagnostics.StopWatch;
 
 type
   TRenderWorker = class(TThread)
@@ -56,8 +56,8 @@ implementation
 
 uses
   Windows,
-  Rasterizer,
-  Shader;
+  Mundus.Rasterizer,
+  Mundus.Shader;
 
 { TRenderWorker }
 

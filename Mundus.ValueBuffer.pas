@@ -1,11 +1,11 @@
-unit ValueBuffer;
+unit Mundus.ValueBuffer;
 
 interface
 
 uses
   SysUtils,
-  Math3D,
-  Texture;
+  Mundus.Math,
+  Mundus.Texture;
 
 type
   TValueBinding = type SmallInt;

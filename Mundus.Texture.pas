@@ -1,4 +1,4 @@
-unit Texture;
+unit Mundus.Texture;
 
 interface
 
@@ -6,7 +6,7 @@ uses
   Classes,
   Types,
   Graphics,
-  ColorTypes,
+  Mundus.Types,
   Math;
 
 {$IFDEF Debug}

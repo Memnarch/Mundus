@@ -1,9 +1,9 @@
-unit Camera;
+unit Mundus.Camera;
 
 interface
 
 uses
-  Math3D;
+  Mundus.Math;
 
 type
   TCamera = class

@@ -1,12 +1,20 @@
-unit RenderTypes;
+unit Mundus.Types;
 
 interface
 
 uses
-  Math3D,
-  ColorTypes;
+  Mundus.Math;
 
 type
+  TRGB32 = packed record
+    B, G, R, A: Byte;
+  end;
+
+  PRGB32 = ^TRGB32;
+
+  TRGB32Array = packed array[0..MaxInt div SizeOf(TRGB32)-1] of TRGB32;
+  PRGB32Array = ^TRGB32Array;
+
   TDepthBuffer = array of array of Single;
   PDepthsBuffer = ^TDepthBuffer;
 
@@ -67,6 +75,11 @@ type
   function UV(AU, AV: Single): TUV;
   function Triangle(AVertexA, AVertexB, AVertexC: Integer): TTriangle;
 
+  function RGB32(R, G, B, A: Byte): TRGB32;
+
+const
+  CQuadSize = 8;
+
 implementation
 
 { TTriangleClass }
@@ -125,6 +138,14 @@ begin
   X := AX;
   Y := AY;
   Z := AZ;
+end;
+
+function RGB32(R, G, B, A: Byte): TRGB32;
+begin
+  Result.R := R;
+  Result.G := G;
+  Result.B := B;
+  Result.A := A;
 end;
 
 end.
