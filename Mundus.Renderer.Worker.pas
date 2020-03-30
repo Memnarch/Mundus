@@ -91,6 +91,7 @@ begin
   begin
     FStart.WaitFor();
     FWatch.Start;
+    if Assigned(FDrawCalls) then
     for i := 0 to Pred(FDrawCalls.Count) do
     begin
       LRenderTarget := FPixelBuffer.ScanLine[0];
