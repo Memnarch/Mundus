@@ -91,6 +91,7 @@ uses
   Types;
 
 {$PointerMath ON}
+{$B+}
 
 class procedure TRasterizerFactory.DenormalizeFactors4(ATarget,
   ASource: PSingle; AZ: Single);
@@ -304,7 +305,9 @@ begin
       LDepth := @LLine^[AX];
     for k := AX to AX + (CQuadSize - 1) do
     begin
+      {$B-}
       if (TypeInfo(DepthTest) = TypeInfo(TNoDepth)) or (LDenormalizeZX < LDepth^) then
+      {$B+}
       begin
         DenormalizeFactors<TAttributes>(@LAttributesDenormalized, @LAttributesX, LDenormalizeZX);
         AShader.Fragment(LPixelX, @LAttributesDenormalized);
@@ -488,10 +491,12 @@ begin
                     LDepth := @LLine^[BlockX];
                   for k := BlockX to BlockX + (CQuadSize - 1) do
                   begin
-                    if(CX1 >= 0) and (CX2 >= 0) and (CX3 >= 0)then
+                    if (CX1 or CX2 or CX3) >= 0 then
                     begin
                       LDenormalizedZ := ((LStepsZ.Y*i + LStepsZ.Z) + LStepsZ.X * k);
+                      {$B-}
                       if (TypeInfo(DepthTest) = TypeInfo(TNoDepth)) or (LDenormalizedZ < LDepth^) then
+                      {$B+}
                       begin
                         InterpolateAttributes<TAttributes>(k, i, @LAttributesDenormalized, @LStepA, @LStepB, @LStepD, LDenormalizedZ);
                         AShader.Fragment(LPixelX, @LAttributesDenormalized);
