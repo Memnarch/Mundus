@@ -86,50 +86,55 @@ var
   LShader: TShader;
   LRasterizer: TRasterizer;
   LRenderTarget: Pointer;
+  LFirstDepth: System.PSingle;
 begin
   while not Terminated do
   begin
     FStart.WaitFor();
     FWatch.Start;
     if Assigned(FDrawCalls) then
-    for i := 0 to Pred(FDrawCalls.Count) do
     begin
       LRenderTarget := FPixelBuffer.ScanLine[0];
-      LCall := FDrawCalls[i];
-      LShader := LCall.Shader.Create();
-      LShader.PixelBuffer := FPixelBuffer;
-      LShader.BindBuffer(@LCall.Values);
-      LRasterizer := LCall.Shader.GetRasterizer();
-      for k := 0 to Pred(LCall.TriangleCount) do
+      LFirstDepth := @FDepthBuffer^[0];
+      Inc(LFirstDepth, (FPixelBuffer.Height-1)*FPixelBuffer.Width);
+      for i := 0 to Pred(FDrawCalls.Count) do
       begin
-        LTriangle := LCall.Triangles[k];
-        LVertexA := LCall.Vertices[LTriangle.VertexA];
-        LVertexB := LCall.Vertices[LTriangle.VertexB];
-        LVertexC := LCall.Vertices[LTriangle.VertexC];
-        LNormal.CalculateSurfaceNormal(LVertexA, LVertexB, LVertexC);
-        if (LNormal.Z < 0)then
+        LCall := FDrawCalls[i];
+        LShader := LCall.Shader.Create();
+        LShader.PixelBuffer := FPixelBuffer;
+        LShader.BindBuffer(@LCall.Values);
+        LRasterizer := LCall.Shader.GetRasterizer();
+        for k := 0 to Pred(LCall.TriangleCount) do
         begin
-          //denormalize vectors to screenpos
-          LVertexA.Element[0] := (1-LVertexA.Element[0]) * FHalfResolutionX;//half screen size
-          LVertexA.Element[1] := (1-LVertexA.Element[1]) * FHalfResolutionY;
-          LVertexB.Element[0] := (1-LVertexB.Element[0]) * FHalfResolutionX;
-          LVertexB.Element[1] := (1-LVertexB.Element[1]) * FHalfResolutionY;
-          LVertexC.Element[0] := (1-LVertexC.Element[0]) * FHalfResolutionX;
-          LVertexC.Element[1] := (1-LVertexC.Element[1]) * FHalfResolutionY;
+          LTriangle := LCall.Triangles[k];
+          LVertexA := LCall.Vertices[LTriangle.VertexA];
+          LVertexB := LCall.Vertices[LTriangle.VertexB];
+          LVertexC := LCall.Vertices[LTriangle.VertexC];
+          LNormal.CalculateSurfaceNormal(LVertexA, LVertexB, LVertexC);
+          if (LNormal.Z < 0)then
+          begin
+            //denormalize vectors to screenpos
+            LVertexA.Element[0] := (1-LVertexA.Element[0]) * FHalfResolutionX;//half screen size
+            LVertexA.Element[1] := (1-LVertexA.Element[1]) * FHalfResolutionY;
+            LVertexB.Element[0] := (1-LVertexB.Element[0]) * FHalfResolutionX;
+            LVertexB.Element[1] := (1-LVertexB.Element[1]) * FHalfResolutionY;
+            LVertexC.Element[0] := (1-LVertexC.Element[0]) * FHalfResolutionX;
+            LVertexC.Element[1] := (1-LVertexC.Element[1]) * FHalfResolutionY;
 
-          LRasterizer(
-            FMaxResolutionX, FMaxResolutionY,
-            LVertexA, LVertexB, LVertexC,
-            LCall.Attributes[LTriangle.VertexA],
-            LCall.Attributes[LTriangle.VertexB],
-            LCall.Attributes[LTriangle.VertexC],
-            LShader,
-            LRenderTarget,
-            FDepthBuffer,
-            FBlockOffset, FBlockSteps);
+            LRasterizer(
+              FMaxResolutionX, FMaxResolutionY,
+              LVertexA, LVertexB, LVertexC,
+              LCall.Attributes[LTriangle.VertexA],
+              LCall.Attributes[LTriangle.VertexB],
+              LCall.Attributes[LTriangle.VertexC],
+              LShader,
+              LRenderTarget,
+              LFirstDepth,
+              FBlockOffset, FBlockSteps);
+          end;
         end;
+        LShader.Free;
       end;
-      LShader.Free;
     end;
     FWatch.Stop;
     FDone.SetEvent;

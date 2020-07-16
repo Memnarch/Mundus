@@ -15,7 +15,7 @@ type
   TRGB32Array = packed array[0..MaxInt div SizeOf(TRGB32)-1] of TRGB32;
   PRGB32Array = ^TRGB32Array;
 
-  TDepthBuffer = array of array of Single;
+  TDepthBuffer = array of Single;
   PDepthsBuffer = ^TDepthBuffer;
 
   TVertexAttributeBuffer = TArray<Byte>;
@@ -25,7 +25,7 @@ type
     const AAttributesA, AAttributesB, AAttributesC: TVertexAttributeBuffer;
     AShader: TObject;
     APixelBuffer: PRGB32Array;
-    ADepthBuffer: PDepthsBuffer;
+    ADepthBuffer: PSingle;
     ABlockOffset, ABlockStep: Integer);
 
   TVector = record

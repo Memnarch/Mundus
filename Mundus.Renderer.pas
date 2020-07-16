@@ -52,6 +52,7 @@ type
     procedure TerminateWorkers;
     procedure WaitForRender;
     procedure UpdateBufferResolution(ABuffer: Boolean; AWidth, AHeight: Integer);
+    procedure ClearBuffer(ABuffer: Boolean);
     function GetRenderWorkers: Integer;
   public
     constructor Create(AWorker: Integer = 1);
@@ -82,15 +83,26 @@ uses
 
 { TSoftwareRenderer }
 
+procedure TMundusRenderer.ClearBuffer(ABuffer: Boolean);
+var
+  LBuffer: TBitmap;
+  LFirstLine: PByte;
+  LBufferLength: NativeInt;
+begin
+  LBuffer := FBackBuffer[ABuffer];
+  LFirstLine := LBuffer.ScanLine[LBuffer.Height-1];
+  LBufferLength := (NativeInt(LBuffer.Scanline[0]) - NativeInt(LFirstLine)) + LBuffer.Width * SizeOf(TRGB32);
+  ZeroMemory(LFirstLine, LBufferLength);
+end;
+
 procedure TMundusRenderer.ClearDepthBuffer;
 var
-  i, LBytes: Integer;
+  LBytes: Integer;
   LBuffer: TDepthBuffer;
 begin
   LBuffer := FDepthBuffer[ABuffer];
-  LBytes := Length(LBuffer[0]) * SizeOf(Single);
-  for i := Low(LBuffer) to High(LBuffer) do
-    ZeroMemory(@LBuffer[i][0], LBytes);
+  LBytes := Length(LBuffer) * SizeOf(Single);
+  ZeroMemory(@LBuffer[0], LBytes);
 end;
 
 constructor TMundusRenderer.Create;
@@ -136,19 +148,17 @@ begin
 
   //ResetBackBuffer from last frame
   UpdateBufferResolution(LFrontBuffer, FResolutionX, FResolutionY);
-  FBackBuffer[LFrontBuffer].Canvas.Brush.Color := clBlack;// clRed;
-  FBackBuffer[LFrontBuffer].Canvas.FillRect(FBackBuffer[LFrontBuffer].Canvas.ClipRect);
+  ClearBuffer(LFrontBuffer);
   ClearDepthBuffer(LFrontBuffer);
 
   //wait for workers to finish frame
   WaitForRender;
 
-//  //load workers with new stuff and start
+  //load workers with new stuff and start
   FWorkerFPS := High(FWorkerFPS);
   for LWorker in FWorkers do
   begin
     LWorker.DrawCalls := ACalls;
-//    LWorker.Shader.InitTexture(FTexture);
     LWorker.PixelBuffer := FBackBuffer[LFrontBuffer];
     LWorker.DepthBuffer := @FDepthBuffer[LFrontBuffer];
     LWorker.ResolutionX := FResolutionX;
@@ -217,6 +227,7 @@ var
   LDrawCalls: TDrawCalls;
   LViewMoveMatrix: TMatrix4x4;
   LRotationX, LRotationY, LRotationZ: TMatrix4x4;
+  LMicro: UInt64;
 begin
   FTimer.Start();
 
@@ -232,16 +243,16 @@ begin
   DispatchCalls(ACanvas, LDrawCalls);
 
   FTimer.Stop();
-  FFPS := Min(FWorkerFPS, 1000000 div FTimer.ElapsedMicroseconds);
+  LMicro := FTimer.ElapsedMicroseconds;
+  if LMicro > 0 then
+    FFPS := Min(FWorkerFPS, 1000000 div LMicro)
+  else
+    FFPS := FWorkerFPS;
 end;
 
 procedure TMundusRenderer.SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);
-var
-  i: Integer;
 begin
-  SetLength(FDepthBuffer[ABuffer], AHeight);
-  for i := 0 to AHeight - 1 do
-    SetLength(FDepthBuffer[ABuffer][i], AWidth);
+  SetLength(FDepthBuffer[ABuffer], AHeight*AWidth);
 end;
 
 procedure TMundusRenderer.SetResolution(AWidth, AHeight: Integer);
@@ -311,14 +322,17 @@ begin
 end;
 
 procedure TMundusRenderer.UpdateBufferResolution(ABuffer: Boolean; AWidth, AHeight: Integer);
+var
+  LBuffer: TBitmap;
 begin
-  if (FBackBuffer[ABuffer].Width <> AWidth) or (FBackBuffer[ABuffer].Height <> AHeight) then
+  LBuffer := FBackBuffer[ABuffer];
+  if (LBuffer.Width <> AWidth) or (LBuffer.Height <> AHeight) then
   begin
-    FBackBuffer[ABuffer].SetSize(AWidth, Aheight);
-    FFirstLIne := FBackBuffer[ABuffer].ScanLine[0];
-    FLineLength := (NativeInt(FBackBuffer[ABuffer].Scanline[1]) - NativeInt(FFirstLine)) div SizeOf(TRGB32);
-    FBackBuffer[ABuffer].Canvas.Pen.Color := clBlack;
-    FBackBuffer[ABuffer].Canvas.Brush.Color := clBlack;
+    LBuffer.SetSize(AWidth, Aheight);
+    FFirstLIne := LBuffer.ScanLine[0];
+    FLineLength := (NativeInt(LBuffer.Scanline[1]) - NativeInt(FFirstLine)) div SizeOf(TRGB32);
+    LBuffer.Canvas.Pen.Color := clBlack;
+    LBuffer.Canvas.Brush.Color := clBlack;
     SetDepthBufferSize(ABuffer, AWidth, AHeight);
     ClearDepthBuffer(ABuffer);
   end;

@@ -67,7 +67,7 @@ type
       AShader: Shader;
       const AFirstPixel: PRGB32;
       const ALineLength: NativeInt;
-      const ADepthBuffer: PDepthsBuffer); static;
+      const AFirstDepth: PSingle); static;
     class procedure InterpolateAttributes4(const AX, AY: Single; ATarget, AStepA, AStepB, AStepD: PSingle; AZ: Single); static;
     class procedure InterpolateAttributes<TAttributes: record>(AX, AY: Integer; ATarget, AStepA, AStepB, AStepD: PSingle; const AZValue: Single); static; inline;
   public
@@ -282,48 +282,47 @@ class procedure TRasterizerFactory.RenderFullBlock<TAttributes, Shader, DepthTes
       AShader: Shader;
       const AFirstPixel: PRGB32;
       const ALineLength: NativeInt;
-      const ADepthBuffer: PDepthsBuffer);
+      const AFirstDepth: PSingle);
 var
   LDenormalizeZY, LDenormalizeZX: Single;
   i, k: Integer;
   LAttributesX, LAttributesY, LAttributesDenormalized: TAttributes;
   LPixelX, LPixelY: PRGB32;
-  LDepth: PSingle;
-  LLine: PPSingle;
+  LDepthY, LDepthX: PSingle;
 begin
   InitFactors<TAttributes>(@LAttributesY, @AStepB, AY, @AStepD);
   LDenormalizeZY := AZValues.Y * AY + AZValues.Z;
   LPixelY := AFirstPixel;
   if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-    LLine := @ADepthBuffer^[AY];
+    LDepthY := AFirstDepth;
   for i := AY to AY + (CQuadSize - 1) do
   begin
     InitFactors<TAttributes>(@LAttributesX, @AStepA, AX, @LAttributesY);
     LDenormalizeZX := AZValues.X * AX + LDenormalizeZY;
     LPixelX := LPixelY;
     if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-      LDepth := @LLine^[AX];
+      LDepthX := LDepthY;
     for k := AX to AX + (CQuadSize - 1) do
     begin
       {$B-}
-      if (TypeInfo(DepthTest) = TypeInfo(TNoDepth)) or (LDenormalizeZX < LDepth^) then
+      if (TypeInfo(DepthTest) = TypeInfo(TNoDepth)) or (LDenormalizeZX < LDepthX^) then
       {$B+}
       begin
         DenormalizeFactors<TAttributes>(@LAttributesDenormalized, @LAttributesX, LDenormalizeZX);
         AShader.Fragment(LPixelX, @LAttributesDenormalized);
         if TypeInfo(DepthTest) = TypeInfo(TDepthWrite) then
-          LDepth^ := LDenormalizeZX;
+          LDepthX^ := LDenormalizeZX;
       end;
       StepFactors<TAttributes>(@LAttributesX, @AStepA);
       LDenormalizeZX := LDenormalizeZX + AZValues.X;
       if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-        Inc(LDepth);
+        Inc(LDepthX);
       Inc(LPixelX);
     end;
     StepFactors<TAttributes>(@LAttributesY, @AStepB);
     LDenormalizeZY := LDenormalizeZY + AZValues.Y;
     if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-      Inc(LLine);
+      Inc(LDepthY, ALineLength);
     Inc(LPixelY, ALineLength);
   end;
 end;
@@ -349,8 +348,7 @@ var
   LDenormalizedZ: Single;
   LLineLength: NativeInt;
   LFirstPixel, LPixelX, LPixelY: PRGB32;
-  LDepth: PSingle;
-  LLine: PPSingle;
+  LFirstDepth, LDepthX, LDepthY: PSingle;
 begin
   //calculate attribute factors
   Factorize<TAttributes>(AVerctorA, AvectorB, AvectorC, AAttributesA, AAttributesB, AAttributesC, @LStepA, @LStepB, @LStepD, LStepsZ);
@@ -466,10 +464,12 @@ begin
             begin
               //calculate first pixel of block
               LFirstPixel := @APixelBuffer[BlockY*LLineLength + BlockX];
+              if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
+                LFirstDepth := @ADepthBuffer[BlockY*LLineLength + BlockX];
               // Accept whole block when totally covered
               if (ResultAndA and ResultAndB and ResultAndC)  then
               begin
-                RenderFullBlock<TAttributes, Shader, DepthTest>(BlockX, BlockY, LStepA, LStepB, LStepD, LStepsZ, AShader, LFirstPixel, LLineLength, ADepthBuffer);
+                RenderFullBlock<TAttributes, Shader, DepthTest>(BlockX, BlockY, LStepA, LStepB, LStepD, LStepsZ, AShader, LFirstPixel, LLineLength, LFirstDepth);
               end
               else //Partially covered Block
               begin
@@ -480,7 +480,7 @@ begin
 
                 LPixelY := LFirstPixel;
                 if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-                  LLine := @ADepthBuffer^[BlockY];
+                  LDepthY := LFirstDepth;
                 for i := BlockY to BlockY + (CQuadSize - 1) do
                 begin
                   CX1 := CY1;
@@ -488,20 +488,20 @@ begin
                   CX3 := CY3;
                   LPixelX := LPixelY;
                   if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-                    LDepth := @LLine^[BlockX];
+                    LDepthX := LDepthY;
                   for k := BlockX to BlockX + (CQuadSize - 1) do
                   begin
                     if (CX1 or CX2 or CX3) >= 0 then
                     begin
                       LDenormalizedZ := ((LStepsZ.Y*i + LStepsZ.Z) + LStepsZ.X * k);
                       {$B-}
-                      if (TypeInfo(DepthTest) = TypeInfo(TNoDepth)) or (LDenormalizedZ < LDepth^) then
+                      if (TypeInfo(DepthTest) = TypeInfo(TNoDepth)) or (LDenormalizedZ < LDepthX^) then
                       {$B+}
                       begin
                         InterpolateAttributes<TAttributes>(k, i, @LAttributesDenormalized, @LStepA, @LStepB, @LStepD, LDenormalizedZ);
                         AShader.Fragment(LPixelX, @LAttributesDenormalized);
                         if TypeInfo(DepthTest) = TypeInfo(TDepthWrite) then
-                          LDepth^ := LDenormalizedZ;
+                          LDepthX^ := LDenormalizedZ;
                       end;
                     end;
 
@@ -510,7 +510,7 @@ begin
                     CX3 := CX3 - FDY31;
                     Inc(LPixelX);
                     if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-                      Inc(LDepth);
+                      Inc(LDepthX);
                   end;
 
                   CY1 := CY1 + FDX12;
@@ -518,7 +518,7 @@ begin
                   CY3 := CY3 + FDX31;
                   Inc(LPixelY, LLineLength);
                   if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-                    Inc(LLine);
+                    Inc(LDepthY, LLineLength);
                 end;
               end;
             end;
