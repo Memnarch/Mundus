@@ -107,17 +107,9 @@ end;
 class procedure TRasterizerFactory.DenormalizeFactors<TAttributes>(ATarget,
   ASource: PSingle; AZ: Single);
 begin
-  if TypeInfo(TAttributes) <> TypeInfo(TNoAttributes) then
+  if SizeOf(TAttributes) > 0 then
     DenormalizeFactors4(ATarget, ASource, AZ);
 end;
-//var
-//  i: Integer;
-//  LZ: Single;
-//begin
-//  LZ := 1 / AZ;
-//  for i := 0 to Pred(SizeOf(TAttributes) div SizeOf(Single)) do
-//    ATarget[i] := ASource[i] * LZ;
-//end;
 
 class procedure TRasterizerFactory.Factorize<TAttributes>(
   const AVectorA, AVectorB, AVectorC: TFloat4;
@@ -143,7 +135,6 @@ begin
 
   for i := 0 to Pred(SizeOf(TAttributes) div SizeOf(Single)) do
   begin
-//    FStepC.XY.U := CalculateFactorC(FVecA, FVecB, FVecC);
     AStepA[i] := CalculateFactorA(AVectorA, AVectorB, AVectorC, AAttributeA[i]/LAW, AAttributeB[i]/LBW, AAttributeC[i]/LCW) * LStepCZ;
     AStepB[i] := CalculateFactorB(AVectorA, AVectorB, AVectorC, AAttributeA[i]/LAW, AAttributeB[i]/LBW, AAttributeC[i]/LCW) * LStepCZ;
     AStepD[i] := CalculateFactorD(AVectorA, AVectorB, AVectorC, AAttributeA[i]/LAW, AAttributeB[i]/LBW, AAttributeC[i]/LCW) * LStepCZ;
@@ -178,7 +169,7 @@ class procedure TRasterizerFactory.InitFactors<TAttributes>(
         const AAdd: PSingle
       );
 begin
-  if TypeInfo(TAttributes) <> TypeInfo(TNoAttributes) then
+  if SizeOf(TAttributes) > 0 then
     InitFactors4(ATarget, ABase, AMultiplier, AAdd);
 end;
 
@@ -214,49 +205,17 @@ asm
   movups [ATarget], xmm2
 end;
 
-//procedure CalculateZ(_AX, _AY: PInteger; const AZValues: TFloat3; ATargetX, ATargetY, ATargetZ: PSingle);
-//asm
-//  //(AZValues.Y*AY + AZValues.Z)
-//  push eax
-//  movss xmm0, [AZValues.Y]
-//  movss xmm1, [_AY]
-//  cvtdq2ps xmm1, xmm1
-//  mov eax, [ATargetY]
-//  movss [eax], xmm1
-//  mulss xmm0, xmm1
-//  movss xmm2, [AZValues.Z]
-//  addss xmm0, xmm2
-//  //+AZValues.X * AX
-//  movss xmm2, [AZValues.X]
-//  pop eax
-//  movss xmm1, [_AX]
-//  cvtdq2ps xmm1, xmm1
-//  mov eax, [ATargetX]
-//  movss [eax], xmm1
-//  mulss xmm2, xmm1
-//  addss xmm0, xmm2
-//  mov eax, [ATargetZ]
-//  movss [eax], xmm0
-//end;
-
 class procedure TRasterizerFactory.InterpolateAttributes<TAttributes>(AX, AY: Integer; ATarget, AStepA, AStepB, AStepD: PSingle; const AZValue: Single);
 var
   LX, LY: Single;
 begin
-  LX := AX;
-  LY := AY;
-//  CalculateZ(@AX, @AY, AZValues, @LX, @LY, @LZ);
-  InterpolateAttributes4(LX, LY, ATarget, AStepA, AStepB, AStepD, AZValue);
+  if SizeOf(TAttributes) > 0 then
+  begin
+    LX := AX;
+    LY := AY;
+    InterpolateAttributes4(LX, LY, ATarget, AStepA, AStepB, AStepD, AZValue);
+  end;
 end;
-
-//var
-//  i: Integer;
-//begin
-//  for i := 0 to Pred(SizeOf(TAttributes) div SizeOf(Single)) do
-//  begin
-//    ATarget[i] := ABase[i] * AMultiplier + AAdd[i];
-//  end;
-//end;
 
 class procedure TRasterizerFactory.StepFactors4(ATarget, AStep: PSingle);
 asm
@@ -268,15 +227,9 @@ end;
 
 class procedure TRasterizerFactory.StepFactors<TAttributes>(ATarget, AStep: PSingle);
 begin
-  if TypeInfo(TAttributes) <> TypeInfo(TNoAttributes) then
+  if SizeOf(TAttributes) > 0 then
     StepFactors4(ATarget, AStep);
 end;
-//var
-//  i: Integer;
-//begin
-//  for i := 0 to Pred(SizeOf(TAttributes) div SizeOf(Single)) do
-//    ATarget[i] := ATarget[i] + AStep[i];
-//end;
 
 
 class procedure TRasterizerFactory.RenderFullBlock<TAttributes, Shader, DepthTest>(
