@@ -21,6 +21,39 @@ type
   TDepthTestOnly = class(TDepthTest);
   TDepthWrite = class(TDepthTest);
 
+  THalfEdgeConstants = packed record
+    C1, C2, C3: Integer;
+  end;
+
+  PHalfEdgeConstants = ^THalfEdgeConstants;
+
+  THalfSpaceDeltas = packed record
+    X12, X23, X31: Integer;
+    Y12, Y23, Y31: Integer;
+  end;
+
+  PHalfSpaceDeltas = ^THalfSpaceDeltas;
+
+  TBlockCorners = packed record
+    X0, X1: Integer;
+    Y0, Y1: Integer;
+  end;
+
+  PBlockCorners = ^TBlockCorners;
+
+  TBlockState = packed record
+    Intersects: Boolean;
+    IsFullBlock: Boolean;
+  end;
+
+  PBlockState = ^TBlockState;
+
+  TTrianglePosition = packed record
+    _1, _2, _3: Integer;
+  end;
+
+  PTrianglePosition = ^TTrianglePosition;
+
   TRasterizerFactory = record
   private
     class procedure Factorize<TAttributes: record>(
@@ -68,6 +101,16 @@ type
       const AFirstPixel: PRGB32;
       const ALineLength: NativeInt;
       const AFirstDepth: PSingle); static;
+    class procedure RenderHalfBlock<TAttributes: record; Shader: TShader<TAttributes>; DepthTest: TDepthTest>(
+      APosY: PTrianglePosition;
+      AFixedDeltas: PHalfSpaceDeltas;
+      AX, AY: Integer;
+      const AStepA, AStepB, AStepD: TAttributes;
+      const AZValues: TFloat3;
+      AShader: Shader;
+      const AFirstPixel: PRGB32;
+      const ALineLength: NativeInt;
+      const AFirstDepth: PSingle); static;
     class procedure InterpolateAttributes4(const AX, AY: Single; ATarget, AStepA, AStepB, AStepD: PSingle; AZ: Single); static;
     class procedure InterpolateAttributes<TAttributes: record>(AX, AY: Integer; ATarget, AStepA, AStepB, AStepD: PSingle; const AZValue: Single); static; inline;
   public
@@ -83,7 +126,7 @@ type
 
   PPSingle = ^PSingle;
 
-//  procedure CalculateZ(_AX, _AY: PInteger; const AZValues: TFloat3; ATargetX, ATargetY, ATargetZ: PSingle);
+procedure EvalHalfspace(const AConstants: PHalfEdgeConstants; const ADeltas: PHalfSpaceDeltas; ACorners: PBlockCorners; AState: PBlockState);
 
 implementation
 
@@ -284,6 +327,98 @@ begin
   end;
 end;
 
+
+class procedure TRasterizerFactory.RenderHalfBlock<TAttributes, Shader, DepthTest>(
+  APosY: PTrianglePosition; AFixedDeltas: PHalfSpaceDeltas; AX, AY: Integer;
+  const AStepA, AStepB, AStepD: TAttributes; const AZValues: TFloat3;
+  AShader: Shader; const AFirstPixel: PRGB32; const ALineLength: NativeInt;
+  const AFirstDepth: PSingle);
+var
+  LPixelX, LPixelY: PRGB32;
+  LDepthX, LDepthY: PSingle;
+  BlockXEnd, BlockYEnd: Integer;
+  LX, LY: TTrianglePosition;
+  i, k: Integer;
+  LDenormalizedZ: Single;
+  LAttributesDenormalized: TAttributes;
+begin
+  LPixelY := AFirstPixel;
+  if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
+    LDepthY := AFirstDepth;
+  BlockYEnd := AY + (CQuadSize - 1);
+  BlockXEnd := AX + (CQuadSize - 1);
+  for i := AY to BlockYEnd do
+  begin
+    LX._1 := APosY._1;
+    LX._2 := APosy._2;
+    LX._3 := APosY._3;
+    LPixelX := LPixelY;
+    if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
+      LDepthX := LDepthY;
+    for k := AX to BlockXEnd do
+    begin
+      if (LX._1 or LX._2 or LX._3) >= 0 then
+      begin
+        LDenormalizedZ := ((AZValues.Y*i + AZValues.Z) + AZValues.X * k);
+        {$B-}
+        if (TypeInfo(DepthTest) = TypeInfo(TNoDepth)) or (LDenormalizedZ < LDepthX^) then
+        {$B+}
+        begin
+          InterpolateAttributes<TAttributes>(k, i, @LAttributesDenormalized, @AStepA, @AStepB, @AStepD, LDenormalizedZ);
+          AShader.Fragment(LPixelX, @LAttributesDenormalized);
+          if TypeInfo(DepthTest) = TypeInfo(TDepthWrite) then
+            LDepthX^ := LDenormalizedZ;
+        end;
+      end;
+
+      LX._1 := LX._1 - AFixedDeltas.Y12;
+      LX._2 := LX._2 - AFixedDeltas.Y23;
+      LX._3 := LX._3 - AFixedDeltas.Y31;
+      Inc(LPixelX);
+      if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
+        Inc(LDepthX);
+    end;
+
+    LY._1 := LY._1 + AFixedDeltas.X12;
+    LY._2 := LY._2 + AFixedDeltas.X23;
+    LY._3 := LY._3 + AFixedDeltas.X31;
+    Inc(LPixelY, ALineLength);
+    if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
+      Inc(LDepthY, ALineLength);
+  end;
+end;
+
+procedure EvalHalfspace(const AConstants: PHalfEdgeConstants; const ADeltas: PHalfSpaceDeltas; ACorners: PBlockCorners; AState: PBlockState);
+var
+  A00, A10, A01, A11, B00, B10, B01, B11, C00, C10, C01, C11: Boolean;
+  ResultOrA, ResultAndA, ResultOrB, ResultAndB, ResultOrC, ResultAndC: Boolean;
+begin
+    // Evaluate half-space functions
+  a00 := (AConstants.C1 + ADeltas.X12 * ACorners.Y0 - ADeltas.Y12 * ACorners.X0) > 0;
+  a10 := (AConstants.C1 + ADeltas.X12 * ACorners.Y0 - ADeltas.Y12 * ACorners.X1) > 0;
+  a01 := (AConstants.C1 + ADeltas.X12 * ACorners.Y1 - ADeltas.Y12 * ACorners.X0) > 0;
+  a11 := (AConstants.C1 + ADeltas.X12 * ACorners.Y1 - ADeltas.Y12 * ACorners.X1) > 0;
+  ResultOrA := a00 or a10 or a01 or a11;
+  ResultAndA := a00 and a10 and a01 and a11;
+
+  b00 := (AConstants.C2 + ADeltas.X23 * ACorners.Y0 - ADeltas.Y23 * ACorners.X0) > 0;
+  b10 := (AConstants.C2 + ADeltas.X23 * ACorners.Y0 - ADeltas.Y23 * ACorners.X1) > 0;
+  b01 := (AConstants.C2 + ADeltas.X23 * ACorners.Y1 - ADeltas.Y23 * ACorners.X0) > 0;
+  b11 := (AConstants.C2 + ADeltas.X23 * ACorners.Y1 - ADeltas.Y23 * ACorners.X1) > 0;
+  ResultOrB := B00 or B10 or B01 or B11;
+  ResultAndB := B00 and B10 and B01 and B11;
+
+  c00 := (AConstants.C3 + ADeltas.X31 * ACorners.Y0 - ADeltas.Y31 * ACorners.X0) > 0;
+  c10 := (AConstants.C3 + ADeltas.X31 * ACorners.Y0 - ADeltas.Y31 * ACorners.X1) > 0;
+  c01 := (AConstants.C3 + ADeltas.X31 * ACorners.Y1 - ADeltas.Y31 * ACorners.X0) > 0;
+  c11 := (AConstants.C3 + ADeltas.X31 * ACorners.Y1 - ADeltas.Y31 * ACorners.X1) > 0;
+  ResultOrC := C00 or C10 or C01 or C11;
+  ResultAndC := C00 and C10 and C01 and C11;
+
+  AState.Intersects := ResultOrA or ResultOrB or ResultOrC;
+  AState.IsFullBlock := ResultAndA and ResultAndB and ResultAndC;
+end;
+
 class procedure TRasterizerFactory.RasterizeTriangle<TAttributes, Shader, DepthTest>(
       AMaxResolutionX, AMaxResolutionY: Integer;
       const AVerctorA, AvectorB, AvectorC: TFloat4;
@@ -293,11 +428,8 @@ class procedure TRasterizerFactory.RasterizeTriangle<TAttributes, Shader, DepthT
       ADepthBuffer: PDepthsBuffer;
       ABlockOffset, ABlockStep: Integer);
 var
-  Y1, Y2, Y3, X1, X2, X3, DX12, DX23, DX31, DY12, DY23, DY31, FDX12, FDX23, FDX31, FDY12, FDY23, FDY31: Integer;
-  MinX, MinY, MAxX, MAxY, C1, C2, C3, BlockX, BlockY, CornerX0, CornerX1, CornerY0, CornerY1: Integer;
-  CY1, CY2, CY3, CX1, CX2, CX3: Integer;
-  A00, A10, A01, A11, B00, B10, B01, B11, C00, C10, C01, C11, ResultOrA, ResultAndA, ResultOrB, ResultAndB,
-  ResultOrC, ResultAndC: Boolean;
+  Y1, Y2, Y3, X1, X2, X3: Integer;
+  MinX, MinY, MAxX, MAxY, BlockX, BlockXEnd, BlockY, BlockYEnd: Integer;
   i, k: Integer;
   LStepA, LStepB, LStepD: TAttributes;
   LStepsZ: TFloat3;
@@ -306,6 +438,12 @@ var
   LLineLength: NativeInt;
   LFirstPixel, LPixelX, LPixelY: PRGB32;
   LFirstDepth, LDepthX, LDepthY: PSingle;
+  LStepsPerQuad: NativeInt;
+  LConstants: THalfEdgeConstants;
+  LDeltas, LFixedDeltas: THalfSpaceDeltas;
+  LBlockCorners: TBlockCorners;
+  LBlockState: TBlockState;
+  LX, LY: TTrianglePosition;
 begin
   //calculate attribute factors
   Factorize<TAttributes>(AVerctorA, AvectorB, AvectorC, AAttributesA, AAttributesB, AAttributesC, @LStepA, @LStepB, @LStepD, LStepsZ);
@@ -324,22 +462,22 @@ begin
 //    Z3 := Round(AvectorC.Element[2]);
 
     // Deltas
-    DX12 := X1 - X2;
-    DX23 := X2 - X3;
-    DX31 := X3 - X1;
+    LDeltas.X12 := X1 - X2;
+    LDeltas.X23 := X2 - X3;
+    LDeltas.X31 := X3 - X1;
 
-    DY12 := Y1 - Y2;
-    DY23 := Y2 - Y3;
-    DY31 := Y3 - Y1;
+    LDeltas.Y12 := Y1 - Y2;
+    LDeltas.Y23 := Y2 - Y3;
+    LDeltas.Y31 := Y3 - Y1;
 
     // Fixed-point deltas
-    FDX12 := DX12*16;// shl 4;
-    FDX23 := DX23*16;// shl 4;
-    FDX31 := DX31*16;// shl 4;
+    LFixedDeltas.X12 := LDeltas.X12*16;// shl 4;
+    LFixedDeltas.X23 := LDeltas.X23*16;// shl 4;
+    LFixedDeltas.X31 := LDeltas.X31*16;// shl 4;
 
-    FDY12 := DY12*16;// shl 4;
-    FDY23 := DY23*16;// shl 4;
-    FDY31 := DY31*16;// shl 4;
+    LFixedDeltas.Y12 := LDeltas.Y12*16;// shl 4;
+    LFixedDeltas.Y23 := LDeltas.Y23*16;// shl 4;
+    LFixedDeltas.Y31 := LDeltas.Y31*16;// shl 4;
 
     // Bounding rectangle
 //    minx := (min(X1, min(X2, X3)) + 15);// shr 4;
@@ -360,25 +498,26 @@ begin
     MinX := MinX div (CQuadSize) * CQuadSize;
     MinY := MinY div (CQuadSize) * CQuadSize;
         //align to block matching stepping
-    MinY := MinY div (CQuadSize*ABlockStep) * CQuadSize*ABlockStep + ABlockOffset*CQuadSize;
+    LStepsPerQuad := CQuadSize*ABlockStep;
+    MinY := MinY div LStepsPerQuad * LStepsPerQuad + ABlockOffset*CQuadSize;
 
     // Half-edge constants
-    C1 := DY12 * X1 - DX12 * Y1;
-    C2 := DY23 * X2 - DX23 * Y2;
-    C3 := DY31 * X3 - DX31 * Y3;
+    LConstants.C1 := LDeltas.Y12 * X1 - LDeltas.X12 * Y1;
+    LConstants.C2 := LDeltas.Y23 * X2 - LDeltas.X23 * Y2;
+    LConstants.C3 := LDeltas.Y31 * X3 - LDeltas.X31 * Y3;
 
     // Correct for fill convention
-    if(DY12 < 0) or ((DY12 = 0) and (DX12 > 0))then
+    if(LDeltas.Y12 < 0) or ((LDeltas.Y12 = 0) and (LDeltas.X12 > 0))then
     begin
-      C1 := C1 + 1;
+      LConstants.C1 := LConstants.C1 + 1;
     end;
-    if(DY23 < 0) or ((DY23 = 0) and (DX23 > 0))then
+    if(LDeltas.Y23 < 0) or ((LDeltas.Y23 = 0) and (LDeltas.X23 > 0))then
     begin
-      C2 := C2 + 1;
+      LConstants.C2 := LConstants.C2 + 1;
     end;
-    if(DY31 < 0) or ((DY31 = 0) and (DX31 > 0))then
+    if(LDeltas.Y31 < 0) or ((LDeltas.Y31 = 0) and (LDeltas.X31 > 0))then
     begin
-      C3 := C3 + 1;
+      LConstants.C3 := LConstants.C3 + 1;
     end;
 
     // Loop through blocks
@@ -389,99 +528,37 @@ begin
         while BlockX < MaxX do
         begin
             // Corners of block
-            CornerX0 := BlockX*16;// shl 4;
-            CornerX1 := (BlockX + CQuadSize - 1)*16;// shl 4;
-            CornerY0 := BlockY*16;// shl 4;
-            CornerY1 := (BlockY + CQuadSize - 1)*16;// shl 4;
+            LBlockCorners.X0 := BlockX*16;// shl 4;
+            LBlockCorners.X1 := (BlockX + CQuadSize - 1)*16;// shl 4;
+            LBlockCorners.Y0 := BlockY*16;// shl 4;
+            LBlockCorners.Y1 := (BlockY + CQuadSize - 1)*16;// shl 4;
 
-            // Evaluate half-space functions
-            a00 := (C1 + DX12 * CornerY0 - DY12 * CornerX0) > 0;
-            a10 := (C1 + DX12 * CornerY0 - DY12 * CornerX1) > 0;
-            a01 := (C1 + DX12 * CornerY1 - DY12 * CornerX0) > 0;
-            a11 := (C1 + DX12 * CornerY1 - DY12 * CornerX1) > 0;
-            ResultOrA := a00 or a10 or a01 or a11;
-            ResultAndA := a00 and a10 and a01 and a11;
-
-            b00 := (C2 + DX23 * CornerY0 - DY23 * CornerX0) > 0;
-            b10 := (C2 + DX23 * CornerY0 - DY23 * CornerX1) > 0;
-            b01 := (C2 + DX23 * CornerY1 - DY23 * CornerX0) > 0;
-            b11 := (C2 + DX23 * CornerY1 - DY23 * CornerX1) > 0;
-            ResultOrB := B00 or B10 or B01 or B11;
-            ResultAndB := B00 and B10 and B01 and B11;
-
-            c00 := (C3 + DX31 * CornerY0 - DY31 * CornerX0) > 0;
-            c10 := (C3 + DX31 * CornerY0 - DY31 * CornerX1) > 0;
-            c01 := (C3 + DX31 * CornerY1 - DY31 * CornerX0) > 0;
-            c11 := (C3 + DX31 * CornerY1 - DY31 * CornerX1) > 0;
-            ResultOrC := C00 or C10 or C01 or C11;
-            ResultAndC := C00 and C10 and C01 and C11;
-
+            EvalHalfspace(@LConstants, @LDeltas, @LBlockCorners, @LBlockState);
             // Skip block when outside an edge
-            if ResultOrA or ResultOrB or ResultOrC then
+            if LBlockState.Intersects then
             begin
               //calculate first pixel of block
               LFirstPixel := @APixelBuffer[BlockY*LLineLength + BlockX];
               if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
                 LFirstDepth := @ADepthBuffer[BlockY*LLineLength + BlockX];
               // Accept whole block when totally covered
-              if (ResultAndA and ResultAndB and ResultAndC)  then
+              if LBlockState.IsFullBlock  then
               begin
                 RenderFullBlock<TAttributes, Shader, DepthTest>(BlockX, BlockY, LStepA, LStepB, LStepD, LStepsZ, AShader, LFirstPixel, LLineLength, LFirstDepth);
               end
               else //Partially covered Block
               begin
 
-                CY1 := C1 + DX12 * CornerY0 - DY12 * CornerX0;
-                CY2 := C2 + DX23 * CornerY0 - DY23 * CornerX0;
-                CY3 := C3 + DX31 * CornerY0 - DY31 * CornerX0;
+                LY._1 := LConstants.C1 + LDeltas.X12 * LBlockCorners.Y0 - LDeltas.Y12 * LBlockCorners.X0;
+                LY._2 := LConstants.C2 + LDeltas.X23 * LBlockCorners.Y0 - LDeltas.Y23 * LBlockCorners.X0;
+                LY._3 := LConstants.C3 + LDeltas.X31 * LBlockCorners.Y0 - LDeltas.Y31 * LBlockCorners.X0;
 
-                LPixelY := LFirstPixel;
-                if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-                  LDepthY := LFirstDepth;
-                for i := BlockY to BlockY + (CQuadSize - 1) do
-                begin
-                  CX1 := CY1;
-                  CX2 := CY2;
-                  CX3 := CY3;
-                  LPixelX := LPixelY;
-                  if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-                    LDepthX := LDepthY;
-                  for k := BlockX to BlockX + (CQuadSize - 1) do
-                  begin
-                    if (CX1 or CX2 or CX3) >= 0 then
-                    begin
-                      LDenormalizedZ := ((LStepsZ.Y*i + LStepsZ.Z) + LStepsZ.X * k);
-                      {$B-}
-                      if (TypeInfo(DepthTest) = TypeInfo(TNoDepth)) or (LDenormalizedZ < LDepthX^) then
-                      {$B+}
-                      begin
-                        InterpolateAttributes<TAttributes>(k, i, @LAttributesDenormalized, @LStepA, @LStepB, @LStepD, LDenormalizedZ);
-                        AShader.Fragment(LPixelX, @LAttributesDenormalized);
-                        if TypeInfo(DepthTest) = TypeInfo(TDepthWrite) then
-                          LDepthX^ := LDenormalizedZ;
-                      end;
-                    end;
-
-                    CX1 := CX1 - FDY12;
-                    CX2 := CX2 - FDY23;
-                    CX3 := CX3 - FDY31;
-                    Inc(LPixelX);
-                    if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-                      Inc(LDepthX);
-                  end;
-
-                  CY1 := CY1 + FDX12;
-                  CY2 := CY2 + FDX23;
-                  CY3 := CY3 + FDX31;
-                  Inc(LPixelY, LLineLength);
-                  if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-                    Inc(LDepthY, LLineLength);
-                end;
+                RenderHalfBlock<TAttributes, Shader, DepthTest>(@LY, @LFixedDeltas, BlockX, BlockY, LStepA, LStepB, LStepD, LStepsZ, AShader, LFirstPixel, LLineLength, LFirstDepth);
               end;
             end;
           BlockX := BlockX + CQuadSize;
         end;
-      BlockY := BlockY + CQuadSize * ABlockStep;
+      BlockY := BlockY + LStepsPerQuad;
     end;
 end;
 
