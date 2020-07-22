@@ -8,6 +8,7 @@ uses
   Mundus.Renderer,
   Mundus.Diagnostics.StopWatch,
   Mundus.Diagnostics.SamplerGraph,
+  Mundus.Mesh.Plane,
   Mundus.Mesh.Cube,
   Mundus.Mesh,
   Mundus.ValueBuffer,
@@ -27,7 +28,7 @@ type
     FSoftwareRenderer: TMundusRenderer;
     FWatch: TStopWatch;
     FMinFPS, FMaxFPS: Integer;
-    FCube: TCube;
+    FCube: TMesh;
     FLastReset: TDateTime;
     FGraph: TSamplerGraph;
     FDrawGraph: Boolean;
@@ -84,13 +85,14 @@ begin
   CopyMemory(@FColors[0], @CColors[0], SizeOf(CColors));
   Application.OnException := HandleException;
   FGraph := TSamplerGraph.Create();
-  FCube := TCube.Create();
-  FCube.Position := Float3(0, 0, 132);
-  FCube.Rotation := Float3(0, 0, 45);
+  FCube := TPlane.Create(320, 180, 20);
+//  FCube := TCube.Create();
+  FCube.Position := Float3(0, 0, 246);
+//  FCube.Rotation := Float3(0, 0, 45);
   FCube.Shader := TTextureShader;
   FTexture := TTexture.Create();
   FTexture.LoadFromFile('..\..\Crate_256.bmp');
-  FSoftwareRenderer := TMundusRenderer.Create();
+  FSoftwareRenderer := TMundusRenderer.Create(1);
   FSoftwareRenderer.MeshList.Add(FCube);
   FSoftwareRenderer.OnInitValueBuffer := HandleInitBuffer;
   FSoftwareRenderer.OnAfterFrame := HandleAfterFrame;
@@ -151,7 +153,8 @@ end;
 procedure TForm1.GameTimerTimer(Sender: TObject);
 begin
   FSoftwareRenderer.RenderFrame(Canvas);
-  FCube.Rotation := Float3(FCube.Rotation.X + 0.25, FCube.Rotation.Y, FCube.Rotation.Z);
+//  FCube.Rotation := Float3(FCube.Rotation.X + 0.25, FCube.Rotation.Y, FCube.Rotation.Z);
+  FCube.Rotation := Float3(180, FCube.Rotation.Y, FCube.Rotation.Z);
 end;
 
 procedure TForm1.HandleAfterFrame(ACanvas: TCanvas);

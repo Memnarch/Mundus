@@ -20,7 +20,8 @@ uses
   Mundus.Shader.VertexGradient in '..\Mundus.Shader.VertexGradient.pas',
   Mundus.Texture in '..\Mundus.Texture.pas',
   Mundus.Types in '..\Mundus.Types.pas',
-  Mundus.ValueBuffer in '..\Mundus.ValueBuffer.pas';
+  Mundus.ValueBuffer in '..\Mundus.ValueBuffer.pas',
+  Mundus.Mesh.Plane in '..\Mundus.Mesh.Plane.pas';
 
 {$R *.res}
 
