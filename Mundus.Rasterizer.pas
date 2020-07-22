@@ -55,6 +55,17 @@ type
   PTrianglePosition = ^TTrianglePosition;
 
   TRasterizerFactory<TAttributes: record; Shader: TShader<TAttributes>; DepthTest: TDepthTest> = record
+  type
+    TBlockAttributes = packed record
+      X, Y: Integer;
+      StepA, StepB, StepD: TAttributes;
+      ZValues: TFloat3;
+      ShaderInstance: Shader;
+      FirstPixel: PRGB32;
+      LineLength: NativeInt;
+      FirstDepth: PSingle
+    end;
+    PBlockAttributes = ^TBlockAttributes;
   private
     class procedure Factorize(
       const AVectorA, AVectorB, AVectorC: TFloat4;
@@ -62,24 +73,11 @@ type
       AStepA, AStepB, AStepD: PSingle;
       var AVecZ: TFloat3); static; inline;
 
-    class procedure RenderFullBlock(
-      AX, AY: Integer;
-      const AStepA, AStepB, AStepD: TAttributes;
-      const AZValues: TFloat3;
-      AShader: Shader;
-      const AFirstPixel: PRGB32;
-      const ALineLength: NativeInt;
-      const AFirstDepth: PSingle); static;
+    class procedure RenderFullBlock(const AAttributes: PBlockAttributes); static;
     class procedure RenderHalfBlock(
       APosY: PTrianglePosition;
       AFixedDeltas: PHalfSpaceDeltas;
-      AX, AY: Integer;
-      const AStepA, AStepB, AStepD: TAttributes;
-      const AZValues: TFloat3;
-      AShader: Shader;
-      const AFirstPixel: PRGB32;
-      const ALineLength: NativeInt;
-      const AFirstDepth: PSingle); static;
+      const AAttributes: PBlockAttributes); static;
   public
     class procedure RasterizeTriangle(
       AMaxResolutionX, AMaxResolutionY: Integer;
@@ -118,12 +116,12 @@ procedure DenormalizeFactors(
       ); inline;
 
 procedure StepFactors(
-        ATarget: PSingle;
         AStep: PSingle;
+        ATarget: PSingle;
         const AAttributeSize: Integer
       ); inline;
 procedure InterpolateAttributes4(const AX, AY: Single; ATarget, AStepA, AStepB, AStepD: PSingle; AZ: Single);
-procedure StepFactors4(ATarget, AStep: PSingle);
+procedure StepFactors4(AStep, ATarget: PSingle);
 procedure InterpolateAttributes(AX, AY: Integer; ATarget, AStepA, AStepB, AStepD: PSingle; const AZValue: Single; const AAttributeSize: Integer); inline;
 
 implementation
@@ -256,33 +254,26 @@ begin
     InterpolateAttributes4(AX, AY, ATarget, AStepA, AStepB, AStepD, AZValue);
 end;
 
-procedure StepFactors4(ATarget, AStep: PSingle);
+procedure StepFactors4(AStep, ATarget: PSingle);
 asm
   movups xmm0, [ATarget]
   movups xmm1, [AStep]
-  addps xmm0, xmm1
-  movups [ATarget], xmm0
+  addps xmm1, xmm0
+  movups [ATarget], xmm1
 end;
 
 procedure StepFactors(
-        ATarget: PSingle;
         AStep: PSingle;
+        ATarget: PSingle;
         const AAttributeSize: Integer
       );
 begin
   if AAttributeSize > 0 then
-    StepFactors4(ATarget, AStep);
+    StepFactors4(AStep, ATarget);
 end;
 
 
-class procedure TRasterizerFactory<TAttributes, Shader, DepthTest>.RenderFullBlock(
-      AX, AY: Integer;
-      const AStepA, AStepB, AStepD: TAttributes;
-      const AZValues: TFloat3;
-      AShader: Shader;
-      const AFirstPixel: PRGB32;
-      const ALineLength: NativeInt;
-      const AFirstDepth: PSingle);
+class procedure TRasterizerFactory<TAttributes, Shader, DepthTest>.RenderFullBlock(const AAttributes: PBlockAttributes);
 var
   LDenormalizeZY, LDenormalizeZX: Single;
   i, k: Integer;
@@ -290,49 +281,48 @@ var
   LPixelX, LPixelY: PRGB32;
   LDepthY, LDepthX: PSingle;
 begin
-  InitFactors(@LAttributesY, @AStepB, AY, @AStepD, SizeOf(TAttributes));
-  LDenormalizeZY := AZValues.Y * AY + AZValues.Z;
-  LPixelY := AFirstPixel;
+  InitFactors(@LAttributesY, @AAttributes.StepB, AAttributes.Y, @AAttributes.StepD, SizeOf(TAttributes));
+  LDenormalizeZY := AAttributes.ZValues.Y * AAttributes.Y + AAttributes.ZValues.Z;
+  LPixelY := AAttributes.FirstPixel;
   if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-    LDepthY := AFirstDepth;
-  for i := AY to AY + (CQuadSize - 1) do
+    LDepthY := AAttributes.FirstDepth;
+  for i := AAttributes.Y to AAttributes.Y + (CQuadSize - 1) do
   begin
-    InitFactors(@LAttributesX, @AStepA, AX, @LAttributesY, SizeOf(TAttributes));
-    LDenormalizeZX := AZValues.X * AX + LDenormalizeZY;
+    InitFactors(@LAttributesX, @AAttributes.StepA, AAttributes.X, @LAttributesY, SizeOf(TAttributes));
+    LDenormalizeZX := AAttributes.ZValues.X * AAttributes.X + LDenormalizeZY;
     LPixelX := LPixelY;
     if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
       LDepthX := LDepthY;
-    for k := AX to AX + (CQuadSize - 1) do
+    for k := AAttributes.X to AAttributes.X + (CQuadSize - 1) do
     begin
       {$B-}
       if (TypeInfo(DepthTest) = TypeInfo(TNoDepth)) or (LDenormalizeZX < LDepthX^) then
       {$B+}
       begin
         DenormalizeFactors(@LAttributesDenormalized, @LAttributesX, LDenormalizeZX, SizeOf(TAttributes));
-        AShader.Fragment(LPixelX, @LAttributesDenormalized);
+        AAttributes.ShaderInstance.Fragment(LPixelX, @LAttributesDenormalized);
         if TypeInfo(DepthTest) = TypeInfo(TDepthWrite) then
           LDepthX^ := LDenormalizeZX;
       end;
-      StepFactors(@LAttributesX, @AStepA, SizeOf(TAttributes));
-      LDenormalizeZX := LDenormalizeZX + AZValues.X;
+      StepFactors(@AAttributes.StepA, @LAttributesX, SizeOf(TAttributes));
+      LDenormalizeZX := LDenormalizeZX + AAttributes.ZValues.X;
       if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
         Inc(LDepthX);
       Inc(LPixelX);
     end;
-    StepFactors(@LAttributesY, @AStepB, SizeOf(TAttributes));
-    LDenormalizeZY := LDenormalizeZY + AZValues.Y;
+    StepFactors(@AAttributes.StepB, @LAttributesY, SizeOf(TAttributes));
+    LDenormalizeZY := LDenormalizeZY + AAttributes.ZValues.Y;
     if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-      Inc(LDepthY, ALineLength);
-    Inc(LPixelY, ALineLength);
+      Inc(LDepthY, AAttributes.LineLength);
+    Inc(LPixelY, AAttributes.LineLength);
   end;
 end;
 
 
 class procedure TRasterizerFactory<TAttributes, Shader, DepthTest>.RenderHalfBlock(
-  APosY: PTrianglePosition; AFixedDeltas: PHalfSpaceDeltas; AX, AY: Integer;
-  const AStepA, AStepB, AStepD: TAttributes; const AZValues: TFloat3;
-  AShader: Shader; const AFirstPixel: PRGB32; const ALineLength: NativeInt;
-  const AFirstDepth: PSingle);
+      APosY: PTrianglePosition;
+      AFixedDeltas: PHalfSpaceDeltas;
+      const AAttributes: PBlockAttributes);
 var
   LPixelX, LPixelY: PRGB32;
   LDepthX, LDepthY: PSingle;
@@ -342,12 +332,12 @@ var
   LDenormalizedZ: Single;
   LAttributesDenormalized: TAttributes;
 begin
-  LPixelY := AFirstPixel;
+  LPixelY := AAttributes.FirstPixel;
   if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-    LDepthY := AFirstDepth;
-  BlockYEnd := AY + (CQuadSize - 1);
-  BlockXEnd := AX + (CQuadSize - 1);
-  for i := AY to BlockYEnd do
+    LDepthY := AAttributes.FirstDepth;
+  BlockYEnd := AAttributes.Y + (CQuadSize - 1);
+  BlockXEnd := AAttributes.X + (CQuadSize - 1);
+  for i := AAttributes.Y to BlockYEnd do
   begin
     LX._1 := APosY._1;
     LX._2 := APosy._2;
@@ -355,17 +345,17 @@ begin
     LPixelX := LPixelY;
     if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
       LDepthX := LDepthY;
-    for k := AX to BlockXEnd do
+    for k := AAttributes.X to BlockXEnd do
     begin
       if (LX._1 or LX._2 or LX._3) >= 0 then
       begin
-        LDenormalizedZ := ((AZValues.Y*i + AZValues.Z) + AZValues.X * k);
+        LDenormalizedZ := ((AAttributes.ZValues.Y*i + AAttributes.ZValues.Z) + AAttributes.ZValues.X * k);
         {$B-}
         if (TypeInfo(DepthTest) = TypeInfo(TNoDepth)) or (LDenormalizedZ < LDepthX^) then
         {$B+}
         begin
-          InterpolateAttributes(k, i, @LAttributesDenormalized, @AStepA, @AStepB, @AStepD, LDenormalizedZ, SizeOf(TAttributes));
-          AShader.Fragment(LPixelX, @LAttributesDenormalized);
+          InterpolateAttributes(k, i, @LAttributesDenormalized, @AAttributes.StepA, @AAttributes.StepB, @AAttributes.StepD, LDenormalizedZ, SizeOf(TAttributes));
+          AAttributes.ShaderInstance.Fragment(LPixelX, @LAttributesDenormalized);
           if TypeInfo(DepthTest) = TypeInfo(TDepthWrite) then
             LDepthX^ := LDenormalizedZ;
         end;
@@ -382,9 +372,9 @@ begin
     LY._1 := LY._1 + AFixedDeltas.X12;
     LY._2 := LY._2 + AFixedDeltas.X23;
     LY._3 := LY._3 + AFixedDeltas.X31;
-    Inc(LPixelY, ALineLength);
+    Inc(LPixelY, AAttributes.LineLength);
     if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-      Inc(LDepthY, ALineLength);
+      Inc(LDepthY, AAttributes.LineLength);
   end;
 end;
 
@@ -429,25 +419,22 @@ class procedure TRasterizerFactory<TAttributes, Shader, DepthTest>.RasterizeTria
       ABlockOffset, ABlockStep: Integer);
 var
   Y1, Y2, Y3, X1, X2, X3: Integer;
-  MinX, MinY, MAxX, MAxY, BlockX, BlockXEnd, BlockY, BlockYEnd: Integer;
+  MinX, MinY, MAxX, MAxY, BlockXEnd, BlockYEnd: Integer;
   i, k: Integer;
-  LStepA, LStepB, LStepD: TAttributes;
-  LStepsZ: TFloat3;
   LAttributesX, LAttributesY, LAttributesDenormalized: TAttributes;
   LDenormalizedZ: Single;
-  LLineLength: NativeInt;
-  LFirstPixel, LPixelX, LPixelY: PRGB32;
-  LFirstDepth, LDepthX, LDepthY: PSingle;
   LStepsPerQuad: NativeInt;
   LConstants: THalfEdgeConstants;
   LDeltas, LFixedDeltas: THalfSpaceDeltas;
   LBlockCorners: TBlockCorners;
   LBlockState: TBlockState;
   LX, LY: TTrianglePosition;
+  LBlock: TBlockAttributes;
 begin
   //calculate attribute factors
-  Factorize(AVerctorA, AvectorB, AvectorC, AAttributesA, AAttributesB, AAttributesC, @LStepA, @LStepB, @LStepD, LStepsZ);
-  LLineLength := -(AMaxResolutionX+1);
+  Factorize(AVerctorA, AvectorB, AvectorC, AAttributesA, AAttributesB, AAttributesC, @LBlock.StepA, @LBlock.StepB, @LBlock.StepD, LBlock.ZValues);
+  LBlock.LineLength := -(AMaxResolutionX+1);
+  LBlock.ShaderInstance := AShader;
   // 28.4 fixed-point coordinates
     X1 := Round(16*AVerctorA.Element[0]);
     X2 := Round(16*AVectorB.Element[0]);
@@ -488,8 +475,8 @@ begin
     maxx := Min(AMaxResolutionX, (max(X1, Max(X2, X3)) + 15) div 16);// shr 4;
     miny := Max(0, (min(Y1, min(Y2, Y3)) + 15) div 16);// shr 4;
     maxy := Min(AMaxResolutionY, (max(Y1, MAx(Y2, Y3)) + 15) div 16);// shr 4;
-    AShader.MinX := minx;
-    AShader.MinY := miny;
+    LBlock.ShaderInstance.MinX := minx;
+    LBlock.ShaderInstance.MinY := miny;
 
 
     // Start in corner of 8x8 block
@@ -521,30 +508,30 @@ begin
     end;
 
     // Loop through blocks
-    BlockY := MinY;
-    while BlockY < MaxY do
+    LBlock.Y := MinY;
+    while LBlock.Y < MaxY do
     begin
-      BlockX := MinX;
-        while BlockX < MaxX do
+      LBlock.X := MinX;
+        while LBlock.X < MaxX do
         begin
             // Corners of block
-            LBlockCorners.X0 := BlockX*16;// shl 4;
-            LBlockCorners.X1 := (BlockX + CQuadSize - 1)*16;// shl 4;
-            LBlockCorners.Y0 := BlockY*16;// shl 4;
-            LBlockCorners.Y1 := (BlockY + CQuadSize - 1)*16;// shl 4;
+            LBlockCorners.X0 := LBlock.X*16;// shl 4;
+            LBlockCorners.X1 := (LBlock.X + CQuadSize - 1)*16;// shl 4;
+            LBlockCorners.Y0 := LBlock.Y*16;// shl 4;
+            LBlockCorners.Y1 := (LBlock.Y + CQuadSize - 1)*16;// shl 4;
 
             EvalHalfspace(@LConstants, @LDeltas, @LBlockCorners, @LBlockState);
             // Skip block when outside an edge
             if LBlockState.Intersects then
             begin
               //calculate first pixel of block
-              LFirstPixel := @APixelBuffer[BlockY*LLineLength + BlockX];
+              LBlock.FirstPixel := @APixelBuffer[LBlock.Y*LBlock.LineLength + LBlock.X];
               if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
-                LFirstDepth := @ADepthBuffer[BlockY*LLineLength + BlockX];
+                LBlock.FirstDepth := @ADepthBuffer[LBlock.Y*LBlock.LineLength + LBlock.X];
               // Accept whole block when totally covered
               if LBlockState.IsFullBlock  then
               begin
-                RenderFullBlock(BlockX, BlockY, LStepA, LStepB, LStepD, LStepsZ, AShader, LFirstPixel, LLineLength, LFirstDepth);
+                RenderFullBlock(@LBlock);
               end
               else //Partially covered Block
               begin
@@ -553,12 +540,12 @@ begin
                 LY._2 := LConstants.C2 + LDeltas.X23 * LBlockCorners.Y0 - LDeltas.Y23 * LBlockCorners.X0;
                 LY._3 := LConstants.C3 + LDeltas.X31 * LBlockCorners.Y0 - LDeltas.Y31 * LBlockCorners.X0;
 
-                RenderHalfBlock(@LY, @LFixedDeltas, BlockX, BlockY, LStepA, LStepB, LStepD, LStepsZ, AShader, LFirstPixel, LLineLength, LFirstDepth);
+                RenderHalfBlock(@LY, @LFixedDeltas, @LBlock);
               end;
             end;
-          BlockX := BlockX + CQuadSize;
+          LBlock.X := LBlock.X + CQuadSize;
         end;
-      BlockY := BlockY + LStepsPerQuad;
+      LBlock.Y := LBlock.Y + LStepsPerQuad;
     end;
 end;
 
