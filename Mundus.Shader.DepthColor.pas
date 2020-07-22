@@ -48,7 +48,7 @@ end;
 
 class function TDepthColorShader.GetRasterizer: TRasterizer;
 begin
-  Result := TRasterizer(@TRasterizerFactory.RasterizeTriangle<TDepthPSInput, TDepthColorShader, TNoDepth>);
+  Result := TRasterizer(@TRasterizerFactory<TDepthPSInput, TDepthColorShader, TNoDepth>.RasterizeTriangle);
 end;
 
 procedure TDepthColorShader.Vertex(const AWorld, AProjection: TMatrix4x4;

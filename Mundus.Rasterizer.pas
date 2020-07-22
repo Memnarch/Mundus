@@ -54,46 +54,33 @@ type
 
   PTrianglePosition = ^TTrianglePosition;
 
-  TRasterizerFactory = record
+  TRasterizerFactory<TAttributes: record; Shader: TShader<TAttributes>; DepthTest: TDepthTest> = record
   private
-    class procedure Factorize<TAttributes: record>(
+    class procedure Factorize(
       const AVectorA, AVectorB, AVectorC: TFloat4;
       AAttributeA, AAttributeB, AAttributeC: PSingle;
       AStepA, AStepB, AStepD: PSingle;
       var AVecZ: TFloat3); static; inline;
 
-      class procedure InitFactors4(
-        const ATarget: PSingle;
-        const ABase: PSingle;
-        const AMultiplier: Single;
-        const AAdd: PSingle
-      ); static; stdcall;
-    class procedure InitFactors<TAttributes: record>(
+    class procedure InitFactors(
         const ATarget: PSingle;
         const ABase: PSingle;
         const AMultiplier: Single;
         const AAdd: PSingle
       ); static; inline;
-    class procedure StepFactors4(
-        ATarget: PSingle;
-        AStep: PSingle
-      ); static;
-    class procedure StepFactors<TAttributes: record>(
+
+    class procedure StepFactors(
         ATarget: PSingle;
         AStep: PSingle
       ); static; inline;
-    class procedure DenormalizeFactors4(
-        ATarget: PSingle;
-        ASource: PSingle;
-        AZ: Single
-      ); static;
-    class procedure DenormalizeFactors<TAttributes: record>(
+
+    class procedure DenormalizeFactors(
         ATarget: PSingle;
         ASource: PSingle;
         AZ: Single
       ); static; inline;
 
-    class procedure RenderFullBlock<TAttributes: record; Shader: TShader<TAttributes>; DepthTest: TDepthTest>(
+    class procedure RenderFullBlock(
       AX, AY: Integer;
       const AStepA, AStepB, AStepD: TAttributes;
       const AZValues: TFloat3;
@@ -101,7 +88,7 @@ type
       const AFirstPixel: PRGB32;
       const ALineLength: NativeInt;
       const AFirstDepth: PSingle); static;
-    class procedure RenderHalfBlock<TAttributes: record; Shader: TShader<TAttributes>; DepthTest: TDepthTest>(
+    class procedure RenderHalfBlock(
       APosY: PTrianglePosition;
       AFixedDeltas: PHalfSpaceDeltas;
       AX, AY: Integer;
@@ -111,10 +98,9 @@ type
       const AFirstPixel: PRGB32;
       const ALineLength: NativeInt;
       const AFirstDepth: PSingle); static;
-    class procedure InterpolateAttributes4(const AX, AY: Single; ATarget, AStepA, AStepB, AStepD: PSingle; AZ: Single); static;
-    class procedure InterpolateAttributes<TAttributes: record>(AX, AY: Integer; ATarget, AStepA, AStepB, AStepD: PSingle; const AZValue: Single); static; inline;
+    class procedure InterpolateAttributes(AX, AY: Integer; ATarget, AStepA, AStepB, AStepD: PSingle; const AZValue: Single); static; inline;
   public
-    class procedure RasterizeTriangle<TAttributes: record; Shader: TShader<TAttributes>; DepthTest: TDepthTest>(
+    class procedure RasterizeTriangle(
       AMaxResolutionX, AMaxResolutionY: Integer;
       const AVerctorA, AvectorB, AvectorC: TFloat4;
       const AAttributesA, AAttributesB, AAttributesC: Pointer;
@@ -127,6 +113,15 @@ type
   PPSingle = ^PSingle;
 
 procedure EvalHalfspace(const AConstants: PHalfEdgeConstants; const ADeltas: PHalfSpaceDeltas; ACorners: PBlockCorners; AState: PBlockState);
+procedure DenormalizeFactors4(ATarget, ASource: PSingle; AZ: Single);
+procedure InitFactors4(
+        const ATarget: PSingle;
+        const ABase: PSingle;
+        const AMultiplier: Single;
+        const AAdd: PSingle
+      ); stdcall;
+procedure InterpolateAttributes4(const AX, AY: Single; ATarget, AStepA, AStepB, AStepD: PSingle; AZ: Single);
+procedure StepFactors4(ATarget, AStep: PSingle);
 
 implementation
 
@@ -136,8 +131,7 @@ uses
 {$PointerMath ON}
 {$B+}
 
-class procedure TRasterizerFactory.DenormalizeFactors4(ATarget,
-  ASource: PSingle; AZ: Single);
+procedure DenormalizeFactors4(ATarget, ASource: PSingle; AZ: Single);
 asm
   movups xmm0, [ASource]
   movss xmm1, [AZ]
@@ -147,14 +141,14 @@ asm
   movups [ATarget], xmm0
 end;
 
-class procedure TRasterizerFactory.DenormalizeFactors<TAttributes>(ATarget,
+class procedure TRasterizerFactory<TAttributes, Shader, DepthTest>.DenormalizeFactors(ATarget,
   ASource: PSingle; AZ: Single);
 begin
   if SizeOf(TAttributes) > 0 then
     DenormalizeFactors4(ATarget, ASource, AZ);
 end;
 
-class procedure TRasterizerFactory.Factorize<TAttributes>(
+class procedure TRasterizerFactory<TAttributes, Shader, DepthTest>.Factorize(
   const AVectorA, AVectorB, AVectorC: TFloat4;
   AAttributeA, AAttributeB, AAttributeC: PSingle;
   AStepA, AStepB, AStepD: PSingle;
@@ -184,7 +178,7 @@ begin
   end;
 end;
 
-class procedure TRasterizerFactory.InitFactors4(
+procedure InitFactors4(
         const ATarget: PSingle;
         const ABase: PSingle;
         const AMultiplier: Single;
@@ -205,7 +199,7 @@ asm
   movups [eax], xmm1
 end;
 
-class procedure TRasterizerFactory.InitFactors<TAttributes>(
+class procedure TRasterizerFactory<TAttributes, Shader, DepthTest>.InitFactors(
         const ATarget: PSingle;
         const ABase: PSingle;
         const AMultiplier: Single;
@@ -221,7 +215,7 @@ end;
 //                      InitFactors<TAttributes>(@LAttributesX, @LStepA, k, @LAttributesY);
 //                      LDenormalizeZX := LStepsZ.X * k + LDenormalizeZY;
 //                      DenormalizeFactors<TAttributes>(@LAttributesDenormalized, @LAttributesX, LDenormalizeZX);
-class procedure TRasterizerFactory.InterpolateAttributes4(const AX, AY: Single; ATarget, AStepA, AStepB, AStepD: PSingle; AZ: Single);
+procedure InterpolateAttributes4(const AX, AY: Single; ATarget, AStepA, AStepB, AStepD: PSingle; AZ: Single);
 asm
   push eax
   //initfactor StepB
@@ -248,7 +242,7 @@ asm
   movups [ATarget], xmm2
 end;
 
-class procedure TRasterizerFactory.InterpolateAttributes<TAttributes>(AX, AY: Integer; ATarget, AStepA, AStepB, AStepD: PSingle; const AZValue: Single);
+class procedure TRasterizerFactory<TAttributes, Shader, DepthTest>.InterpolateAttributes(AX, AY: Integer; ATarget, AStepA, AStepB, AStepD: PSingle; const AZValue: Single);
 var
   LX, LY: Single;
 begin
@@ -260,7 +254,7 @@ begin
   end;
 end;
 
-class procedure TRasterizerFactory.StepFactors4(ATarget, AStep: PSingle);
+procedure StepFactors4(ATarget, AStep: PSingle);
 asm
   movups xmm0, [ATarget]
   movups xmm1, [AStep]
@@ -268,14 +262,14 @@ asm
   movups [ATarget], xmm0
 end;
 
-class procedure TRasterizerFactory.StepFactors<TAttributes>(ATarget, AStep: PSingle);
+class procedure TRasterizerFactory<TAttributes, Shader, DepthTest>.StepFactors(ATarget, AStep: PSingle);
 begin
   if SizeOf(TAttributes) > 0 then
     StepFactors4(ATarget, AStep);
 end;
 
 
-class procedure TRasterizerFactory.RenderFullBlock<TAttributes, Shader, DepthTest>(
+class procedure TRasterizerFactory<TAttributes, Shader, DepthTest>.RenderFullBlock(
       AX, AY: Integer;
       const AStepA, AStepB, AStepD: TAttributes;
       const AZValues: TFloat3;
@@ -290,14 +284,14 @@ var
   LPixelX, LPixelY: PRGB32;
   LDepthY, LDepthX: PSingle;
 begin
-  InitFactors<TAttributes>(@LAttributesY, @AStepB, AY, @AStepD);
+  InitFactors(@LAttributesY, @AStepB, AY, @AStepD);
   LDenormalizeZY := AZValues.Y * AY + AZValues.Z;
   LPixelY := AFirstPixel;
   if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
     LDepthY := AFirstDepth;
   for i := AY to AY + (CQuadSize - 1) do
   begin
-    InitFactors<TAttributes>(@LAttributesX, @AStepA, AX, @LAttributesY);
+    InitFactors(@LAttributesX, @AStepA, AX, @LAttributesY);
     LDenormalizeZX := AZValues.X * AX + LDenormalizeZY;
     LPixelX := LPixelY;
     if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
@@ -308,18 +302,18 @@ begin
       if (TypeInfo(DepthTest) = TypeInfo(TNoDepth)) or (LDenormalizeZX < LDepthX^) then
       {$B+}
       begin
-        DenormalizeFactors<TAttributes>(@LAttributesDenormalized, @LAttributesX, LDenormalizeZX);
+        DenormalizeFactors(@LAttributesDenormalized, @LAttributesX, LDenormalizeZX);
         AShader.Fragment(LPixelX, @LAttributesDenormalized);
         if TypeInfo(DepthTest) = TypeInfo(TDepthWrite) then
           LDepthX^ := LDenormalizeZX;
       end;
-      StepFactors<TAttributes>(@LAttributesX, @AStepA);
+      StepFactors(@LAttributesX, @AStepA);
       LDenormalizeZX := LDenormalizeZX + AZValues.X;
       if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
         Inc(LDepthX);
       Inc(LPixelX);
     end;
-    StepFactors<TAttributes>(@LAttributesY, @AStepB);
+    StepFactors(@LAttributesY, @AStepB);
     LDenormalizeZY := LDenormalizeZY + AZValues.Y;
     if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
       Inc(LDepthY, ALineLength);
@@ -328,7 +322,7 @@ begin
 end;
 
 
-class procedure TRasterizerFactory.RenderHalfBlock<TAttributes, Shader, DepthTest>(
+class procedure TRasterizerFactory<TAttributes, Shader, DepthTest>.RenderHalfBlock(
   APosY: PTrianglePosition; AFixedDeltas: PHalfSpaceDeltas; AX, AY: Integer;
   const AStepA, AStepB, AStepD: TAttributes; const AZValues: TFloat3;
   AShader: Shader; const AFirstPixel: PRGB32; const ALineLength: NativeInt;
@@ -364,7 +358,7 @@ begin
         if (TypeInfo(DepthTest) = TypeInfo(TNoDepth)) or (LDenormalizedZ < LDepthX^) then
         {$B+}
         begin
-          InterpolateAttributes<TAttributes>(k, i, @LAttributesDenormalized, @AStepA, @AStepB, @AStepD, LDenormalizedZ);
+          InterpolateAttributes(k, i, @LAttributesDenormalized, @AStepA, @AStepB, @AStepD, LDenormalizedZ);
           AShader.Fragment(LPixelX, @LAttributesDenormalized);
           if TypeInfo(DepthTest) = TypeInfo(TDepthWrite) then
             LDepthX^ := LDenormalizedZ;
@@ -419,7 +413,7 @@ begin
   AState.IsFullBlock := ResultAndA and ResultAndB and ResultAndC;
 end;
 
-class procedure TRasterizerFactory.RasterizeTriangle<TAttributes, Shader, DepthTest>(
+class procedure TRasterizerFactory<TAttributes, Shader, DepthTest>.RasterizeTriangle(
       AMaxResolutionX, AMaxResolutionY: Integer;
       const AVerctorA, AvectorB, AvectorC: TFloat4;
       const AAttributesA, AAttributesB, AAttributesC: Pointer;
@@ -446,7 +440,7 @@ var
   LX, LY: TTrianglePosition;
 begin
   //calculate attribute factors
-  Factorize<TAttributes>(AVerctorA, AvectorB, AvectorC, AAttributesA, AAttributesB, AAttributesC, @LStepA, @LStepB, @LStepD, LStepsZ);
+  Factorize(AVerctorA, AvectorB, AvectorC, AAttributesA, AAttributesB, AAttributesC, @LStepA, @LStepB, @LStepD, LStepsZ);
   LLineLength := -(AMaxResolutionX+1);
   // 28.4 fixed-point coordinates
     X1 := Round(16*AVerctorA.Element[0]);
@@ -544,7 +538,7 @@ begin
               // Accept whole block when totally covered
               if LBlockState.IsFullBlock  then
               begin
-                RenderFullBlock<TAttributes, Shader, DepthTest>(BlockX, BlockY, LStepA, LStepB, LStepD, LStepsZ, AShader, LFirstPixel, LLineLength, LFirstDepth);
+                RenderFullBlock(BlockX, BlockY, LStepA, LStepB, LStepD, LStepsZ, AShader, LFirstPixel, LLineLength, LFirstDepth);
               end
               else //Partially covered Block
               begin
@@ -553,7 +547,7 @@ begin
                 LY._2 := LConstants.C2 + LDeltas.X23 * LBlockCorners.Y0 - LDeltas.Y23 * LBlockCorners.X0;
                 LY._3 := LConstants.C3 + LDeltas.X31 * LBlockCorners.Y0 - LDeltas.Y31 * LBlockCorners.X0;
 
-                RenderHalfBlock<TAttributes, Shader, DepthTest>(@LY, @LFixedDeltas, BlockX, BlockY, LStepA, LStepB, LStepD, LStepsZ, AShader, LFirstPixel, LLineLength, LFirstDepth);
+                RenderHalfBlock(@LY, @LFixedDeltas, BlockX, BlockY, LStepA, LStepB, LStepD, LStepsZ, AShader, LFirstPixel, LLineLength, LFirstDepth);
               end;
             end;
           BlockX := BlockX + CQuadSize;

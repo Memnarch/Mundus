@@ -71,7 +71,7 @@ end;
 
 class function TVertexGradientShader.GetRasterizer: TRasterizer;
 begin
-  Result := TRasterizer(@TRasterizerFactory.RasterizeTriangle<TGradientPSInput, TVertexGradientShader, TNoDepth>);
+  Result := TRasterizer(@TRasterizerFactory<TGradientPSInput, TVertexGradientShader, TNoDepth>.RasterizeTriangle);
 end;
 
 procedure TVertexGradientShader.Vertex(const AWorld, AProjection: TMatrix4x4;
