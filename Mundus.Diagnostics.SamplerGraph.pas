@@ -3,6 +3,7 @@ unit Mundus.Diagnostics.SamplerGraph;
 interface
 
 uses
+  SysUtils,
   Types,
   Classes,
   Graphics;
@@ -66,6 +67,7 @@ begin
   ATarget.LineTo(ARect.Left, ARect.Bottom);
   ATarget.LineTo(ARect.Right, ARect.Bottom);
   ATarget.LineTo(ARect.Right, ARect.Top);
+  ATarget.TextOut(ARect.Right + 2, ARect.Top, IntToStr(FAverages[FStart]));
 end;
 
 procedure TSamplerGraph.DrawValues(ATarget: TCanvas; ARect: TRect;
