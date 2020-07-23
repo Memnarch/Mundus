@@ -339,11 +339,12 @@ begin
     LDepthY := AAttributes.FirstDepth;
   BlockYEnd := AAttributes.Y + (CQuadSize - 1);
   BlockXEnd := AAttributes.X + (CQuadSize - 1);
+  LY := APosY^;
   for i := AAttributes.Y to BlockYEnd do
   begin
-    LX._1 := APosY._1;
-    LX._2 := APosy._2;
-    LX._3 := APosY._3;
+    LX._1 := LY._1;
+    LX._2 := LY._2;
+    LX._3 := LY._3;
     LPixelX := LPixelY;
     if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
       LDepthX := LDepthY;
