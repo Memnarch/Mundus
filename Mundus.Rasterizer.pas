@@ -94,16 +94,16 @@ type
 procedure EvalHalfspace(const AConstants: PHalfEdgeConstants; const ADeltas: PHalfSpaceDeltas; ACorners: PBlockCorners; AState: PBlockState);
 procedure DenormalizeFactors4(ATarget, ASource: PSingle; AZ: Single);
 procedure InitFactors4(
-        const ATarget: PSingle;
         const ABase: PSingle;
-        const AMultiplier: Single;
+        const AMultiplier: Integer;
+        const ATarget: PSingle;
         const AAdd: PSingle
-      ); stdcall;
+      );
 
 procedure InitFactors(
-        const ATarget: PSingle;
         const ABase: PSingle;
-        const AMultiplier: Single;
+        const AMultiplier: Integer;
+        const ATarget: PSingle;
         const AAdd: PSingle;
         const AAttributeSize: Integer
       ); inline;
@@ -120,7 +120,7 @@ procedure StepFactors(
         ATarget: PSingle;
         const AAttributeSize: Integer
       ); inline;
-procedure InterpolateAttributes4(const AX, AY: Single; ATarget, AStepA, AStepB, AStepD: PSingle; AZ: Single);
+procedure InterpolateAttributes4(const _AX, AY: PInteger; ATarget, AStepA, AStepB, AStepD: PSingle; AZ: Single);
 procedure StepFactors4(AStep, ATarget: PSingle);
 procedure InterpolateAttributes(AX, AY: Integer; ATarget, AStepA, AStepB, AStepD: PSingle; const AZValue: Single; const AAttributeSize: Integer); inline;
 
@@ -184,18 +184,18 @@ begin
 end;
 
 procedure InitFactors4(
-        const ATarget: PSingle;
         const ABase: PSingle;
-        const AMultiplier: Single;
+        const AMultiplier: Integer;
+        const ATarget: PSingle;
         const AAdd: PSingle
       );
 asm
 //  mov eax, [AMultiplier]
-  movss xmm0, [AMultiplier]
-//  //set all parts of xmm1 to the value in the lowest part of xmm1
+  CVTSI2SS xmm0, AMultiplier
+//  //set all parts of xmm0 to the value in the lowest part of xmm1
   shufps xmm0, xmm0, 0
-  mov eax, [ABase];
-  movups xmm1, [eax]
+//  mov eax, [ABase];
+  movups xmm1, [ABase]
   mov eax, [AAdd]
   movups xmm2, [eax]
   mulps xmm1, xmm0
@@ -205,15 +205,15 @@ asm
 end;
 
 procedure InitFactors(
-        const ATarget: PSingle;
         const ABase: PSingle;
-        const AMultiplier: Single;
+        const AMultiplier: Integer;
+        const ATarget: PSingle;
         const AAdd: PSingle;
         const AAttributeSize: Integer
       );
 begin
   if AAttributeSize > 0 then
-    InitFactors4(ATarget, ABase, AMultiplier, AAdd);
+    InitFactors4(ABase, AMultiplier, ATarget, AAdd);
 end;
 
 //InitFactors<TAttributes>(@LAttributesY, @LStepB, i, @LStepD);
@@ -221,37 +221,39 @@ end;
 //                      InitFactors<TAttributes>(@LAttributesX, @LStepA, k, @LAttributesY);
 //                      LDenormalizeZX := LStepsZ.X * k + LDenormalizeZY;
 //                      DenormalizeFactors<TAttributes>(@LAttributesDenormalized, @LAttributesX, LDenormalizeZX);
-procedure InterpolateAttributes4(const AX, AY: Single; ATarget, AStepA, AStepB, AStepD: PSingle; AZ: Single);
+procedure InterpolateAttributes4(const _AX, AY: PInteger; ATarget, AStepA, AStepB, AStepD: PSingle; AZ: Single);
 asm
-  push eax
+  //save _AX (eax) for later
+  CVTSI2SS xmm3, [_AX]
   //initfactor StepB
-  movups xmm0, [AStepB]
-  movss xmm1, [AY]
+  mov eax, [AStepB]
+  movups xmm0, [eax]
+  CVTSI2SS xmm1, [AY]
   shufps xmm1, xmm1, 0
   mulps xmm0, xmm1
   mov eax, [AStepD]
   movups xmm1, [eax]
   addps xmm0, xmm1
   //initfactor StepA
-  movups xmm2, [AStepA]
+  mov eax, [AStepA]
+  movups xmm2, [eax]
 //  mov eax, ptr dword AX
-  movss xmm1, [ebp+$14]
-  shufps xmm1, xmm1, 0
-  mulps xmm2, xmm1
+
+  shufps xmm3, xmm3, 0
+  mulps xmm2, xmm3
   addps xmm2, xmm0
   //denormalize
   movss xmm1, [AZ]
   shufps xmm1, xmm1, 0
   rcpps xmm1, xmm1
   mulps xmm2, xmm1
-  pop eax
   movups [ATarget], xmm2
 end;
 
 procedure InterpolateAttributes(AX, AY: Integer; ATarget, AStepA, AStepB, AStepD: PSingle; const AZValue: Single; const AAttributeSize: Integer);
 begin
   if AAttributeSize > 0 then
-    InterpolateAttributes4(AX, AY, ATarget, AStepA, AStepB, AStepD, AZValue);
+    InterpolateAttributes4(@AX, @AY, ATarget, AStepA, AStepB, AStepD, AZValue);
 end;
 
 procedure StepFactors4(AStep, ATarget: PSingle);
@@ -281,14 +283,14 @@ var
   LPixelX, LPixelY: PRGB32;
   LDepthY, LDepthX: PSingle;
 begin
-  InitFactors(@LAttributesY, @AAttributes.StepB, AAttributes.Y, @AAttributes.StepD, SizeOf(TAttributes));
+  InitFactors(@AAttributes.StepB, AAttributes.Y, @LAttributesY, @AAttributes.StepD, SizeOf(TAttributes));
   LDenormalizeZY := AAttributes.ZValues.Y * AAttributes.Y + AAttributes.ZValues.Z;
   LPixelY := AAttributes.FirstPixel;
   if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
     LDepthY := AAttributes.FirstDepth;
   for i := AAttributes.Y to AAttributes.Y + (CQuadSize - 1) do
   begin
-    InitFactors(@LAttributesX, @AAttributes.StepA, AAttributes.X, @LAttributesY, SizeOf(TAttributes));
+    InitFactors(@AAttributes.StepA, AAttributes.X, @LAttributesX, @LAttributesY, SizeOf(TAttributes));
     LDenormalizeZX := AAttributes.ZValues.X * AAttributes.X + LDenormalizeZY;
     LPixelX := LPixelY;
     if TypeInfo(DepthTest) <> TypeInfo(TNoDepth) then
