@@ -25,7 +25,6 @@ uses
 
 constructor TCube.Create;
 var
-  LTriangle: TTriangleClass;
   LVertices: array[0..7] of TVector;
 begin
   inherited Create();
@@ -126,51 +125,26 @@ begin
   FUV[35] := TFloat2.Create(0, 0);
 
   //FrontFace
-  LTriangle := TTriangleClass.Create(0, 1, 2);
-//  LTriangle.SetUV(UV(1, 1), UV(1, 0), UV(0, 0));
-  Triangles.Add(LTriangle);
-
-  LTriangle := TTriangleClass.Create(3, 4, 5);//2, 3, 0);
-//  LTriangle.SetUV(UV(0, 0), UV(0, 1), UV(1, 1));
-  Triangles.Add(LTriangle);
+  AddTriangle(Triangle(0, 1, 2));
+  AddTriangle(Triangle(3, 4, 5));
 
   //LeftSide
-  LTriangle := TTriangleClass.Create(6, 7, 8);
-//  LTriangle.SetUV(UV(1, 1), UV(1, 0), UV(0, 0));
-  Triangles.Add(LTriangle);
-  LTriangle := TTriangleClass.Create(9, 10, 11);
-//  LTriangle.SetUV(UV(0, 0), UV(0, 1), UV(1, 1));
-  Triangles.Add(LTriangle);
+  AddTriangle(Triangle(6, 7, 8));
+  AddTriangle(Triangle(9, 10, 11));
 
   //BackSide
-  LTriangle := TTriangleClass.Create(12, 13, 14);
-//  LTriangle.SetUV(UV(1, 1),  UV(0, 0), UV(0, 1));
-  Triangles.Add(LTriangle);
-  LTriangle := TTriangleClass.Create(15, 16, 17);
-//  LTriangle.SetUV(UV(1, 0),  UV(0, 0), UV(1, 1));
-  Triangles.Add(LTriangle);
+  AddTriangle(Triangle(12, 13, 14));
+  AddTriangle(Triangle(15, 16, 17));
   //RightSide;
-  LTriangle := TTriangleClass.Create(18, 19, 20);
-//  LTriangle.SetUV(UV(1, 0),  UV(0, 1), UV(1, 1));
-  Triangles.Add(LTriangle);
-  LTriangle := TTriangleClass.Create(21, 22, 23);
-//  LTriangle.SetUV(UV(1, 0),  UV(0, 0), UV(0, 1));
-  Triangles.Add(LTriangle);
+  AddTriangle(Triangle(18, 19, 20));
+  AddTriangle(Triangle(21, 22, 23));
 
   //TopSide
-  LTriangle := TTriangleClass.Create(24, 25, 26);
-//  LTriangle.SetUV(UV(0, 1),  UV(1, 1), UV(1, 0));
-  Triangles.Add(LTriangle);
-  LTriangle := TTriangleClass.Create(27, 28, 29);
-//  LTriangle.SetUV(UV(0, 1), UV(1, 0), UV(0, 0));
-  Triangles.Add(LTriangle);
+  AddTriangle(Triangle(24, 25, 26));
+  AddTriangle(Triangle(27, 28, 29));
   //BottomSide
-  LTriangle := TTriangleClass.Create(30, 31, 32);
-//  LTriangle.SetUV(UV(1, 1),  UV(1, 0), UV(0, 0));
-  Triangles.Add(LTriangle);
-  LTriangle := TTriangleClass.Create(33, 34, 35);
-//  LTriangle.SetUV(UV(0, 1), UV(1, 1), UV(0, 0));
-  Triangles.Add(LTriangle);
+  AddTriangle(Triangle(30, 31, 32));
+  AddTriangle(Triangle(33, 34, 35));
   FPosition.Z := 200;
 end;
 

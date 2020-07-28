@@ -29,9 +29,11 @@ type
     ABlockOffset, ABlockStep: Integer);
 
   TVector = record
-    X, Y, Z: Integer;
-    constructor Create(AX, AY, AZ: Integer);
+    X, Y, Z: Single;
+    constructor Create(AX, AY, AZ: Single);
   end;
+
+  PVector = ^TVector;
 
   TUV = record
     U, V: Single;
@@ -39,39 +41,11 @@ type
 
   TTriangle = record
     VertexA, VertexB, VertexC: Integer;
-    UVA, UVB, UVC: TUV;
   end;
 
   PTriangle = ^TTriangle;
 
-  TVectorClass = class
-  private
-    FX, FY, FZ: Integer;
-  public
-    constructor Create(AX, AY, AZ: Integer);
-    property X: Integer read FX write FX;
-    property Y: Integer read FY write FY;
-    property Z: Integer read FZ write FZ;
-  end;
-
-  TTriangleClass = class
-  private
-    FVertexA, FVertexB, FVertexC: Integer;
-    FUVB: TUV;
-    FUVC: TUV;
-    FUVA: TUV;
-  public
-    constructor Create(AVertexA, AvertexB, AvertexC: Integer);
-    procedure SetUV(AUVA, AUVB, AUVC: TUV);
-    property VertexA: Integer read FVertexA write FVertexA;
-    property VertexB: Integer read FVertexB write FVertexB;
-    property VertexC: Integer read FVertexC write FVertexC;
-    property UVA: TUV read FUVA write FUVA;
-    property UVB: TUV read FUVB write FUVB;
-    property UVC: TUV read FUVC write FUVC;
-  end;
-
-  function Vector(AX, AY, AZ: Integer): TVector;
+  function Vector(AX, AY, AZ: Single): TVector;
   function UV(AU, AV: Single): TUV;
   function Triangle(AVertexA, AVertexB, AVertexC: Integer): TTriangle;
 
@@ -82,36 +56,8 @@ const
 
 implementation
 
-{ TTriangleClass }
-
-constructor TTriangleClass.Create(AVertexA, AvertexB, AvertexC: Integer);
-begin
-  FVertexA := AVertexA;
-  FVertexB := AvertexB;
-  FVertexC := AvertexC;
-  FUVA :=  UV(0, 0);
-  FUVB := UV(0, 0);
-  FUVC := UV(0, 0);
-end;
-
-procedure TTriangleClass.SetUV(AUVA, AUVB, AUVC: TUV);
-begin
-  FUVA := AUVA;
-  FUVB := AUVB;
-  FUVC := AUVC;
-end;
-
-{ TVectorClass }
-
-constructor TVectorClass.Create(AX, AY, AZ: Integer);
-begin
-  FX := AX;
-  FY := AY;
-  FZ := AZ;
-end;
-
 { Some Functions }
-function Vector(AX, AY, AZ: Integer): TVector;
+function Vector(AX, AY, AZ: Single): TVector;
 begin
   Result.X := AX;
   Result.Y := AY;
@@ -133,7 +79,7 @@ end;
 
 { TVector }
 
-constructor TVector.Create(AX, AY, AZ: Integer);
+constructor TVector.Create(AX, AY, AZ: Single);
 begin
   X := AX;
   Y := AY;

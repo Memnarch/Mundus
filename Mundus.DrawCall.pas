@@ -21,7 +21,7 @@ type
     FValues: TValueBuffers;
   public
     procedure AddVertex(const AVertex: TFloat4; const AAttributes: TVertexAttributeBuffer);
-    procedure AddTriangle(const ATriangle: TTriangleClass);
+    procedure AddTriangle(const ATriangle: PTriangle);
     procedure Reset;
     property Vertices: TArray<TFloat4> read FVertices;
     property Attributes: TArray<TVertexAttributeBuffer> read FAttributes;
@@ -55,19 +55,11 @@ const
 
 { TDrawCall }
 
-procedure TDrawCall.AddTriangle(const ATriangle: TTriangleClass);
-var
-  LTriangle: PTriangle;
+procedure TDrawCall.AddTriangle(const ATriangle: PTriangle);
 begin
   if FTriangleCount = Length(FTriangles) then
     SetLength(FTriangles, Length(FTriangles) + CBufferStep);
-  LTriangle := @FTriangles[FTriangleCount];
-  LTriangle.VertexA := ATriangle.VertexA;
-  LTriangle.VertexB := ATriangle.VertexB;
-  LTriangle.VertexC := ATriangle.VertexC;
-  LTriangle.UVA := ATriangle.UVA;
-  LTriangle.UVB := ATriangle.UVB;
-  LTriangle.UVC := ATriangle.UVC;
+  FTriangles[FTriangleCount] := ATriangle^;
   Inc(FTriangleCount);
 end;
 

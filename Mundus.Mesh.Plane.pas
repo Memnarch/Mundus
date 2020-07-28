@@ -55,9 +55,9 @@ begin
       LVertexA := (k-1) + LVerticesPerLine * (i-1);
       LVertexB := LVertexA + 1;
       LVertexC := LVertexA + LVerticesPerLine;
-      FTriangleList.Add(TTriangleClass.Create(LVertexA, LVertexB, LVertexC));
+      AddTriangle(Triangle(LVertexA, LVertexB, LVertexC));
       LVertexA := LVertexC + 1;
-      FTriangleList.Add(TTriangleClass.Create(LVertexC, LVertexB, LVertexA));
+      AddTriangle(Triangle(LVertexC, LVertexB, LVertexA));
     end;
   end;
 end;

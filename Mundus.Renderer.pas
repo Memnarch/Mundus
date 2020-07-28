@@ -290,7 +290,7 @@ procedure TMundusRenderer.TransformMesh(AMesh: TMesh; AWorld, AProjection: TMatr
 var
   i: Integer;
   LVertex: TFloat4;
-  LTriangle: TTriangleClass;
+  LTriangle: PTriangle;
   LShader: TShader;
   LBuffer: TVertexAttributeBuffer;
   LBufferSize: Integer;

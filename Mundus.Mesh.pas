@@ -12,20 +12,38 @@ uses
   Mundus.Shader;
 
 type
+  TMesh = class;
+
+  TTriangleEnumerator = packed record
+    FCurentTriangle: PTriangle;
+    FCount: Integer;
+  private
+    function GetCurrent: PTriangle; inline;
+  public
+    function MoveNext: Boolean; inline;
+    property Current: PTriangle read GetCurrent;
+  end;
+
+  //dummy class to have something as collectiontype
+  TTriangles = class
+  public
+    function GetEnumerator: TTriangleEnumerator; //inline;
+  end;
+
   TMesh = class
   private
     FShader: TShaderClass;
+    function GetTriangles: TTriangles; inline;
   protected
     FVertexList: TArray<TVector>;
-    FTriangleList: TObjectList<TTriangleClass>;
+    FTriangles: TArray<TTriangle>;
     FUV: TArray<TFloat2>;
     FRotation: TFloat3;
     FPosition: TFloat3;
   public
-    constructor Create();
-    destructor Destroy(); override;
-    procedure AddVertice(AVertice: TVector);
-    property Triangles: TObjectList<TTriangleClass> read FTriangleList;
+    procedure AddVertice(const AVertice: TVector);
+    procedure AddTriangle(const ATriangle: TTriangle);
+    property Triangles: TTriangles read GetTriangles;
     property Vertices: TArray<TVector> read FVertexList;
     property UV: TArray<TFloat2> read FUV;
     property Position: TFloat3 read FPosition write FPosition;
@@ -37,22 +55,44 @@ implementation
 
 { TBaseMesh }
 
-procedure TMesh.AddVertice(AVertice: TVector);
+procedure TMesh.AddTriangle(const ATriangle: TTriangle);
+begin
+  SetLength(FTriangles, Length(FTriangles)+1);
+  FTriangles[High(FTriangles)] := ATriangle;
+end;
+
+procedure TMesh.AddVertice(const AVertice: TVector);
 begin
   SetLength(FVertexList, Length(FVertexList)+1);
   FVertexList[High(FVertexList)] := AVertice;
 end;
 
-constructor TMesh.Create;
+function TMesh.GetTriangles: TTriangles;
 begin
-  inherited;
-  FTriangleList := TObjectList<TTriangleClass>.Create();
+  Result := TTriangles(Self);
 end;
 
-destructor TMesh.Destroy;
+{ TTriangleEnumerator }
+
+function TTriangleEnumerator.GetCurrent: PTriangle;
 begin
-  FTriangleList.Free();
-  inherited;
+  Result := FCurentTriangle;
+end;
+
+function TTriangleEnumerator.MoveNext: Boolean;
+begin
+  Inc(FCurentTriangle);
+  Dec(FCount);
+  Result := FCount > -1;
+end;
+
+{ TTriangles }
+
+function TTriangles.GetEnumerator: TTriangleEnumerator;
+begin
+  Result.FCount := Length(TMesh(Self).FTriangles);
+  Result.FCurentTriangle := @TMesh(Self).FTriangles[0];
+  Dec(Result.FCurentTriangle);
 end;
 
 end.
