@@ -28,10 +28,7 @@ type
     ADepthBuffer: PSingle;
     ABlockOffset, ABlockStep: Integer);
 
-  TVector = record
-    X, Y, Z: Single;
-    constructor Create(AX, AY, AZ: Single);
-  end;
+  TVector = TFloat3;
 
   PVector = ^TVector;
 
@@ -75,15 +72,6 @@ function UV(AU, AV: Single): TUV;
 begin
   Result.U := AU;
   Result.V := AV;
-end;
-
-{ TVector }
-
-constructor TVector.Create(AX, AY, AZ: Single);
-begin
-  X := AX;
-  Y := AY;
-  Z := AZ;
 end;
 
 function RGB32(R, G, B, A: Byte): TRGB32;

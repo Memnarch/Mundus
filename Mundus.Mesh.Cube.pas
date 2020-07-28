@@ -28,14 +28,14 @@ var
   LVertices: array[0..7] of TVector;
 begin
   inherited Create();
-  LVertices[0] := TVector.Create(-32, -32, -32);
-  LVertices[1] := TVector.Create(-32, 32, -32);
-  LVertices[2] := TVector.Create(32, 32, -32);
-  LVertices[3] := TVector.Create(32, -32, -32);
-  LVertices[4] := TVector.Create(-32, -32, 32);
-  LVertices[5] := TVector.Create(-32, 32, 32);
-  LVertices[6] := TVector.Create(32, 32, 32);
-  LVertices[7] := TVector.Create(32, -32, 32);
+  LVertices[0] := Vector(-32, -32, -32);
+  LVertices[1] := Vector(-32, 32, -32);
+  LVertices[2] := Vector(32, 32, -32);
+  LVertices[3] := Vector(32, -32, -32);
+  LVertices[4] := Vector(-32, -32, 32);
+  LVertices[5] := Vector(-32, 32, 32);
+  LVertices[6] := Vector(32, 32, 32);
+  LVertices[7] := Vector(32, -32, 32);
   //add vertices, simply one vertex per triangle corner to simplify uv mapping
   AddVertice(LVertices[0]);
   AddVertice(LVertices[1]);

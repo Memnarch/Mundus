@@ -41,8 +41,9 @@ type
     FRotation: TFloat3;
     FPosition: TFloat3;
   public
-    procedure AddVertice(const AVertice: TVector);
-    procedure AddTriangle(const ATriangle: TTriangle);
+    function AddVertice(const AVertice: TVector): Integer;
+    function AddTriangle(const ATriangle: TTriangle): Integer;
+    function AddUV(const AUV: TFloat2): Integer;
     property Triangles: TTriangles read GetTriangles;
     property Vertices: TArray<TVector> read FVertexList;
     property UV: TArray<TFloat2> read FUV;
@@ -55,14 +56,23 @@ implementation
 
 { TBaseMesh }
 
-procedure TMesh.AddTriangle(const ATriangle: TTriangle);
+function TMesh.AddTriangle(const ATriangle: TTriangle): Integer;
 begin
+  Result := Length(FTriangles);
   SetLength(FTriangles, Length(FTriangles)+1);
   FTriangles[High(FTriangles)] := ATriangle;
 end;
 
-procedure TMesh.AddVertice(const AVertice: TVector);
+function TMesh.AddUV(const AUV: TFloat2): Integer;
 begin
+  Result := Length(FUV);
+  SetLength(FUV, Length(FUV)+1);
+  FUV[High(FUV)] := AUV;
+end;
+
+function TMesh.AddVertice(const AVertice: TVector): Integer;
+begin
+  Result := Length(FVertexList);
   SetLength(FVertexList, Length(FVertexList)+1);
   FVertexList[High(FVertexList)] := AVertice;
 end;
