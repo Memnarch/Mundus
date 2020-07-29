@@ -80,10 +80,12 @@ type
     procedure MultiplyMatrix3DWithFloat(AValue: Double);
     procedure MultiplyMatrix4D(AMatrix: TMatrix4x4);
     function Transform(const AVector: TFloat4): TFloat4;
+    function Inverse: TMatrix4x4;
     property Matrix[IndexX, IndexY: Integer]: Single read GetMatrixElement write SetMatrixElement;
   end;
 
 function Float3(X, Y, Z: Single): TFloat3;
+function Float4(X, Y, Z, W: Single): TFloat4;
 
 implementation
 
@@ -92,6 +94,14 @@ begin
   Result.X := X;
   Result.Y := Y;
   Result.Z := Z;
+end;
+
+function Float4(X, Y, Z, W: Single): TFloat4;
+begin
+  Result.X := X;
+  Result.Y := Y;
+  Result.Z := Z;
+  Result.W := W;
 end;
 
 { TMatrix4x4 }
@@ -138,6 +148,120 @@ end;
 function TMatrix4x4.GetMatrixElement(IndexX, IndexY: Integer): Single;
 begin
   Result := FMatrix[IndexX, IndexY];
+end;
+
+//Presented by the lovely folks of Stackoverflow
+//https://stackoverflow.com/a/44446912
+{$Region CCode}
+{
+var A2323 = m.m22 * m.m33 - m.m23 * m.m32 ;
+var A1323 = m.m21 * m.m33 - m.m23 * m.m31 ;
+var A1223 = m.m21 * m.m32 - m.m22 * m.m31 ;
+var A0323 = m.m20 * m.m33 - m.m23 * m.m30 ;
+var A0223 = m.m20 * m.m32 - m.m22 * m.m30 ;
+var A0123 = m.m20 * m.m31 - m.m21 * m.m30 ;
+var A2313 = m.m12 * m.m33 - m.m13 * m.m32 ;
+var A1313 = m.m11 * m.m33 - m.m13 * m.m31 ;
+var A1213 = m.m11 * m.m32 - m.m12 * m.m31 ;
+var A2312 = m.m12 * m.m23 - m.m13 * m.m22 ;
+var A1312 = m.m11 * m.m23 - m.m13 * m.m21 ;
+var A1212 = m.m11 * m.m22 - m.m12 * m.m21 ;
+var A0313 = m.m10 * m.m33 - m.m13 * m.m30 ;
+var A0213 = m.m10 * m.m32 - m.m12 * m.m30 ;
+var A0312 = m.m10 * m.m23 - m.m13 * m.m20 ;
+var A0212 = m.m10 * m.m22 - m.m12 * m.m20 ;
+var A0113 = m.m10 * m.m31 - m.m11 * m.m30 ;
+var A0112 = m.m10 * m.m21 - m.m11 * m.m20 ;
+
+var det = m.m00 * ( m.m11 * A2323 - m.m12 * A1323 + m.m13 * A1223 )
+    - m.m01 * ( m.m10 * A2323 - m.m12 * A0323 + m.m13 * A0223 )
+    + m.m02 * ( m.m10 * A1323 - m.m11 * A0323 + m.m13 * A0123 )
+    - m.m03 * ( m.m10 * A1223 - m.m11 * A0223 + m.m12 * A0123 ) ;
+det = 1 / det;
+
+return new Matrix4x4() {
+   m00 = det *   ( m.m11 * A2323 - m.m12 * A1323 + m.m13 * A1223 ),
+   m01 = det * - ( m.m01 * A2323 - m.m02 * A1323 + m.m03 * A1223 ),
+   m02 = det *   ( m.m01 * A2313 - m.m02 * A1313 + m.m03 * A1213 ),
+   m03 = det * - ( m.m01 * A2312 - m.m02 * A1312 + m.m03 * A1212 ),
+   m10 = det * - ( m.m10 * A2323 - m.m12 * A0323 + m.m13 * A0223 ),
+   m11 = det *   ( m.m00 * A2323 - m.m02 * A0323 + m.m03 * A0223 ),
+   m12 = det * - ( m.m00 * A2313 - m.m02 * A0313 + m.m03 * A0213 ),
+   m13 = det *   ( m.m00 * A2312 - m.m02 * A0312 + m.m03 * A0212 ),
+   m20 = det *   ( m.m10 * A1323 - m.m11 * A0323 + m.m13 * A0123 ),
+   m21 = det * - ( m.m00 * A1323 - m.m01 * A0323 + m.m03 * A0123 ),
+   m22 = det *   ( m.m00 * A1313 - m.m01 * A0313 + m.m03 * A0113 ),
+   m23 = det * - ( m.m00 * A1312 - m.m01 * A0312 + m.m03 * A0112 ),
+   m30 = det * - ( m.m10 * A1223 - m.m11 * A0223 + m.m12 * A0123 ),
+   m31 = det *   ( m.m00 * A1223 - m.m01 * A0223 + m.m02 * A0123 ),
+   m32 = det * - ( m.m00 * A1213 - m.m01 * A0213 + m.m02 * A0113 ),
+   m33 = det *   ( m.m00 * A1212 - m.m01 * A0212 + m.m02 * A0112 ),
+}//;
+
+{$endregion}
+function TMatrix4x4.Inverse: TMatrix4x4;
+var
+  A2323,
+  A1323,
+  A1223,
+  A0323,
+  A0223,
+  A0123,
+  A2313,
+  A1313,
+  A1213,
+  A2312,
+  A1312,
+  A1212,
+  A0313,
+  A0213,
+  A0312,
+  A0212,
+  A0113,
+  A0112,
+  det: Single;
+begin
+  A2323 := FMatrix[2,2] * FMatrix[3,3] - FMatrix[2,3] * FMatrix[3,2];
+  A1323 := FMatrix[2,1] * FMatrix[3,3] - FMatrix[2,3] * FMatrix[3,1];
+  A1223 := FMatrix[2,1] * FMatrix[3,2] - FMatrix[2,2] * FMatrix[3,1];
+  A0323 := FMatrix[2,0] * FMatrix[3,3] - FMatrix[2,3] * FMatrix[3,0] ;
+  A0223 := FMatrix[2,0] * FMatrix[3,2] - FMatrix[2,2] * FMatrix[3,0] ;
+  A0123 := FMatrix[2,0] * FMatrix[3,1] - FMatrix[2,1] * FMatrix[3,0] ;
+  A2313 := FMatrix[1,2] * FMatrix[3,3] - FMatrix[1,3] * FMatrix[3,2] ;
+  A1313 := FMatrix[1,1] * FMatrix[3,3] - FMatrix[1,3] * FMatrix[3,1] ;
+  A1213 := FMatrix[1,1] * FMatrix[3,2] - FMatrix[1,2] * FMatrix[3,1] ;
+  A2312 := FMatrix[1,2] * FMatrix[2,3] - FMatrix[1,3] * FMatrix[2,2] ;
+  A1312 := FMatrix[1,1] * FMatrix[2,3] - FMatrix[1,3] * FMatrix[2,1] ;
+  A1212 := FMatrix[1,1] * FMatrix[2,2] - FMatrix[1,2] * FMatrix[2,1] ;
+  A0313 := FMatrix[1,0] * FMatrix[3,3] - FMatrix[1,3] * FMatrix[3,0] ;
+  A0213 := FMatrix[1,0] * FMatrix[3,2] - FMatrix[1,2] * FMatrix[3,0] ;
+  A0312 := FMatrix[1,0] * FMatrix[2,3] - FMatrix[1,3] * FMatrix[2,0] ;
+  A0212 := FMatrix[1,0] * FMatrix[2,2] - FMatrix[1,2] * FMatrix[2,0] ;
+  A0113 := FMatrix[1,0] * FMatrix[3,1] - FMatrix[1,1] * FMatrix[3,0] ;
+  A0112 := FMatrix[1,0] * FMatrix[2,1] - FMatrix[1,1] * FMatrix[2,0] ;
+
+  det := FMatrix[0,0] * ( FMatrix[1,1] * A2323 - FMatrix[1,2] * A1323 + FMatrix[1,3] * A1223 )
+    - FMatrix[0,1] * ( FMatrix[1,0] * A2323 - FMatrix[1,2] * A0323 + FMatrix[1,3] * A0223 )
+    + FMatrix[0,2] * ( FMatrix[1,0] * A1323 - FMatrix[1,1] * A0323 + FMatrix[1,3] * A0123 )
+    - FMatrix[0,3] * ( FMatrix[1,0] * A1223 - FMatrix[1,1] * A0223 + FMatrix[1,2] * A0123 ) ;
+  det := 1 / det;
+
+  Result.FMatrix[0,0] := det *   ( FMatrix[1,1] * A2323 - FMatrix[1,2] * A1323 + FMatrix[1,3] * A1223 );
+  Result.FMatrix[0,1] := det * - ( FMatrix[0,1] * A2323 - FMatrix[0,2] * A1323 + FMatrix[0,3] * A1223 );
+  Result.FMatrix[0,2] := det *   ( FMatrix[0,1] * A2313 - FMatrix[0,2] * A1313 + FMatrix[0,3] * A1213 );
+  Result.FMatrix[0,3] := det * - ( FMatrix[0,1] * A2312 - FMatrix[0,2] * A1312 + FMatrix[0,3] * A1212 );
+  Result.FMatrix[1,0] := det * - ( FMatrix[1,0] * A2323 - FMatrix[1,2] * A0323 + FMatrix[1,3] * A0223 );
+  Result.FMatrix[1,1] := det *   ( FMatrix[0,0] * A2323 - FMatrix[0,2] * A0323 + FMatrix[0,3] * A0223 );
+  Result.FMatrix[1,2] := det * - ( FMatrix[0,0] * A2313 - FMatrix[0,2] * A0313 + FMatrix[0,3] * A0213 );
+  Result.FMatrix[1,3] := det *   ( FMatrix[0,0] * A2312 - FMatrix[0,2] * A0312 + FMatrix[0,3] * A0212 );
+  Result.FMatrix[2,0] := det *   ( FMatrix[1,0] * A1323 - FMatrix[1,1] * A0323 + FMatrix[1,3] * A0123 );
+  Result.FMatrix[2,1] := det * - ( FMatrix[0,0] * A1323 - FMatrix[0,1] * A0323 + FMatrix[0,3] * A0123 );
+  Result.FMatrix[2,2] := det *   ( FMatrix[0,0] * A1313 - FMatrix[0,1] * A0313 + FMatrix[0,3] * A0113 );
+  Result.FMatrix[2,3] := det * - ( FMatrix[0,0] * A1312 - FMatrix[0,1] * A0312 + FMatrix[0,3] * A0112 );
+  Result.FMatrix[3,0] := det * - ( FMatrix[1,0] * A1223 - FMatrix[1,1] * A0223 + FMatrix[1,2] * A0123 );
+  Result.FMatrix[3,1] := det *   ( FMatrix[0,0] * A1223 - FMatrix[0,1] * A0223 + FMatrix[0,2] * A0123 );
+  Result.FMatrix[3,2] := det * - ( FMatrix[0,0] * A1213 - FMatrix[0,1] * A0213 + FMatrix[0,2] * A0113 );
+  Result.FMatrix[3,3] := det *   ( FMatrix[0,0] * A1212 - FMatrix[0,1] * A0212 + FMatrix[0,2] * A0112 );
 end;
 
 procedure TMatrix4x4.MultiplyMatrix3DWithFloat(AValue: Double);

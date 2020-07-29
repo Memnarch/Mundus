@@ -244,7 +244,7 @@ begin
   LViewMoveMatrix.MultiplyMatrix4D(LRotationY);
   LViewMoveMatrix.MultiplyMatrix4D(LRotationZ);
 
-  LDrawCalls := GenerateDrawCalls(LViewMoveMatrix);
+  LDrawCalls := GenerateDrawCalls(LViewMoveMatrix.Inverse);
   DispatchCalls(ACanvas, LDrawCalls);
 
   FTimer.Stop();
