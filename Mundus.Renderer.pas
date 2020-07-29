@@ -289,7 +289,7 @@ end;
 procedure TMundusRenderer.TransformMesh(AMesh: TMesh; AWorld, AProjection: TMatrix4x4; ATargetCall: PDrawCall);
 var
   i: Integer;
-  LVertex: TFloat4;
+  LVertex, LVertexA, LVertexB, LVertexC: TFloat4;
   LTriangle: PTriangle;
   LShader: TShader;
   LBuffer: TVertexAttributeBuffer;
@@ -315,7 +315,23 @@ begin
       ATargetCall.AddVertex(LVertex, LBuffer);
     end;
     for LTriangle in AMesh.Triangles do
-      ATargetCall.AddTriangle(LTriangle);
+    begin
+      LVertexA := ATargetCall.Vertices[LTriangle.VertexA];
+      LVertexB := ATargetCall.Vertices[LTriangle.VertexB];
+      LVertexC := ATargetCall.Vertices[LTriangle.VertexC];
+      if
+        //check if all points of a triangle are outside on the same axis, and therefore would never draw
+        not (
+          ((LVertexA.X > 1) and (LVertexB.X > 1) and (LVertexC.X > 1))
+          or ((LVertexA.X < -1) and (LVertexB.X < -1) and (LVertexC.X < -1))
+          or ((LVertexA.Y > 1) and (LVertexB.Y > 1) and (LVertexC.Y > 1))
+          or ((LVertexA.Y < -1) and (LVertexB.Y < -1) and (LVertexC.Y < -1))
+        )
+        //check if all W Components are positive, otherwhise we are behind camera/flipped
+        and ((LVertexA.W > 0) and (LVertexB.W > 0) and (LVertexC.W > 0))
+      then
+        ATargetCall.AddTriangle(LTriangle);
+    end;
   finally
     LShader.Free;
   end;
