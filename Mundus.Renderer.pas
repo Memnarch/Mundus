@@ -188,7 +188,7 @@ function TMundusRenderer.GenerateDrawCalls(const AViewMatrix: TMatrix4x4): TDraw
 var
   LMesh: TMesh;
   LCall: PDrawCall;
-  LMove: TMatrix4x4;
+  LMove, LWorld: TMatrix4x4;
   LRotationX, LRotationY, LRotationZ: TMatrix4x4;
   LProjection: TMatrix4x4;
 begin
@@ -196,18 +196,23 @@ begin
   Result.Reset;
   for LMesh in FMeshList do
   begin
-    LCall := Result.Add;;
-    LMove.SetAsMoveMatrix(LMesh.Position.X, LMesh.Position.Y, LMesh.Position.Z);
+    LCall := Result.Add;
+    LWorld := AViewMatrix;
     LRotationX.SetAsRotationXMatrix(DegToRad(LMesh.Rotation.X));
     LRotationY.SetAsRotationYMatrix(DegToRad(LMesh.Rotation.Y));
     LRotationZ.SetAsRotationZMatrix(DegToRad(LMesh.Rotation.Z));
+
+    LMove.SetAsMoveMatrix(LMesh.Position.X, LMesh.Position.Y, LMesh.Position.Z);
     LMove.MultiplyMatrix4D(LRotationX);
     LMove.MultiplyMatrix4D(LRotationY);
     LMove.MultiplyMatrix4D(LRotationZ);
-    LMove.MultiplyMatrix4D(AViewMatrix);
+
+    LWorld.MultiplyMatrix4D(LMove);
+
     LProjection.SetAsPerspectiveProjectionMatrix(100, 200, 0.7, FResolutionX/FResolutionY);
-    LProjection.MultiplyMatrix4D(LMove);
-    TransformMesh(LMesh, LMove, LProjection, LCall);
+    LProjection.MultiplyMatrix4D(LWorld);
+
+    TransformMesh(LMesh, LWorld, LProjection, LCall);
     LCall.Shader := LMesh.Shader;
   end;
 end;
