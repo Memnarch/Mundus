@@ -8,13 +8,22 @@ uses
 type
   TCamera = class
   private
-    FRotation: TFloat3;
+    FRotation: TMatrix4x4;
     FPosition: TFloat3;
   public
+    constructor Create;
     property Position: TFloat3 read FPosition write FPosition;
-    property Rotation: TFloat3 read FRotation write FRotation;
+    property Rotation: TMatrix4x4 read FRotation write FRotation;
   end;
 
 implementation
+
+{ TCamera }
+
+constructor TCamera.Create;
+begin
+  inherited;
+  FRotation.SetAsIdentMatrix4D;
+end;
 
 end.

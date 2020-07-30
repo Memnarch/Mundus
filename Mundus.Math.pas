@@ -67,6 +67,7 @@ type
     procedure SetAsIdentMatrix4D();
     procedure SetAsScaleMatrix(AX, AY, AZ: Double);
     procedure SetAsMoveMatrix(AX, AY, AZ: Double);
+    procedure SetAsRotationMatrix(EulaX, EulaY, EulaZ: Double);
     procedure SetAsRotationXMatrix(AAlpha: Double);
     procedure SetAsRotationYMatrix(AAlpha: Double);
     procedure SetAsRotationZMatrix(AAlpha: Double);
@@ -362,6 +363,19 @@ begin
   FMatrix[2, 2] := ZFar / (ZFar - ZNear);
   FMatrix[3, 2] := -((ZFar*ZNear) / (ZFar - ZNear));
   FMatrix[2, 3] := 1;
+end;
+
+procedure TMatrix4x4.SetAsRotationMatrix(EulaX, EulaY, EulaZ: Double);
+var
+  LTemp: TMatrix4x4;
+begin
+  SetAsIdentMatrix4D;
+  LTemp.SetAsRotationXMatrix(EulaX);
+  Self.MultiplyMatrix4D(LTemp);
+  LTemp.SetAsRotationYMatrix(EulaY);
+  Self.MultiplyMatrix4D(LTemp);
+  LTemp.SetAsRotationZMatrix(EulaZ);
+  Self.MultiplyMatrix4D(LTemp);
 end;
 
 procedure TMatrix4x4.SetAsRotationXMatrix(AAlpha: Double);

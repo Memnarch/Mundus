@@ -231,18 +231,12 @@ procedure TMundusRenderer.RenderFrame(ACanvas: TCanvas);
 var
   LDrawCalls: TDrawCalls;
   LViewMoveMatrix: TMatrix4x4;
-  LRotationX, LRotationY, LRotationZ: TMatrix4x4;
   LMicro: UInt64;
 begin
   FTimer.Start();
 
   LViewMoveMatrix.SetAsMoveMatrix(FCamera.Position.X, FCamera.Position.Y, FCamera.Position.Z);
-  LRotationX.SetAsRotationXMatrix(DegToRad(FCamera.Rotation.X));
-  LRotationY.SetAsRotationYMatrix(DegToRad(FCamera.Rotation.Y));
-  LRotationZ.SetAsRotationZMatrix(DegToRad(FCamera.Rotation.Z));
-  LViewMoveMatrix.MultiplyMatrix4D(LRotationX);
-  LViewMoveMatrix.MultiplyMatrix4D(LRotationY);
-  LViewMoveMatrix.MultiplyMatrix4D(LRotationZ);
+  LViewMoveMatrix.MultiplyMatrix4D(FCamera.Rotation);
 
   LDrawCalls := GenerateDrawCalls(LViewMoveMatrix.Inverse);
   DispatchCalls(ACanvas, LDrawCalls);
