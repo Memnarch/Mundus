@@ -79,7 +79,8 @@ uses
   Mundus.Shader.VertexGradient,
   Mundus.Shader.DepthColor,
   Mundus.Shader.Texture,
-  Mundus.Rasterizer;
+  Mundus.Rasterizer,
+  Mundus.Renderer.Clipping;
 
 { TSoftwareRenderer }
 
@@ -209,7 +210,7 @@ begin
 
     LWorld.MultiplyMatrix4D(LMove);
 
-    LProjection.SetAsPerspectiveProjectionMatrix(100, 200, 0.7, FResolutionX/FResolutionY);
+    LProjection.SetAsPerspectiveProjectionMatrix(0.1, 10000, 0.7, FResolutionX/FResolutionY);
     LProjection.MultiplyMatrix4D(LWorld);
 
     TransformMesh(LMesh, LWorld, LProjection, LCall);
@@ -294,6 +295,8 @@ var
   LBuffer: TVertexAttributeBuffer;
   LBufferSize: Integer;
   LVInput: TVertexShaderInput;
+  LIndices: TArray<Integer>;
+  LClippedTriangle: TTriangle;
 begin
   LBufferSize := AMesh.Shader.GetAttributeBufferSize;
   SetLength(LBuffer, LBufferSize);
@@ -312,7 +315,6 @@ begin
       LVertex.Element[3] := 1;
       LVInput.VertexID := i;
       LShader.VertexShader(AWorld, AProjection, LVertex, LVInput, LBuffer);
-      LVertex.NormalizeKeepW;
       ATargetCall.AddVertex(LVertex, LBuffer);
     end;
 
@@ -323,22 +325,30 @@ begin
       LVertexB := ATargetCall.Vertices[LTriangle.VertexB];
       LVertexC := ATargetCall.Vertices[LTriangle.VertexC];
       LNormal.CalculateSurfaceNormal(LVertexA, LVertexB, LVertexC);
-      if
-        //Backface culling
-        (LNormal.Z < 0)
-        //check if all points of a triangle are outside on the same axis, and therefore would never draw
-        and not (
-          ((LVertexA.X > 1) and (LVertexB.X > 1) and (LVertexC.X > 1))
-          or ((LVertexA.X < -1) and (LVertexB.X < -1) and (LVertexC.X < -1))
-          or ((LVertexA.Y > 1) and (LVertexB.Y > 1) and (LVertexC.Y > 1))
-          or ((LVertexA.Y < -1) and (LVertexB.Y < -1) and (LVertexC.Y < -1))
-        )
-        //check if all W Components are positive, otherwhise we are behind camera/flipped
-        and ((LVertexA.W > 0) and (LVertexB.W > 0) and (LVertexC.W > 0))
-      then
-        ATargetCall.AddTriangle(LTriangle);
+      if (LNormal.Z < 0) then
+      begin
+        LIndices := ClipPolygon(ATargetCall, LTriangle.VertexA, LTriangle.VertexB, LTriangle.VertexC);
+        //if less than 3, it is fully clipped
+        if Length(LIndices) >= 3 then
+        begin
+          LClippedTriangle.VertexA := LIndices[0];
+          LClippedTriangle.VertexB := LIndices[1];
+          LClippedTriangle.VertexC := LIndices[2];
+          ATargetCall.AddTriangle(@LClippedTriangle);
+          for i := 3 to High(LIndices) do
+          begin
+            LClippedTriangle.VertexA := LIndices[0];
+            LClippedTriangle.VertexB := LIndices[i-1];
+            LClippedTriangle.VertexC := LIndices[i];
+            ATargetCall.AddTriangle(@LClippedTriangle);
+          end;
+        end;
+      end;
     end;
 
+    //normalize all vertices
+    for i := 0 to High(ATargetCall.Vertices) do
+      ATargetCall.Vertices[i].NormalizeKeepW;
   finally
     LShader.Free;
   end;

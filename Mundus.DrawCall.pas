@@ -20,7 +20,7 @@ type
     FShader: TShaderClass;
     FValues: TValueBuffers;
   public
-    procedure AddVertex(const AVertex: TFloat4; const AAttributes: TVertexAttributeBuffer);
+    function AddVertex(const AVertex: TFloat4; const AAttributes: TVertexAttributeBuffer): Integer;
     procedure AddTriangle(const ATriangle: PTriangle);
     procedure Reset;
     property Vertices: TArray<TFloat4> read FVertices;
@@ -63,7 +63,7 @@ begin
   Inc(FTriangleCount);
 end;
 
-procedure TDrawCall.AddVertex(const AVertex: TFloat4; const AAttributes: TVertexAttributeBuffer);
+function TDrawCall.AddVertex(const AVertex: TFloat4; const AAttributes: TVertexAttributeBuffer): Integer;
 begin
   if FVertexCount = Length(FVertices) then
   begin
@@ -72,6 +72,7 @@ begin
   end;
   FVertices[FVertexCount] := AVertex;
   FAttributes[FVertexCount] := Copy(AAttributes, 0);
+  Result := FVertexCount;
   Inc(FVertexCount);
 end;
 
