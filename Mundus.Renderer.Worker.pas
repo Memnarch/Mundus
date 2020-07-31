@@ -110,28 +110,25 @@ begin
           LVertexA := LCall.Vertices[LTriangle.VertexA];
           LVertexB := LCall.Vertices[LTriangle.VertexB];
           LVertexC := LCall.Vertices[LTriangle.VertexC];
-          LNormal.CalculateSurfaceNormal(LVertexA, LVertexB, LVertexC);
-          if (LNormal.Z < 0)then
-          begin
-            //denormalize vectors to screenpos
-            LVertexA.Element[0] := (1-LVertexA.Element[0]) * FHalfResolutionX;//half screen size
-            LVertexA.Element[1] := (1-LVertexA.Element[1]) * FHalfResolutionY;
-            LVertexB.Element[0] := (1-LVertexB.Element[0]) * FHalfResolutionX;
-            LVertexB.Element[1] := (1-LVertexB.Element[1]) * FHalfResolutionY;
-            LVertexC.Element[0] := (1-LVertexC.Element[0]) * FHalfResolutionX;
-            LVertexC.Element[1] := (1-LVertexC.Element[1]) * FHalfResolutionY;
 
-            LRasterizer(
-              FMaxResolutionX, FMaxResolutionY,
-              LVertexA, LVertexB, LVertexC,
-              LCall.Attributes[LTriangle.VertexA],
-              LCall.Attributes[LTriangle.VertexB],
-              LCall.Attributes[LTriangle.VertexC],
-              LShader,
-              LRenderTarget,
-              LFirstDepth,
-              FBlockOffset, FBlockSteps);
-          end;
+          //denormalize vectors to screenpos
+          LVertexA.Element[0] := (1-LVertexA.Element[0]) * FHalfResolutionX;//half screen size
+          LVertexA.Element[1] := (1-LVertexA.Element[1]) * FHalfResolutionY;
+          LVertexB.Element[0] := (1-LVertexB.Element[0]) * FHalfResolutionX;
+          LVertexB.Element[1] := (1-LVertexB.Element[1]) * FHalfResolutionY;
+          LVertexC.Element[0] := (1-LVertexC.Element[0]) * FHalfResolutionX;
+          LVertexC.Element[1] := (1-LVertexC.Element[1]) * FHalfResolutionY;
+
+          LRasterizer(
+            FMaxResolutionX, FMaxResolutionY,
+            LVertexA, LVertexB, LVertexC,
+            LCall.Attributes[LTriangle.VertexA],
+            LCall.Attributes[LTriangle.VertexB],
+            LCall.Attributes[LTriangle.VertexC],
+            LShader,
+            LRenderTarget,
+            LFirstDepth,
+            FBlockOffset, FBlockSteps);
         end;
         LShader.Free;
       end;

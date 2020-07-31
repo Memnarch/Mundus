@@ -288,7 +288,7 @@ end;
 procedure TMundusRenderer.TransformMesh(AMesh: TMesh; AWorld, AProjection: TMatrix4x4; ATargetCall: PDrawCall);
 var
   i: Integer;
-  LVertex, LVertexA, LVertexB, LVertexC: TFloat4;
+  LVertex, LVertexA, LVertexB, LVertexC, LNormal: TFloat4;
   LTriangle: PTriangle;
   LShader: TShader;
   LBuffer: TVertexAttributeBuffer;
@@ -302,6 +302,8 @@ begin
     if Assigned(FOnInitValueBuffer) then
       FOnInitValueBuffer(AMesh, @ATargetCall.Values);
     LShader.BindBuffer(@ATargetCall.Values);
+
+    //transform all vertices
     for i := 0 to High(AMesh.Vertices) do
     begin
       LVertex.Element[0] := AMesh.Vertices[i].X;
@@ -313,14 +315,19 @@ begin
       LVertex.NormalizeKeepW;
       ATargetCall.AddVertex(LVertex, LBuffer);
     end;
+
+    //add visible triangles
     for LTriangle in AMesh.Triangles do
     begin
       LVertexA := ATargetCall.Vertices[LTriangle.VertexA];
       LVertexB := ATargetCall.Vertices[LTriangle.VertexB];
       LVertexC := ATargetCall.Vertices[LTriangle.VertexC];
+      LNormal.CalculateSurfaceNormal(LVertexA, LVertexB, LVertexC);
       if
+        //Backface culling
+        (LNormal.Z < 0)
         //check if all points of a triangle are outside on the same axis, and therefore would never draw
-        not (
+        and not (
           ((LVertexA.X > 1) and (LVertexB.X > 1) and (LVertexC.X > 1))
           or ((LVertexA.X < -1) and (LVertexB.X < -1) and (LVertexC.X < -1))
           or ((LVertexA.Y > 1) and (LVertexB.Y > 1) and (LVertexC.Y > 1))
@@ -331,6 +338,7 @@ begin
       then
         ATargetCall.AddTriangle(LTriangle);
     end;
+
   finally
     LShader.Free;
   end;
