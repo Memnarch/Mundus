@@ -322,8 +322,11 @@ begin
     for LTriangle in AMesh.Triangles do
     begin
       LVertexA := ATargetCall.Vertices[LTriangle.VertexA];
+      LVertexA.Normalize;
       LVertexB := ATargetCall.Vertices[LTriangle.VertexB];
+      LVertexB.Normalize;
       LVertexC := ATargetCall.Vertices[LTriangle.VertexC];
+      LVertexC.Normalize;
       LNormal.CalculateSurfaceNormal(LVertexA, LVertexB, LVertexC);
       if (LNormal.Z < 0) then
       begin
@@ -346,7 +349,6 @@ begin
       end;
     end;
 
-    //normalize all vertices
     for i := 0 to High(ATargetCall.Vertices) do
       ATargetCall.Vertices[i].NormalizeKeepW;
   finally
