@@ -12,7 +12,7 @@ type
   TAbstractMeshLoader = class
   public
     class function CanLoad(const AFileName: string): Boolean; virtual; abstract;
-    class function LoadFromFile(const AFileName: string): TMesh; virtual; abstract;
+    class function LoadFromFile(const AFileName: string): TMeshGroup; virtual; abstract;
   end;
 
   TMeshLoaderClass = class of TAbstractMeshLoader;
@@ -21,7 +21,7 @@ type
   private
     class var FLoaders: TArray<TMeshLoaderClass>;
   public
-    class function LoadFromFile(const AFileName: string; AUnitConversion: Single = CMeterToCM): TMesh;
+    class function LoadFromFile(const AFileName: string; AUnitConversion: Single = CMeterToCM): TMeshGroup;
     class procedure RegisterLoader(const AClass: TMeshLoaderClass);
   end;
 
@@ -33,22 +33,25 @@ uses
 
 { TMeshLoader }
 
-class function TMeshLoaders.LoadFromFile(const AFileName: string; AUnitConversion: Single = CMeterToCM): TMesh;
+class function TMeshLoaders.LoadFromFile(const AFileName: string; AUnitConversion: Single = CMeterToCM): TMeshGroup;
 var
   LLoader: TMeshLoaderClass;
   i: Integer;
   LVector: TVector;
+  LMesh: TMesh;
 begin
-  Result := nil;
   for LLoader in FLoaders do
     if LLoader.CanLoad(AFileName) then
     begin
       Result := LLoader.LoadFromFile(AFileName);
-      for i := 0 to Length(Result.Vertices) do
+      for LMesh in Result.Meshes do
       begin
-        LVector := Result.Vertices[i];
-        LVector.Mul(AUnitConversion);
-        Result.Vertices[i] := LVector;
+        for i := 0 to Length(LMesh.Vertices) do
+        begin
+          LVector := LMesh.Vertices[i];
+          LVector.Mul(AUnitConversion);
+          LMesh.Vertices[i] := LVector;
+        end;
       end;
       Exit;
     end;

@@ -9,7 +9,8 @@ uses
   Mundus.Math,
   Mundus.Types,
   Mundus.Mesh,
-  Mundus.Mesh.Loader;
+  Mundus.Mesh.Loader,
+  Mundus.Material;
 
 type
   TFacePoint = record
@@ -20,19 +21,24 @@ type
 
   TObjMeshLoader = class(TAbstractMeshLoader)
   private
+    class function LoadMaterial(const AFileName: string): TArray<TMaterial>;
     class function ParseFace(const AText: string): TFacePoint;
     class procedure AddVertex(var AVertices: TArray<TVector>; const AParts: TStringDynArray; const AFormat: TFormatSettings);
     class procedure AddUV(var AUVs: TArray<TFloat2>; const AParts: TStringDynArray; const AFormat: TFormatSettings);
-    class procedure AddFace(const AMesh: TMesh; const AVertices: TArray<TVector>; const AUVs: TArray<TFloat2>; const AParts: TStringDynArray);
+    class procedure AddFace(const AMesh: TMesh;
+  const AVertices: TArray<TVector>; const AUVs: TArray<TFloat2>;
+  const AParts: TStringDynArray);
+    class function IndexOfMaterial(const AMaterials: TArray<TMaterial>; const AName: string): Integer;
   public
     class function CanLoad(const AFileName: string): Boolean; override;
-    class function LoadFromFile(const AFileName: string): TMesh; override;
+    class function LoadFromFile(const AFileName: string): TMeshGroup; override;
   end;
 
 implementation
 
 uses
-  StrUtils;
+  StrUtils,
+  IOUtils;
 
 { TObjMeshLoader }
 
@@ -58,6 +64,7 @@ begin
 
   if Length(LIndices) > 2 then
     AMesh.AddTriangle(Triangle(LIndices[0], LIndices[1], LIndices[2]));
+
   if Length(LIndices) > 3 then
     AMesh.AddTriangle(Triangle(LIndices[0], LIndices[2], LIndices[3]));
 end;
@@ -77,7 +84,18 @@ begin
   Result := AnsiSameText(ExtractFileExt(AFileName), '.obj');
 end;
 
-class function TObjMeshLoader.LoadFromFile(const AFileName: string): TMesh;
+class function TObjMeshLoader.IndexOfMaterial(
+  const AMaterials: TArray<TMaterial>; const AName: string): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+  for i := 0 to High(AMaterials) do
+    if AMaterials[i].Name = AName then
+      Exit(i);
+end;
+
+class function TObjMeshLoader.LoadFromFile(const AFileName: string): TMeshGroup;
 var
   LFile: TStringList;
   LLine: string;
@@ -85,10 +103,14 @@ var
   LFormat: TFormatSettings;
   LVertices: TArray<TVector>;
   LUVs: TArray<TFloat2>;
+  LSubMesh: TMesh;
+  LMaterials: TArray<TMaterial>;
+  LMatIndex: Integer;
 begin
   LFormat := TFormatSettings.Create();
   LFormat.DecimalSeparator := '.';
-  Result := TMesh.Create();
+  Result := TMeshGroup.Create();
+  LSubMesh := nil;
   LFile := TStringList.Create();
   try
     LFile.LoadFromFile(AFileName);
@@ -97,7 +119,7 @@ begin
       LParts := SplitString(Trim(LLine), ' ');
       if Length(LParts) > 0 then
       begin
-        case AnsiIndexText(LParts[0], ['v', 'vt', 'vn', 'f']) of
+        case AnsiIndexText(LParts[0], ['v', 'vt', 'vn', 'f', 'mtllib', 'usemtl']) of
           //vertex
           0: AddVertex(LVertices, LParts, LFormat);
           //UV coordinate
@@ -105,12 +127,82 @@ begin
           //normal
 //          2:
           //face
-          3: AddFace(Result, LVertices, LUVs, LParts);
+          3:
+          begin
+            if not Assigned(LSubMesh) then
+              LSubMesh := TMesh.Create();
+            AddFace(LSubMesh, LVertices, LUVs, LParts);
+          end;
+          4: LMaterials := LoadMaterial(TPath.Combine(ExtractFilePath(AFileName), LParts[1]));
+          5:
+          begin
+            if Assigned(LSubMesh) then
+            begin
+              if Assigned(LSubMesh.Vertices) then
+                Result.Meshes.Add(LSubMesh)
+              else
+                FreeAndNil(LSubMesh);
+            end;
+            LSubMesh := TMesh.Create();
+            LMatIndex := IndexOfMaterial(LMaterials, LParts[1]);
+            if LMatIndex > -1 then
+              LSubMesh.Material := LMaterials[LMatIndex]
+          end;
         end;
       end;
     end;
+    if Assigned(LSubMesh) then
+    begin
+      if Assigned(LSubMesh.Vertices) then
+        Result.Meshes.Add(LSubMesh)
+      else
+        LSubMesh.Free;
+    end;
   finally
     LFile.Free;
+  end;
+end;
+
+class function TObjMeshLoader.LoadMaterial(
+  const AFileName: string): TArray<TMaterial>;
+var
+  LFile: TStringList;
+  LParts: TStringDynArray;
+  i: Integer;
+  LMaterial: TMaterial;
+begin
+  Result := [];
+  LMaterial := Default(TMaterial);
+  if TFile.Exists(AFileName) then
+  begin
+    LFile := TStringList.Create();
+    try
+      LFile.LoadFromFile(AFileName);
+      for i := 0 to Pred(LFile.Count) do
+      begin
+        LParts := SplitString(Trim(LFile[i]), ' ');
+        if Length(LParts) > 1 then //expect at least 2 elements
+        begin
+          case AnsiIndexText(LParts[0], ['newmtl', 'map_kd']) of
+            0:
+            begin
+              if LMaterial.Name <> '' then
+                Result := Result + [LMaterial];
+              LMaterial := Default(TMaterial);
+              LMaterial.Name := LParts[1];
+            end;
+            1:
+            begin
+              LMaterial.Texture := ExtractFileName(LParts[1]);
+            end;
+          end;
+        end;
+      end;
+      if LMaterial.Name <> '' then
+        Result := Result + [LMaterial];
+    finally
+      LFile.Free;
+    end;
   end;
 end;
 

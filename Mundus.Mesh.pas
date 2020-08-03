@@ -9,7 +9,8 @@ uses
   Generics.Collections,
   Mundus.Math,
   Mundus.Types,
-  Mundus.Shader;
+  Mundus.Shader,
+  Mundus.Material;
 
 type
   TMesh = class;
@@ -33,6 +34,7 @@ type
   TMesh = class
   private
     FShader: TShaderClass;
+    FMaterial: TMaterial;
     function GetTriangles: TTriangles; inline;
   protected
     FVertexList: TArray<TVector>;
@@ -50,6 +52,16 @@ type
     property Position: TFloat3 read FPosition write FPosition;
     property Rotation: TFloat3 read FRotation write Frotation;
     property Shader: TShaderClass read FShader write FShader;
+    property Material: TMaterial read FMaterial write FMaterial;
+  end;
+
+  TMeshGroup = class
+  private
+    FMeshes: TObjectList<TMesh>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    property Meshes: TObjectList<TMesh> read FMeshes;
   end;
 
 implementation
@@ -103,6 +115,20 @@ begin
   Result.FCount := Length(TMesh(Self).FTriangles);
   Result.FCurentTriangle := @TMesh(Self).FTriangles[0];
   Dec(Result.FCurentTriangle);
+end;
+
+{ TMeshGroup }
+
+constructor TMeshGroup.Create;
+begin
+  inherited;
+  FMeshes := TObjectList<TMesh>.Create();
+end;
+
+destructor TMeshGroup.Destroy;
+begin
+  FMeshes.Free;
+  inherited;
 end;
 
 end.
