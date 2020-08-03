@@ -25,7 +25,8 @@ type
     function GetWidth: Integer;
     function GetMaxX: Integer;
     function GetMaxY: Integer;
-    function CalculateAndMask(AValue: Integer): Integer;
+    procedure CalculateMaskAndSize(AValue: Integer; out AMask, ADesiredSize: Integer);
+    procedure Resize(ANewWidth, ANewHeight: Integer);
   public
     constructor Create;
     destructor Destroy; override;
@@ -45,20 +46,40 @@ uses
 
 { TTexture }
 
-function TTexture.CalculateAndMask(AValue: Integer): Integer;
+procedure TTexture.CalculateMaskAndSize(AValue: Integer; out AMask, ADesiredSize: Integer);
 var
-  LValue: Integer;
+  LValue, LHighestBit, LBit, i: Integer;
+  LNotPOT: Boolean;
 begin
-  Result := 0;
+  AMask := 0;
+  LNotPOT := False;
+
   LValue := AValue;
-  while (LValue and 1) = 0 do
+
+  LBit := 0;
+  LHighestBit := -1;
+  while (LValue > 0) do
   begin
-    Result := Result shl 1;
-    Inc(Result);
+    if LValue and 1 = 1 then
+    begin
+      if LHighestBit > -1 then
+        LNotPOT := True;
+      LHighestBit := LBit
+    end;
+    Inc(LBit);
     LValue := LValue shr 1;
   end;
-  if LValue > 1 then
-    raise Exception.Create('Texture sizes are limited to values with a power of 2 and ' + IntToStr(AValue) + ' is not');
+
+  if LNotPOT then
+    Inc(LHighestBit);
+
+  for i := 1 to LHighestBit do
+  begin
+    AMask := AMask shl 1;
+    Inc(AMask);
+  end;
+
+  ADesiredSize := AMask + 1;
 end;
 
 constructor TTexture.Create;
@@ -97,6 +118,7 @@ end;
 procedure TTexture.LoadFromFile(const AFile: string);
 var
   LPicture: TPicture;
+  LDesiredWidth, LDesiredHeight: Integer;
 begin
   LPicture := TPicture.Create();
   try
@@ -105,12 +127,30 @@ begin
   finally
     LPicture.Free;
   end;
-  //FBitmap.LoadFromFile(AFile);
+
   FBitmap.PixelFormat := pf32bit;
+
+  CalculateMaskAndSize(FBitmap.Width, FWidthMask, LDesiredWidth);
+  CalculateMaskAndSize(FBitmap.Height, FHeightMask, LDesiredHeight);
+  if (LDesiredWidth <> FBitmap.Width) or (LDesiredHeight <> FBitmap.Height) then
+    Resize(LDesiredWidth, LDesiredHeight);
+
   FFirst := FBitmap.ScanLine[0];
   FLineLengthInPixel := (Longint(FBitmap.Scanline[1]) - Longint(FFirst)) div SizeOf(TRGB32);
-  FWidthMask := CalculateAndMask(FBitmap.Width);
-  FHeightMask := CalculateAndMask(FBitmap.Height);
+end;
+
+procedure TTexture.Resize(ANewWidth, ANewHeight: Integer);
+var
+  LTemp: TBitmap;
+begin
+  LTemp := TBitmap.Create();
+  try
+    LTemp.Assign(FBitmap);
+    FBitmap.SetSize(ANewWidth, ANewHeight);
+    FBitmap.Canvas.StretchDraw(FBitmap.Canvas.ClipRect, LTemp);
+  finally
+    LTemp.Free;
+  end;
 end;
 
 procedure TTexture.Sample(AX, AY: Integer; const ATarget: PRGB32);
