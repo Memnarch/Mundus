@@ -40,6 +40,7 @@ type
 implementation
 
 uses
+  PngImage,
   SysUtils;
 
 { TTexture }
@@ -94,8 +95,17 @@ begin
 end;
 
 procedure TTexture.LoadFromFile(const AFile: string);
+var
+  LPicture: TPicture;
 begin
-  FBitmap.LoadFromFile(AFile);
+  LPicture := TPicture.Create();
+  try
+    LPicture.LoadFromFile(AFile);
+    FBitmap.Assign(LPicture.Graphic);
+  finally
+    LPicture.Free;
+  end;
+  //FBitmap.LoadFromFile(AFile);
   FBitmap.PixelFormat := pf32bit;
   FFirst := FBitmap.ScanLine[0];
   FLineLengthInPixel := (Longint(FBitmap.Scanline[1]) - Longint(FFirst)) div SizeOf(TRGB32);
