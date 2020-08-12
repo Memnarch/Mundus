@@ -26,6 +26,7 @@ type
   TMundusRenderer = class
   private
     FDepthBuffer: array[boolean] of TDepthBuffer;
+    FLowDepthBuffer: array[boolean] of TDepthBuffer;
     FBackBuffer: array[boolean] of TBitmap;
     FDrawCalls: array[boolean] of TDrawCalls;
     FMeshList: TObjectList<TMesh>;
@@ -42,6 +43,7 @@ type
     FWorkerFPS: Integer;
     FCamera: TCamera;
     FOnInitValueBuffer: TInitBufferEvent;
+    FOccluders: TObjectList<TMesh>;
     procedure SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);
     procedure ClearDepthBuffer(ABuffer: Boolean);
     procedure TransformMesh(AMesh: TMesh; AWorld, AProjection: TMatrix4x4; ATargetCall: PDrawCall);
@@ -61,6 +63,7 @@ type
     procedure RenderFrame(ACanvas: TCanvas);
     function GetCurrentFPS(): Integer;
     property MeshList: TObjectList<TMesh> read FMeshList;
+    property Occluders: TObjectList<TMesh> read FOccluders;
     property OnAfterFrame: TRenderEvent read FOnAfterFrame write FOnAfterFrame;
     property ResolutionX: Integer read FResolutionX;
     property ResolutionY: Integer read FResolutionY;
@@ -80,7 +83,8 @@ uses
   Mundus.Shader.DepthColor,
   Mundus.Shader.Texture,
   Mundus.Rasterizer,
-  Mundus.Renderer.Clipping;
+  Mundus.Renderer.Clipping,
+  Mundus.Shader.Occlusion;
 
 { TSoftwareRenderer }
 
@@ -98,12 +102,17 @@ end;
 
 procedure TMundusRenderer.ClearDepthBuffer;
 var
-  LBytes: Integer;
+  LBytes, i: Integer;
   LBuffer: TDepthBuffer;
 begin
   LBuffer := FDepthBuffer[ABuffer];
   LBytes := Length(LBuffer) * SizeOf(Single);
   ZeroMemory(@LBuffer[0], LBytes);
+
+  LBuffer := FLowDepthBuffer[ABuffer];
+  LBytes := Length(LBuffer) * SizeOf(Single);
+  for i := 0 to High(LBuffer) do
+    LBuffer[i] := 1;
 end;
 
 constructor TMundusRenderer.Create;
@@ -117,6 +126,7 @@ begin
   FCamera := TCamera.Create();
   SetResolution(512, 512);
   FMeshList := TObjectList<TMesh>.Create();
+  FOccluders := TObjectList<TMesh>.Create();
 
   FTimer := TStopWatch.Create(False);
 
@@ -128,7 +138,8 @@ destructor TMundusRenderer.Destroy;
 begin
   TerminateWorkers;
   FWorkers.Free;
-  FMeshList.Free();
+  FMeshList.Free;
+  FOccluders.Free;
   FBackBuffer[True].Free();
   FBackBuffer[False].Free();
   FDrawCalls[True].Free;
@@ -162,6 +173,7 @@ begin
     LWorker.DrawCalls := ACalls;
     LWorker.PixelBuffer := FBackBuffer[LFrontBuffer];
     LWorker.DepthBuffer := @FDepthBuffer[LFrontBuffer];
+    LWorker.LowDepthBuffer := @FLowDepthBuffer[LFrontBuffer];
     LWorker.ResolutionX := FResolutionX;
     LWorker.ResolutionY := FResolutionY;
     LFPS := LWorker.FPS;
@@ -195,6 +207,28 @@ var
 begin
   Result := FDrawCalls[not FCurrentBuffer];
   Result.Reset;
+  for LMesh in FOccluders do
+  begin
+    LCall := Result.Add;
+    LWorld := AViewMatrix;
+    LRotationX.SetAsRotationXMatrix(DegToRad(LMesh.Rotation.X));
+    LRotationY.SetAsRotationYMatrix(DegToRad(LMesh.Rotation.Y));
+    LRotationZ.SetAsRotationZMatrix(DegToRad(LMesh.Rotation.Z));
+
+    LMove.SetAsMoveMatrix(LMesh.Position.X, LMesh.Position.Y, LMesh.Position.Z);
+    LMove.MultiplyMatrix4D(LRotationX);
+    LMove.MultiplyMatrix4D(LRotationY);
+    LMove.MultiplyMatrix4D(LRotationZ);
+
+    LWorld.MultiplyMatrix4D(LMove);
+
+    LProjection.SetAsPerspectiveProjectionMatrix(0.1, 10000, 0.7, FResolutionX/FResolutionY);
+    LProjection.MultiplyMatrix4D(LWorld);
+
+    LCall.Shader := TOcclusionShader;
+    TransformMesh(LMesh, LWorld, LProjection, LCall);
+  end;
+
   for LMesh in FMeshList do
   begin
     LCall := Result.Add;
@@ -253,6 +287,7 @@ end;
 procedure TMundusRenderer.SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);
 begin
   SetLength(FDepthBuffer[ABuffer], AHeight*AWidth);
+  SetLength(FLowDepthBuffer[ABuffer], ((AHeight+7) div 8) * ((AWidth+7) div 8));
 end;
 
 procedure TMundusRenderer.SetResolution(AWidth, AHeight: Integer);

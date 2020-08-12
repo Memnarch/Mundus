@@ -30,6 +30,7 @@ type
     FWatch: TStopWatch;
     FPixelBuffer: TBitmap;
     FDepthBuffer: PDepthsBuffer;
+    FLowDepthBuffer: PDepthsBuffer;
     procedure SetResolutionX(const Value: Integer);
     procedure SetResolutionY(const Value: Integer);
     function GetFPS: Integer;
@@ -48,6 +49,7 @@ type
     property ResolutionY: Integer read FResolutionY write SetResolutionY;
     property PixelBuffer: TBitmap read FPixelBuffer write FPixelBuffer;
     property DepthBuffer: PDepthsBuffer read FDepthBuffer write FDepthBuffer;
+    property LowDepthBuffer: PDepthsBuffer read FLowDepthBuffer write FLowDepthBuffer;
     property FPS: Integer read GetFPS;
     property RenderFence: THandle read GetRenderFence;
   end;
@@ -86,7 +88,7 @@ var
   LShader: TShader;
   LRasterizer: TRasterizer;
   LRenderTarget: Pointer;
-  LFirstDepth: System.PSingle;
+  LFirstDepth, LFirstLowDepth: System.PSingle;
 begin
   while not Terminated do
   begin
@@ -96,7 +98,9 @@ begin
     begin
       LRenderTarget := FPixelBuffer.ScanLine[0];
       LFirstDepth := @FDepthBuffer^[0];
+      LFirstLowDepth := @FLowDepthBuffer^[0];
       Inc(LFirstDepth, (FPixelBuffer.Height-1)*FPixelBuffer.Width);
+      Inc(LFirstLowDepth, (((FPixelBuffer.Height+7) div 8) - 1) * ((FPixelBuffer.Width+7) div 8));
       for i := 0 to Pred(FDrawCalls.Count) do
       begin
         LCall := FDrawCalls[i];
@@ -128,6 +132,7 @@ begin
             LShader,
             LRenderTarget,
             LFirstDepth,
+            LFirstLowDepth,
             FBlockOffset, FBlockSteps);
         end;
         LShader.Free;

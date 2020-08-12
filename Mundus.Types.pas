@@ -26,6 +26,7 @@ type
     AShader: TObject;
     APixelBuffer: PRGB32Array;
     ADepthBuffer: PSingle;
+    ALowDepthBuffer: PSingle;
     ABlockOffset, ABlockStep: Integer);
 
   TVector = TFloat3;
