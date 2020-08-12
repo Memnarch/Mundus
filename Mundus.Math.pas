@@ -32,7 +32,7 @@ type
     procedure CalculateSurfaceNormal(const AVecA, AVecB, AVecC: TFloat3);
   end;
 
-  TFloat4 = record
+  TFloat4 = packed record
     procedure Add(const ARight: TFloat4);
     procedure Sub(const ARight: TFloat4);
     procedure Mul(const AFactor: Single); overload;
@@ -49,6 +49,8 @@ type
       2: (Element: array[0..3] of Single);
       3: (B, G, R, A: Single);
   end;
+
+  PFloat4 = ^TFloat4;
 
   TMatrix4D = record
     Values: array[0..3] of TFloat4;

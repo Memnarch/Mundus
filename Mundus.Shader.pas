@@ -39,6 +39,7 @@ type
     procedure BindBuffer(const ABuffer: PValueBuffers); virtual;
     class function GetRasterizer: TRasterizer; virtual; abstract;
     class function GetAttributeBufferSize: Integer; virtual; abstract;
+    class function GetAttributeCount: Integer;
     property Pixel: TPoint read FPixel write FPixel;
     property LineLength: Integer read FLineLength;
     property FirstLine: PRGB32Array read FFirstLine;
@@ -83,6 +84,11 @@ end;
 constructor TShader.Create();
 begin
   inherited;
+end;
+
+class function TShader.GetAttributeCount: Integer;
+begin
+  Result := GetAttributeBufferSize div SizeOf(Single);
 end;
 
 procedure TShader.SetPixelBuffer(const Value: TBitmap);

@@ -8,7 +8,37 @@ uses
   Mundus.Math,
   Mundus.DrawCall;
 
-function ClipPolygon(const ACall: PDrawCall; AA, AB, AC: Integer): TArray<Integer>;
+type
+  TStaticIndices = array[0..7] of Integer;
+  TIndexBuffer = record
+  private
+    FIndices: TStaticIndices;
+    FCount: Integer;
+  public
+    procedure Add(AIndex: Integer); inline;
+    procedure Clear; inline;
+    property Indices: TStaticIndices read FIndices;
+    property Count: Integer read FCount;
+  end;
+
+  PIndexBuffer = ^TIndexBuffer;
+
+  TClipContext = record
+  private
+    FBufferA, FBufferB: TIndexBuffer;
+    FOutputBuffer: PIndexBuffer;
+    FInputBuffer: PIndexBuffer;
+  public
+    class function Create: TClipContext; static;
+    procedure Swap; inline;
+    property InputBuffer: PIndexBuffer read FInputBuffer;
+    property OutputBuffer: PIndexBuffer read FOutputBuffer;
+    property ResultBuffer: PIndexBuffer read FInputBuffer;
+  end;
+
+  PClipContext = ^TClipContext;
+
+procedure ClipPolygon(const ACall: PDrawCall; AContext: PClipContext; AA, AB, AC: Integer);
 
 implementation
 
@@ -33,39 +63,60 @@ begin
     Include(Result, NegZ);
 end;
 
+const
+  COne: Single = 1;
+procedure InterpolateVertex(A, B: PSingle; AFactor: PSingle; AOut: PSingle);
+asm
+  movups XMM0, [A]
+  movups XMM1, [B]
+  movss XMM2, [AFactor]
+  shufps XMM2, XMM2, 0
+  movss XMM3, [COne]
+  shufps XMM3, XMM3, 0
+  subps XMM3, XMM2
+
+  mulps XMM0, XMM3
+  mulps XMM1, XMM2
+  addps XMM0, XMM1
+  //lea eax, [AOut]
+  mov eax, [AOut]
+  movups [eax], XMM0
+end;
+
 function AddInterpolatedVertex(const ACall: PDrawCall; APrevIndex, AIndex: Integer; AT: Single): Integer;
 var
-  LPrevVertex, LVertex, LNewVertex: TFloat4;
-  LPrevAttributes, LAttributes, LNewAttributes: TArray<Byte>;
+  LPrevVertex, LVertex: PFloat4;
+  LNewVertex: TFloat4;
+  LPrevAttributes, LAttributes, LNewAttributes: PSingle;
   LPrevValue, LValue, LNewValue: PSingle;
   i, LCount: Integer;
+  LInvAT: Single;
 begin
-  LPrevVertex := ACall.Vertices[APrevIndex];
-  LVertex := ACall.Vertices[AIndex];
+  LPrevVertex := @ACall.Vertices[APrevIndex];
+  LVertex := @ACall.Vertices[AIndex];
 
-  LNewVertex.X := LPrevVertex.X * (1.0 - AT) + LVertex.X * AT;
-  LNewVertex.Y := LPrevVertex.Y * (1.0 - AT) + LVertex.Y * AT;
-  LNewVertex.Z := LPrevVertex.Z * (1.0 - AT) + LVertex.Z * AT;
-  LNewVertex.W := LPrevVertex.W * (1.0 - AT) + LVertex.W * AT;
+  LInvAT := 1.0 - AT;
+  InterpolateVertex(PSingle(LPrevVertex), PSingle(LVertex), @AT, @LNewVertex);
 
   LPrevAttributes := ACall.Attributes[APrevIndex];
   LAttributes := ACall.Attributes[AIndex];
-  SetLength(LNewAttributes, Length(LPrevAttributes));
-  LCount := Length(LNewAttributes) div SizeOf(Single);
+  Result := ACall.AddVertex(LNewVertex);
+  LNewAttributes := ACall.Attributes[Result];
+  LCount := ACall.AttributesPerVertex;
   if LCount > 0 then
   begin
-    LPrevValue := @LPrevAttributes[0];
-    LValue := @LAttributes[0];
-    LNewValue := @LNewAttributes[0];
+    LPrevValue := LPrevAttributes;
+    LValue := LAttributes;
+    LNewValue := LNewAttributes;
     for i := 1 to LCount do
     begin
-      LNewValue^ := LPrevValue^ * (1.0 - AT) + LValue^ * AT;
+      LNewValue^ := LPrevValue^ * LInvAT + LValue^ * AT;
       Inc(LPrevValue);
       Inc(LValue);
       Inc(LNewValue);
     end;
   end;
-  Result := ACall.AddVertex(LNewVertex, LNewAttributes);
+
 end;
 
 procedure Add(var AItems: TArray<Integer>; AValue: Integer);
@@ -74,41 +125,32 @@ begin
   AItems[High(AItems)] := AValue;
 end;
 
-//function Sign(Value: Single): TValueSign;
-//begin
-//  if Value > 0 then
-//    Result := 1
-//  else if Value < 0 then
-//    Result := -1
-//  else
-//    Result := 0;
-//end;
-
-procedure ClipPlane(const ACall: PDrawCall; var AIndices: TArray<Integer>; AA, AB, AC, AD: Single);
+procedure ClipPlane(const ACall: PDrawCall; const AContext: PClipContext; AA, AB, AC, AD: Single);
 var
-  LOutput: TArray<Integer>;
   LPrevIndex, LIndex, LNewIndex: Integer;
   i: Integer;
   LPrevDotProduct, LDotProduct, LT: Single;
   LPrevVertex, LVertex: TFloat4;
 begin
-  if Length(AIndices) < 3 then
+  if AContext.InputBuffer.Count < 3 then
     Exit;
 
-  LPrevIndex := AIndices[0];
-  Add(AIndices, LPrevIndex);
+  AContext.OutputBuffer.Clear;
+
+  LPrevIndex := AContext.InputBuffer.Indices[0];
+  AContext.InputBuffer.Add(LPrevIndex);
 
   LPrevVertex := ACall.Vertices[LPrevIndex];
   LPrevDotProduct := AA * LPrevVertex.X + AB * LPrevVertex.Y + AC  * LPrevVertex.Z + AD * LPrevVertex.W;
 
-  for i := 1 to High(AIndices) do
+  for i := 1 to Pred(AContext.InputBuffer.Count) do
   begin
-    LIndex := AIndices[i];
+    LIndex := AContext.InputBuffer.Indices[i];
     LVertex := ACall.Vertices[LIndex];
     LDotProduct :=  AA * LVertex.X + AB * LVertex.Y + AC  * LVertex.Z + AD * LVertex.W;
 
     if LPrevDotProduct >= 0 then
-      Add(LOutput, LPrevIndex);
+      AContext.OutputBuffer.Add(LPrevIndex);
 
     if Sign(LDotProduct) <> Sign(LPrevDotProduct) then
     begin
@@ -118,36 +160,69 @@ begin
         LT := -LPrevDotProduct / (LDotProduct - LPrevDotProduct);
 
       LNewIndex := AddInterpolatedVertex(ACall, LPrevIndex, LIndex, LT);
-      Add(LOutput, LNewIndex);
+      AContext.OutputBuffer.Add(LNewIndex);
     end;
 
     LPrevIndex := LIndex;
     LPrevDotProduct := LDotProduct;
   end;
-  AIndices := LOutput;
+  AContext.Swap;
 end;
 
-function ClipPolygon(const ACall: PDrawCall; AA, AB, AC: Integer): TArray<Integer>;
+procedure ClipPolygon(const ACall: PDrawCall; AContext: PClipContext; AA, AB, AC: Integer);
 var
   LPlanes: TClipPlanes;
 begin
-  Result := [AA, AB, AC];
+  AContext.InputBuffer.Clear;
+  AContext.InputBuffer.Add(AA);
+  AContext.InputBuffer.Add(AB);
+  AContext.InputBuffer.Add(AC);
   LPlanes := ClipPlanes(ACall.Vertices[AA]) + ClipPlanes(ACall.Vertices[AB]) + ClipPlanes(ACall.Vertices[AC]);
   if LPlanes <> [] then
   begin
     if PosX in LPlanes then
-      ClipPlane(ACall, Result, -1, 0, 0, 1);
+      ClipPlane(ACall, AContext, -1, 0, 0, 1);
     if NegX in LPlanes then
-      ClipPlane(ACall, Result, 1, 0, 0, 1);
+      ClipPlane(ACall, AContext, 1, 0, 0, 1);
     if PosY in LPlanes then
-      ClipPlane(ACall, Result, 0, -1, 0, 1);
+      ClipPlane(ACall, AContext, 0, -1, 0, 1);
     if NegY in LPlanes then
-      ClipPlane(ACall, Result, 0, 1, 0, 1);
+      ClipPlane(ACall, AContext, 0, 1, 0, 1);
     if PosZ in LPlanes then
-      ClipPlane(ACall, Result, 0, 0, -1, 1);
+      ClipPlane(ACall, AContext, 0, 0, -1, 1);
     if NegZ in LPlanes then
-      ClipPlane(ACall, Result, 0, 0, 1, 1);
+      ClipPlane(ACall, AContext, 0, 0, 1, 1);
   end;
+end;
+
+{ TIndexBuffer }
+
+procedure TIndexBuffer.Add(AIndex: Integer);
+begin
+  FIndices[FCount] := AIndex;
+  Inc(FCount);
+end;
+
+procedure TIndexBuffer.Clear;
+begin
+  FCount := 0;
+end;
+
+{ TClipContext }
+
+class function TClipContext.Create: TClipContext;
+begin
+  Result.FInputBuffer := @Result.FBufferA;
+  Result.FOutputBuffer := @Result.FBufferB;
+end;
+
+procedure TClipContext.Swap;
+var
+  LTemp: PIndexBuffer;
+begin
+  LTemp := FInputBuffer;
+  FInputBuffer := FOutputBuffer;
+  FOutputBuffer := LTemp;
 end;
 
 end.

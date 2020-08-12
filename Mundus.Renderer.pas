@@ -213,8 +213,8 @@ begin
     LProjection.SetAsPerspectiveProjectionMatrix(0.1, 10000, 0.7, FResolutionX/FResolutionY);
     LProjection.MultiplyMatrix4D(LWorld);
 
-    TransformMesh(LMesh, LWorld, LProjection, LCall);
     LCall.Shader := LMesh.Shader;
+    TransformMesh(LMesh, LWorld, LProjection, LCall);
   end;
 end;
 
@@ -289,14 +289,14 @@ end;
 procedure TMundusRenderer.TransformMesh(AMesh: TMesh; AWorld, AProjection: TMatrix4x4; ATargetCall: PDrawCall);
 var
   i: Integer;
-  LVertex, LVertexA, LVertexB, LVertexC, LNormal: TFloat4;
+  LVertex: TFloat4;
   LTriangle: PTriangle;
   LShader: TShader;
   LBuffer: TVertexAttributeBuffer;
   LBufferSize: Integer;
   LVInput: TVertexShaderInput;
-  LIndices: TArray<Integer>;
   LClippedTriangle: TTriangle;
+  LClipContext: TClipContext;
 begin
   LBufferSize := AMesh.Shader.GetAttributeBufferSize;
   SetLength(LBuffer, LBufferSize);
@@ -315,36 +315,27 @@ begin
       LVertex.Element[3] := 1;
       LVInput.VertexID := i;
       LShader.VertexShader(AWorld, AProjection, LVertex, LVInput, LBuffer);
-      ATargetCall.AddVertex(LVertex, LBuffer);
+      ATargetCall.AddVertex(LVertex, @LBuffer[0]);
     end;
 
     //add visible triangles
+    LClipContext := TClipContext.Create();
     for LTriangle in AMesh.Triangles do
     begin
-      LVertexA := ATargetCall.Vertices[LTriangle.VertexA];
-      LVertexA.Normalize;
-      LVertexB := ATargetCall.Vertices[LTriangle.VertexB];
-      LVertexB.Normalize;
-      LVertexC := ATargetCall.Vertices[LTriangle.VertexC];
-      LVertexC.Normalize;
-      LNormal.CalculateSurfaceNormal(LVertexA, LVertexB, LVertexC);
-      if (LNormal.Z < 0) then
+      ClipPolygon(ATargetCall, @LClipContext, LTriangle.VertexA, LTriangle.VertexB, LTriangle.VertexC);
+      //if less than 3, it is fully clipped
+      if LClipContext.ResultBuffer.Count >= 3 then
       begin
-        LIndices := ClipPolygon(ATargetCall, LTriangle.VertexA, LTriangle.VertexB, LTriangle.VertexC);
-        //if less than 3, it is fully clipped
-        if Length(LIndices) >= 3 then
+        LClippedTriangle.VertexA := LClipContext.ResultBuffer.Indices[0];
+        LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[1];
+        LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[2];
+        ATargetCall.AddTriangle(@LClippedTriangle);
+        for i := 3 to Pred(LClipContext.ResultBuffer.Count) do
         begin
-          LClippedTriangle.VertexA := LIndices[0];
-          LClippedTriangle.VertexB := LIndices[1];
-          LClippedTriangle.VertexC := LIndices[2];
+          LClippedTriangle.VertexA := LClipContext.ResultBuffer.Indices[0];
+          LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[i-1];
+          LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[i];
           ATargetCall.AddTriangle(@LClippedTriangle);
-          for i := 3 to High(LIndices) do
-          begin
-            LClippedTriangle.VertexA := LIndices[0];
-            LClippedTriangle.VertexB := LIndices[i-1];
-            LClippedTriangle.VertexC := LIndices[i];
-            ATargetCall.AddTriangle(@LClippedTriangle);
-          end;
         end;
       end;
     end;

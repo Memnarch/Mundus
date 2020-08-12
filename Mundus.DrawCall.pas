@@ -4,32 +4,41 @@ interface
 
 uses
   Generics.Collections,
+  SysUtils,
+  Windows,
   Mundus.Math,
   Mundus.Types,
   Mundus.Shader,
   Mundus.ValueBuffer;
 
 type
+  PSingle = System.PSingle;
+
   TDrawCall = record
   private
     FVertices: TArray<TFloat4>;
     FTriangles: TArray<TTriangle>;
     FVertexCount: Integer;
     FTriangleCount: Integer;
-    FAttributes: TArray<TVertexAttributeBuffer>;
+    FAttributes: TArray<Single>;
+    FAttributesPerVertex: Integer;
     FShader: TShaderClass;
     FValues: TValueBuffers;
+    procedure SetShader(const Value: TShaderClass);
+    function GetAttributes(Index: Integer): PSingle;
   public
-    function AddVertex(const AVertex: TFloat4; const AAttributes: TVertexAttributeBuffer): Integer;
+    function AddVertex(const AVertex: TFloat4; AAttributes: PSingle = nil): Integer;
     procedure AddTriangle(const ATriangle: PTriangle);
     procedure Reset;
+    procedure InitBuffers(AVertices: Integer);
     property Vertices: TArray<TFloat4> read FVertices;
-    property Attributes: TArray<TVertexAttributeBuffer> read FAttributes;
+    property Attributes[Index: Integer]: PSingle read GetAttributes;
     property Triangles: TArray<TTriangle> read FTriangles;
     property VertexCount: Integer read FVertexCount;
     property TriangleCount: Integer read FTriangleCount;
-    property Shader: TShaderClass read FShader write FShader;
+    property Shader: TShaderClass read FShader write SetShader;
     property Values: TValueBuffers read FValues;
+    property AttributesPerVertex: Integer read FAttributesPerVertex;
   end;
 
   PDrawCall = ^TDrawCall;
@@ -63,17 +72,29 @@ begin
   Inc(FTriangleCount);
 end;
 
-function TDrawCall.AddVertex(const AVertex: TFloat4; const AAttributes: TVertexAttributeBuffer): Integer;
+function TDrawCall.AddVertex(const AVertex: TFloat4; AAttributes: PSingle): Integer;
 begin
   if FVertexCount = Length(FVertices) then
   begin
     SetLength(FVertices, Length(FVertices) + CBufferStep);
-    SetLength(FAttributes, Length(FVertices));
+    SetLength(FAttributes, Length(FVertices) * FAttributesPerVertex);
   end;
   FVertices[FVertexCount] := AVertex;
-  FAttributes[FVertexCount] := Copy(AAttributes, 0);
+  if Assigned(AAttributes) then
+    CopyMemory(Attributes[FVertexCount], AAttributes, FShader.GetAttributeBufferSize);
   Result := FVertexCount;
   Inc(FVertexCount);
+end;
+
+function TDrawCall.GetAttributes(Index: Integer): PSingle;
+begin
+  Result := @FAttributes[Index * FAttributesPerVertex];
+end;
+
+procedure TDrawCall.InitBuffers(AVertices: Integer);
+begin
+  SetLength(FVertices, AVertices);
+  SetLength(FAttributes, AVertices);
 end;
 
 procedure TDrawCall.Reset;
@@ -81,6 +102,15 @@ begin
   FTriangleCount := 0;
   FVertexCount := 0;
   FValues.Reset;
+end;
+
+procedure TDrawCall.SetShader(const Value: TShaderClass);
+begin
+  FShader := Value;
+  if Assigned(FShader) then
+    FAttributesPerVertex := FShader.GetAttributeBufferSize div SizeOf(Single)
+  else
+    FAttributesPerVertex := 0;
 end;
 
 { TDrawCalls }

@@ -22,7 +22,7 @@ type
   TRasterizer = procedure(
     AMaxResolutionX, AMaxResolutionY: Integer;
     const AVerctorA, AvectorB, AvectorC: TFloat4;
-    const AAttributesA, AAttributesB, AAttributesC: TVertexAttributeBuffer;
+    const AAttributesA, AAttributesB, AAttributesC: PSingle;
     AShader: TObject;
     APixelBuffer: PRGB32Array;
     ADepthBuffer: PSingle;
