@@ -8,7 +8,8 @@ uses
   Graphics,
   Mundus.Types,
   Mundus.Math,
-  Mundus.ValueBuffer;
+  Mundus.ValueBuffer,
+  Mundus.PixelBuffer;
 
 type
 
@@ -26,13 +27,13 @@ type
 
   TShader = class(TObject)
   private
-    FPixelBuffer: TBitmap;
+    FPixelBuffer: TPixelBuffer;
     FPixel: TPoint;
-    FLineLength: Integer;
-    FFirstLine: PRGB32Array;
     FMinX: Cardinal;
     FMinY: Cardinal;
-    procedure SetPixelBuffer(const Value: TBitmap);
+    FFirstLine: PRGB32Array;
+    FLineLength: Integer;
+    procedure SetPixelBuffer(const Value: TPixelBuffer);
   public
     constructor Create(); virtual;
     procedure VertexShader(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: Pointer); virtual; abstract;
@@ -45,7 +46,7 @@ type
     property FirstLine: PRGB32Array read FFirstLine;
     property MinX: Cardinal read FMinX write FMinX;
     property MinY: Cardinal read FMinY write FMinY;
-    property PixelBuffer: TBitmap read FPixelBuffer write SetPixelBuffer;
+    property PixelBuffer: TPixelBuffer read FPixelBuffer write SetPixelBuffer;
   end;
 
   TShader<T: record> = class(TShader)
@@ -91,13 +92,13 @@ begin
   Result := GetAttributeBufferSize div SizeOf(Single);
 end;
 
-procedure TShader.SetPixelBuffer(const Value: TBitmap);
+procedure TShader.SetPixelBuffer(const Value: TPixelBuffer);
 begin
   FPixelBuffer := Value;
   if Assigned(FPixelBuffer) then
   begin
-    FFirstLine := FPixelBuffer.ScanLine[0];
-    FLineLength := (LongInt(FPixelBuffer.Scanline[1]) - LongInt(FFirstLine)) div SizeOf(TRGB32);
+    FFirstLine := FPixelBuffer.FirstLine;
+    FLineLength := FPixelBuffer.LineLength;
   end;
 end;
 

@@ -11,7 +11,9 @@ uses
   Mundus.Shader.Texture,
   Mundus.Math,
   Mundus.Types,
-  Mundus.Diagnostics.StopWatch;
+  Mundus.Diagnostics.StopWatch,
+  Mundus.ShaderCache,
+  Mundus.PixelBuffer;
 
 type
   TRenderWorker = class(TThread)
@@ -28,9 +30,10 @@ type
     FHalfResolutionX: Integer;
     FHalfResolutionY: Integer;
     FWatch: TStopWatch;
-    FPixelBuffer: TBitmap;
+    FPixelBuffer: TPixelBuffer;
     FDepthBuffer: PDepthsBuffer;
     FLowDepthBuffer: PDepthsBuffer;
+    FShaderCache: TShaderCache;
     procedure SetResolutionX(const Value: Integer);
     procedure SetResolutionY(const Value: Integer);
     function GetFPS: Integer;
@@ -47,7 +50,7 @@ type
     property BlockOffset: Integer read FBlockOffset write FBlockOffset;
     property ResolutionX: Integer read FResolutionX write SetResolutionX;
     property ResolutionY: Integer read FResolutionY write SetResolutionY;
-    property PixelBuffer: TBitmap read FPixelBuffer write FPixelBuffer;
+    property PixelBuffer: TPixelBuffer read FPixelBuffer write FPixelBuffer;
     property DepthBuffer: PDepthsBuffer read FDepthBuffer write FDepthBuffer;
     property LowDepthBuffer: PDepthsBuffer read FLowDepthBuffer write FLowDepthBuffer;
     property FPS: Integer read GetFPS;
@@ -69,6 +72,7 @@ begin
   FDone := TEvent.Create(nil, False, True, '');
   FStart := TEvent.Create(nil, False, False, '');
   FWatch := TStopWatch.Create();
+  FShaderCache := TShaderCache.Create();
 end;
 
 destructor TRenderWorker.Destroy;
@@ -77,12 +81,13 @@ begin
   FStart.Free;
   FDone.Free;
   FWatch.Free;
+  FShaderCache.Free;
 end;
 
 procedure TRenderWorker.Execute;
 var
   LCall: PDrawCall;
-  LTriangle: TTriangle;
+  LTriangle: PTriangle;
   i, k: Integer;
   LVertexA, LVertexB, LVertexC, LNormal: TFloat4;
   LShader: TShader;
@@ -96,7 +101,7 @@ begin
     FWatch.Start;
     if Assigned(FDrawCalls) then
     begin
-      LRenderTarget := FPixelBuffer.ScanLine[0];
+      LRenderTarget := FPixelBuffer.FirstLine;
       LFirstDepth := @FDepthBuffer^[0];
       LFirstLowDepth := @FLowDepthBuffer^[0];
       Inc(LFirstDepth, (FPixelBuffer.Height-1)*FPixelBuffer.Width);
@@ -104,13 +109,13 @@ begin
       for i := 0 to Pred(FDrawCalls.Count) do
       begin
         LCall := FDrawCalls[i];
-        LShader := LCall.Shader.Create();
+        LShader := FShaderCache.GetShader(LCall.Shader);
         LShader.PixelBuffer := FPixelBuffer;
         LShader.BindBuffer(@LCall.Values);
         LRasterizer := LCall.Shader.GetRasterizer();
         for k := 0 to Pred(LCall.TriangleCount) do
         begin
-          LTriangle := LCall.Triangles[k];
+          LTriangle := @LCall.Triangles[k];
           LVertexA := LCall.Vertices[LTriangle.VertexA];
           LVertexB := LCall.Vertices[LTriangle.VertexB];
           LVertexC := LCall.Vertices[LTriangle.VertexC];
@@ -135,7 +140,6 @@ begin
             LFirstLowDepth,
             FBlockOffset, FBlockSteps);
         end;
-        LShader.Free;
       end;
     end;
     FWatch.Stop;

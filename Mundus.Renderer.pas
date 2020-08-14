@@ -17,7 +17,9 @@ uses
   Mundus.DrawCall,
   Mundus.Renderer.Worker,
   Mundus.Camera,
-  Mundus.ValueBuffer;
+  Mundus.ValueBuffer,
+  Mundus.ShaderCache,
+  Mundus.PixelBuffer;
 
 type
   TRenderEvent = procedure(Canvas: TCanvas) of object;
@@ -27,7 +29,7 @@ type
   private
     FDepthBuffer: array[boolean] of TDepthBuffer;
     FLowDepthBuffer: array[boolean] of TDepthBuffer;
-    FBackBuffer: array[boolean] of TBitmap;
+    FBackBuffer: array[boolean] of TPixelBuffer;
     FDrawCalls: array[boolean] of TDrawCalls;
     FMeshList: TObjectList<TMesh>;
     FFPS: Integer;
@@ -44,6 +46,7 @@ type
     FCamera: TCamera;
     FOnInitValueBuffer: TInitBufferEvent;
     FOccluders: TObjectList<TMesh>;
+    FShaderCache: TShaderCache;
     procedure SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);
     procedure ClearDepthBuffer(ABuffer: Boolean);
     procedure TransformMesh(AMesh: TMesh; AWorld, AProjection: TMatrix4x4; ATargetCall: PDrawCall);
@@ -89,15 +92,8 @@ uses
 { TSoftwareRenderer }
 
 procedure TMundusRenderer.ClearBuffer(ABuffer: Boolean);
-var
-  LBuffer: TBitmap;
-  LFirstLine: PByte;
-  LBufferLength: NativeInt;
 begin
-  LBuffer := FBackBuffer[ABuffer];
-  LFirstLine := LBuffer.ScanLine[LBuffer.Height-1];
-  LBufferLength := (NativeInt(LBuffer.Scanline[0]) - NativeInt(LFirstLine)) + LBuffer.Width * SizeOf(TRGB32);
-  ZeroMemory(LFirstLine, LBufferLength);
+  FBackBuffer[ABuffer].Clear;
 end;
 
 procedure TMundusRenderer.ClearDepthBuffer;
@@ -110,23 +106,21 @@ begin
   ZeroMemory(@LBuffer[0], LBytes);
 
   LBuffer := FLowDepthBuffer[ABuffer];
-  LBytes := Length(LBuffer) * SizeOf(Single);
   for i := 0 to High(LBuffer) do
     LBuffer[i] := 1;
 end;
 
 constructor TMundusRenderer.Create;
 begin
-  FBackBuffer[True] := TBitmap.Create();
-  FBackbuffer[True].PixelFormat := pf32bit;
-  FBackBuffer[False] := TBitmap.Create();
-  FBackbuffer[False].PixelFormat := pf32bit;
+  FBackBuffer[True] := TPixelBuffer.Create();
+  FBackBuffer[False] := TPixelBuffer.Create();
   FDrawCalls[True] := TDrawCalls.Create();
   FDrawCalls[False] := TDrawCalls.Create();
   FCamera := TCamera.Create();
   SetResolution(512, 512);
   FMeshList := TObjectList<TMesh>.Create();
   FOccluders := TObjectList<TMesh>.Create();
+  FShaderCache := TShaderCache.Create();
 
   FTimer := TStopWatch.Create(False);
 
@@ -146,6 +140,7 @@ begin
   FDrawCalls[False].Free;
   FTimer.Free;
   FCamera.Free;
+  FShaderCache.Free;
   inherited;
 end;
 
@@ -184,7 +179,7 @@ begin
 
   //Draw Backbuffer to FrontBuffer
   DoAfterFrame(FBackBuffer[LBackBuffer].Canvas);
-  ACanvas.Draw(0, 0, FBackBuffer[LBackBuffer]);
+  ACanvas.Draw(0, 0, FBackBuffer[LBackBuffer].Graphic);
   //flip buffers
   FCurrentBuffer := not FCurrentBuffer;
 end;
@@ -335,63 +330,59 @@ var
 begin
   LBufferSize := AMesh.Shader.GetAttributeBufferSize;
   SetLength(LBuffer, LBufferSize);
-  LShader := AMesh.Shader.Create();
-  try
-    if Assigned(FOnInitValueBuffer) then
-      FOnInitValueBuffer(AMesh, @ATargetCall.Values);
-    LShader.BindBuffer(@ATargetCall.Values);
+  LShader := FShaderCache.GetShader(AMesh.Shader);
+  if Assigned(FOnInitValueBuffer) then
+    FOnInitValueBuffer(AMesh, @ATargetCall.Values);
+  LShader.BindBuffer(@ATargetCall.Values);
 
-    //transform all vertices
-    for i := 0 to High(AMesh.Vertices) do
-    begin
-      LVertex.Element[0] := AMesh.Vertices[i].X;
-      LVertex.Element[1] := AMesh.Vertices[i].Y;
-      LVertex.Element[2] := AMesh.Vertices[i].Z;
-      LVertex.Element[3] := 1;
-      LVInput.VertexID := i;
-      LShader.VertexShader(AWorld, AProjection, LVertex, LVInput, LBuffer);
-      ATargetCall.AddVertex(LVertex, @LBuffer[0]);
-    end;
+  //transform all vertices
+  for i := 0 to High(AMesh.Vertices) do
+  begin
+    LVertex.Element[0] := AMesh.Vertices[i].X;
+    LVertex.Element[1] := AMesh.Vertices[i].Y;
+    LVertex.Element[2] := AMesh.Vertices[i].Z;
+    LVertex.Element[3] := 1;
+    LVInput.VertexID := i;
+    LShader.VertexShader(AWorld, AProjection, LVertex, LVInput, LBuffer);
+    ATargetCall.AddVertex(LVertex, @LBuffer[0]);
+  end;
 
-    //add visible triangles
-    LClipContext := TClipContext.Create();
-    for LTriangle in AMesh.Triangles do
+  //add visible triangles
+  LClipContext := TClipContext.Create();
+  for LTriangle in AMesh.Triangles do
+  begin
+    ClipPolygon(ATargetCall, @LClipContext, LTriangle.VertexA, LTriangle.VertexB, LTriangle.VertexC);
+    //if less than 3, it is fully clipped
+    if LClipContext.ResultBuffer.Count >= 3 then
     begin
-      ClipPolygon(ATargetCall, @LClipContext, LTriangle.VertexA, LTriangle.VertexB, LTriangle.VertexC);
-      //if less than 3, it is fully clipped
-      if LClipContext.ResultBuffer.Count >= 3 then
+      LClippedTriangle.VertexA := LClipContext.ResultBuffer.Indices[0];
+      LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[1];
+      LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[2];
+      ATargetCall.AddTriangle(@LClippedTriangle);
+      for i := 3 to Pred(LClipContext.ResultBuffer.Count) do
       begin
         LClippedTriangle.VertexA := LClipContext.ResultBuffer.Indices[0];
-        LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[1];
-        LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[2];
+        LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[i-1];
+        LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[i];
         ATargetCall.AddTriangle(@LClippedTriangle);
-        for i := 3 to Pred(LClipContext.ResultBuffer.Count) do
-        begin
-          LClippedTriangle.VertexA := LClipContext.ResultBuffer.Indices[0];
-          LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[i-1];
-          LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[i];
-          ATargetCall.AddTriangle(@LClippedTriangle);
-        end;
       end;
     end;
-
-    for i := 0 to High(ATargetCall.Vertices) do
-      ATargetCall.Vertices[i].NormalizeKeepW;
-  finally
-    LShader.Free;
   end;
+
+  for i := 0 to High(ATargetCall.Vertices) do
+    ATargetCall.Vertices[i].NormalizeKeepW;
 end;
 
 procedure TMundusRenderer.UpdateBufferResolution(ABuffer: Boolean; AWidth, AHeight: Integer);
 var
-  LBuffer: TBitmap;
+  LBuffer: TPixelBuffer;
 begin
   LBuffer := FBackBuffer[ABuffer];
   if (LBuffer.Width <> AWidth) or (LBuffer.Height <> AHeight) then
   begin
-    LBuffer.SetSize(AWidth, Aheight);
-    FFirstLIne := LBuffer.ScanLine[0];
-    FLineLength := (NativeInt(LBuffer.Scanline[1]) - NativeInt(FFirstLine)) div SizeOf(TRGB32);
+    LBuffer.Resize(AWidth, Aheight);
+    FFirstLIne := LBuffer.FirstLine;
+    FLineLength := LBuffer.LineLength;
     LBuffer.Canvas.Pen.Color := clBlack;
     LBuffer.Canvas.Brush.Color := clBlack;
     SetDepthBufferSize(ABuffer, AWidth, AHeight);
