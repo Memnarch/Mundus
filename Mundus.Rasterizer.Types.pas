@@ -10,8 +10,8 @@ type
   PHalfEdgeConstants = ^THalfEdgeConstants;
 
   THalfSpaceDeltas = packed record
-    X12, X23, X31: Integer;
-    Y12, Y23, Y31: Integer;
+    X12, X23, X31, _XPadding: Integer;
+    Y12, Y23, Y31, _YPadding: Integer;
   end;
 
   PHalfSpaceDeltas = ^THalfSpaceDeltas;
@@ -31,7 +31,7 @@ type
   PBlockState = ^TBlockState;
 
   TTrianglePosition = packed record
-    _1, _2, _3: Integer;
+    _1, _2, _3, _Padding: Integer;
   end;
 
   PTrianglePosition = ^TTrianglePosition;

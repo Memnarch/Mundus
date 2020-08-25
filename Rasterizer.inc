@@ -19,30 +19,14 @@ var
   LDepthY, LDepthX: PSingle;
 begin
   InitFactors(@AAttributes.StepB, AAttributes.Y, @LAttributesY, @AAttributes.StepD, SizeOf(TAttributes));
-  {$region 'LDenormalizeZY := AAttributes.ZValues.Y * AAttributes.Y + AAttributes.ZValues.Z;'}
-  asm
-    mov eax, [AAttributes]
-    movss xmm0, [eax + TBlockAttributes.ZValues.Y]
-    mulss xmm0, [eax + TBlockAttributes.Y]
-    addss xmm0, [eax + TBlockAttributes.ZValues.Z]
-    movss [LDenormalizeZY], xmm0
-  end;
-  {$endregion}
+  LDenormalizeZY := AAttributes.ZValues.Y * AAttributes.Y + AAttributes.ZValues.Z;
   LPixelY := AAttributes.FirstPixel;
   if DepthTest <> dtNone then
     LDepthY := AAttributes.FirstDepth;
   for i := AAttributes.Y to AAttributes.Y + (CQuadSize - 1) do
   begin
     InitFactors(@AAttributes.StepA, AAttributes.X, @LAttributesX, @LAttributesY, SizeOf(TAttributes));
-    {$region 'LDenormalizeZX := AAttributes.ZValues.X * AAttributes.X + LDenormalizeZY;'}
-    asm
-      mov eax, [AAttributes]
-      movss xmm0, [eax + TBlockAttributes.ZValues.X]
-      mulss xmm0, [eax + TBlockAttributes.X]
-      addss xmm0, [LDenormalizeZY]
-      movss [LDenormalizeZX], xmm0
-    end;
-    {$endregion}
+    LDenormalizeZX := AAttributes.ZValues.X * AAttributes.X + LDenormalizeZY;
     LPixelX := LPixelY;
     if DepthTest <> dtNone then
       LDepthX := LDepthY;
@@ -64,27 +48,13 @@ begin
       {$EndIF}
       end;
       StepFactors(@AAttributes.StepA, @LAttributesX, SizeOf(TAttributes));
-      {$region 'LDenormalizeZX := LDenormalizeZX + AAttributes.ZValues.X';}
-      asm
-        movss xmm0, [LDenormalizeZX]
-        mov eax, [AAttributes]
-        addss xmm0, [eax + TBlockAttributes.ZValues.X]
-        movss [LDenormalizeZX], xmm0
-      end;
-      {$endregion}
+      LDenormalizeZX := LDenormalizeZX + AAttributes.ZValues.X;
       if DepthTest <> dtNone then
         Inc(LDepthX);
       Inc(LPixelX);
     end;
     StepFactors(@AAttributes.StepB, @LAttributesY, SizeOf(TAttributes));
-    {$region 'LDenormalizeZY := LDenormalizeZY + AAttributes.ZValues.Y;'}
-    asm
-      mov eax, [AAttributes]
-      movss xmm0, [LDenormalizeZY]
-      addss xmm0, [eax + TBlockAttributes.ZValues.Y]
-      movss [LDenormalizeZY], xmm0
-    end;
-    {$endregion}
+    LDenormalizeZY := LDenormalizeZY + AAttributes.ZValues.Y;
     if DepthTest <> dtNone then
       Inc(LDepthY, AAttributes.LineLength);
     Inc(LPixelY, AAttributes.LineLength);
@@ -100,7 +70,7 @@ var
   LPixelX, LPixelY: PRGB32;
   LDepthX, LDepthY: PSingle;
   BlockXEnd, BlockYEnd: Integer;
-  LX, LY: TTrianglePosition;
+  LX: TTrianglePosition;
   i, k: Integer;
   LDenormalizedZ: Single;
   LAttributesDenormalized: TAttributes;
@@ -110,32 +80,25 @@ begin
     LDepthY := AAttributes.FirstDepth;
   BlockYEnd := AAttributes.Y + (CQuadSize - 1);
   BlockXEnd := AAttributes.X + (CQuadSize - 1);
-  LY := APosY^;
+  asm
+    mov eax, APosY
+    movdqu xmm6, [eax];
+    mov eax, [AFixedDeltas]
+    movdqu xmm5, [eax + THalfSpaceDeltas.X12]
+    movdqu xmm4, [eax + THalfSpaceDeltas.Y12]
+  end;
   for i := AAttributes.Y to BlockYEnd do
   begin
-    LX._1 := LY._1;
-    LX._2 := LY._2;
-    LX._3 := LY._3;
+    asm movdqu xmm7, xmm6 end;
     LPixelX := LPixelY;
     if DepthTest <> dtNone then
       LDepthX := LDepthY;
     for k := AAttributes.X to BlockXEnd do
     begin
+      asm movdqu [LX], xmm7 end;
       if (LX._1 or LX._2 or LX._3) >= 0 then
       begin
-        {$region 'LDenormalizedZ := ((AAttributes.ZValues.Y*i + AAttributes.ZValues.Z) + AAttributes.ZValues.X * k);'}
-        asm
-          mov eax, [AAttributes]
-          movss xmm0, [eax + TBlockAttributes.ZValues.Y]
-          cvtsi2ss xmm1, [i]
-          mulss xmm0, xmm1
-          addss xmm0, [eax + TBlockAttributes.ZValues.Z]
-          cvtsi2ss xmm1, [k]
-          mulss xmm1, [eax + TBlockAttributes.ZValues.X]
-          addss xmm0, xmm1
-          movss [LDenormalizedZ], xmm0
-        end;
-        {$endregion}
+        LDenormalizedZ := ((AAttributes.ZValues.Y*i + AAttributes.ZValues.Z) + AAttributes.ZValues.X * k);
         {$B-}
         if (DepthTest = dtNone) or (LDenormalizedZ <= LDepthX^) then
         {$B+}
@@ -153,17 +116,13 @@ begin
         end;
       end;
 
-      LX._1 := LX._1 - AFixedDeltas.Y12;
-      LX._2 := LX._2 - AFixedDeltas.Y23;
-      LX._3 := LX._3 - AFixedDeltas.Y31;
+      asm psubd xmm7, xmm4 end;
       Inc(LPixelX);
       if DepthTest <> dtNone then
         Inc(LDepthX);
     end;
 
-    LY._1 := LY._1 + AFixedDeltas.X12;
-    LY._2 := LY._2 + AFixedDeltas.X23;
-    LY._3 := LY._3 + AFixedDeltas.X31;
+    asm paddd xmm6, xmm5 end;
     Inc(LPixelY, AAttributes.LineLength);
     if DepthTest <> dtNone then
       Inc(LDepthY, AAttributes.LineLength);
