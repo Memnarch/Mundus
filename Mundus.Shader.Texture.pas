@@ -35,7 +35,8 @@ implementation
 uses
   Math,
   Mundus.Math.Interpolation,
-  Mundus.Rasterizer;
+  Mundus.Rasterizer.Types,
+  Mundus.Rasterizer.Helper;
 
 { TTextureShader }
 {$PointerMath ON}
@@ -67,9 +68,18 @@ begin
   FTexture.Sample(LTexX, LTextY, APixel);
 end;
 
+type
+  TAttributes = TTexturePSInput;
+  Shader = TTextureShader;
+
+const
+  DepthTest = dtWrite;
+
+{$i Rasterizer.inc}
+
 class function TTextureShader.GetRasterizer: TRasterizer;
 begin
-  Result := TRasterizer(@TRasterizerFactory<TTexturePSInput, TTextureShader, TDepthWrite>.RasterizeTriangle);
+  Result := @RasterizeTriangle;
 end;
 
 procedure TTextureShader.Vertex(const AWorld, AProjection: TMatrix4x4;

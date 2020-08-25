@@ -6,6 +6,8 @@ uses
   Mundus.Math;
 
 type
+  TDepthTest = (dtNone, dtRead, dtWrite);
+
   TRGB32 = packed record
     B, G, R, A: Byte;
   end;
