@@ -25,7 +25,7 @@ begin
     LDepthY := AAttributes.FirstDepth;
   for i := AAttributes.Y to AAttributes.Y + (CQuadSize - 1) do
   begin
-    InitFactors(@AAttributes.StepA, AAttributes.X, @LAttributesX, @LAttributesY, SizeOf(TAttributes));
+    {$i InitFactors.Inc}
     LDenormalizeZX := AAttributes.ZValues.X * AAttributes.X + LDenormalizeZY;
     LPixelX := LPixelY;
     if DepthTest <> dtNone then
@@ -36,7 +36,7 @@ begin
       if (DepthTest = dtNone) or (LDenormalizeZX <= LDepthX^) then
       {$B+}
       begin
-        DenormalizeFactors(@LAttributesDenormalized, @LAttributesX, LDenormalizeZX, SizeOf(TAttributes));
+        {$i DenormalizeFactors.inc}
         AAttributes.ShaderInstance.Fragment(LPixelX, @LAttributesDenormalized);
         if DepthTest = dtWrite then
           LDepthX^ := LDenormalizeZX;
@@ -47,13 +47,13 @@ begin
         LPixelX.R := 200;
       {$EndIF}
       end;
-      StepFactors(@AAttributes.StepA, @LAttributesX, SizeOf(TAttributes));
+      {$i StepFactorsX.inc}
       LDenormalizeZX := LDenormalizeZX + AAttributes.ZValues.X;
       if DepthTest <> dtNone then
         Inc(LDepthX);
       Inc(LPixelX);
     end;
-    StepFactors(@AAttributes.StepB, @LAttributesY, SizeOf(TAttributes));
+    {$i StepFactorsY.inc}
     LDenormalizeZY := LDenormalizeZY + AAttributes.ZValues.Y;
     if DepthTest <> dtNone then
       Inc(LDepthY, AAttributes.LineLength);
@@ -105,7 +105,7 @@ begin
         if (DepthTest = dtNone) or (LDenormalizedZ <= LDepthX^) then
         {$B+}
         begin
-          InterpolateAttributes(k, i, @LAttributesDenormalized, @AAttributes.StepA, @AAttributes.StepB, @AAttributes.StepD, LDenormalizedZ, SizeOf(TAttributes));
+          {$I InterpolateAttributes.inc}
           AAttributes.ShaderInstance.Fragment(PRGB32(LX._Padding), @LAttributesDenormalized);
           if DepthTest = dtWrite then
             LDepthX^ := LDenormalizedZ;
