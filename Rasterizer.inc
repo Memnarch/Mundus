@@ -67,7 +67,6 @@ procedure RenderHalfBlock(
       AFixedDeltas: PHalfSpaceDeltas;
       const AAttributes: PBlockAttributes);
 var
-  LPixelX, LPixelY: PRGB32;
   LDepthX, LDepthY: PSingle;
   BlockXEnd, BlockYEnd: Integer;
   LX: TTrianglePosition;
@@ -75,11 +74,15 @@ var
   LDenormalizedZ: Single;
   LAttributesDenormalized: TAttributes;
 begin
-  LPixelY := AAttributes.FirstPixel;
   if DepthTest <> dtNone then
     LDepthY := AAttributes.FirstDepth;
   BlockYEnd := AAttributes.Y + (CQuadSize - 1);
   BlockXEnd := AAttributes.X + (CQuadSize - 1);
+  //abuse padding fields to store Pixel-Pointer and increment it along with our X/Y position
+  AFixedDeltas._XPadding := AAttributes.LineLength*SizeOf(TRGB32);
+  AFixedDeltas._YPadding := -SizeOf(TRGB32);
+  APosY._Padding := Integer(AAttributes.FirstPixel);
+  //LX, LY, DeltaX, DeltaY will be kept in sse registers
   asm
     mov eax, APosY
     movdqu xmm6, [eax];
@@ -90,7 +93,6 @@ begin
   for i := AAttributes.Y to BlockYEnd do
   begin
     asm movdqu xmm7, xmm6 end;
-    LPixelX := LPixelY;
     if DepthTest <> dtNone then
       LDepthX := LDepthY;
     for k := AAttributes.X to BlockXEnd do
@@ -104,26 +106,24 @@ begin
         {$B+}
         begin
           InterpolateAttributes(k, i, @LAttributesDenormalized, @AAttributes.StepA, @AAttributes.StepB, @AAttributes.StepD, LDenormalizedZ, SizeOf(TAttributes));
-          AAttributes.ShaderInstance.Fragment(LPixelX, @LAttributesDenormalized);
+          AAttributes.ShaderInstance.Fragment(PRGB32(LX._Padding), @LAttributesDenormalized);
           if DepthTest = dtWrite then
             LDepthX^ := LDenormalizedZ;
         {$IFDEF ShowZFail}
         end
         else
         begin
-          LPixelX.R := 200;
+          PRGB32(LX._Padding).R := 200;
         {$ENDIF}
         end;
       end;
 
       asm psubd xmm7, xmm4 end;
-      Inc(LPixelX);
       if DepthTest <> dtNone then
         Inc(LDepthX);
     end;
 
     asm paddd xmm6, xmm5 end;
-    Inc(LPixelY, AAttributes.LineLength);
     if DepthTest <> dtNone then
       Inc(LDepthY, AAttributes.LineLength);
   end;
