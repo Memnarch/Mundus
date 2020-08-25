@@ -18,14 +18,14 @@ var
   LPixelX, LPixelY: PRGB32;
   LDepthY, LDepthX: PSingle;
 begin
-  InitFactors(@AAttributes.StepB, AAttributes.Y, @LAttributesY, @AAttributes.StepD, SizeOf(TAttributes));
+  {$i InitFactorsY.inc}
   LDenormalizeZY := AAttributes.ZValues.Y * AAttributes.Y + AAttributes.ZValues.Z;
   LPixelY := AAttributes.FirstPixel;
   if DepthTest <> dtNone then
     LDepthY := AAttributes.FirstDepth;
   for i := AAttributes.Y to AAttributes.Y + (CQuadSize - 1) do
   begin
-    {$i InitFactors.Inc}
+    {$i InitFactorsX.Inc}
     LDenormalizeZX := AAttributes.ZValues.X * AAttributes.X + LDenormalizeZY;
     LPixelX := LPixelY;
     if DepthTest <> dtNone then
