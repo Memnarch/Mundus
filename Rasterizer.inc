@@ -19,18 +19,20 @@ var
   LDepthY, LDepthX: PSingle;
   LX, LY: Single;
   LStepD: TAttributes;
+  LZValues: TFloat3;
 begin
   LStepD := AAttributes.StepD;
+  LZValues := AAttributes.ZValues;
   {$i SetupRegisters.inc}
   {$i InitFactorsY.inc}
-  LDenormalizeZY := AAttributes.ZValues.Y * AAttributes.Y + AAttributes.ZValues.Z;
+  LDenormalizeZY := LZValues.Y * LY + LZValues.Z;
   LPixelY := AAttributes.FirstPixel;
   if DepthTest <> dtNone then
     LDepthY := AAttributes.FirstDepth;
   for i := AAttributes.Y to AAttributes.Y + (CQuadSize - 1) do
   begin
     {$i InitFactorsX.Inc}
-    LDenormalizeZX := AAttributes.ZValues.X * AAttributes.X + LDenormalizeZY;
+    LDenormalizeZX := LZValues.X * LX + LDenormalizeZY;
     LPixelX := LPixelY;
     if DepthTest <> dtNone then
       LDepthX := LDepthY;
@@ -52,13 +54,13 @@ begin
       {$EndIF}
       end;
       {$i StepFactorsX.inc}
-      LDenormalizeZX := LDenormalizeZX + AAttributes.ZValues.X;
+      LDenormalizeZX := LDenormalizeZX + LZValues.X;
       if DepthTest <> dtNone then
         Inc(LDepthX);
       Inc(LPixelX);
     end;
     {$i StepFactorsY.inc}
-    LDenormalizeZY := LDenormalizeZY + AAttributes.ZValues.Y;
+    LDenormalizeZY := LDenormalizeZY + LZValues.Y;
     if DepthTest <> dtNone then
       Inc(LDepthY, AAttributes.LineLength);
     Inc(LPixelY, AAttributes.LineLength);
@@ -76,12 +78,17 @@ var
   LX: TTrianglePosition;
   i, k: Integer;
   LDenormalizedZ: Single;
-  LAttributesDenormalized: TAttributes;
+  LStepA, LStepB, LStepD, LAttributesDenormalized: TAttributes;
+  LZValues: TFloat3;
 begin
   if DepthTest <> dtNone then
     LDepthY := AAttributes.FirstDepth;
   BlockYEnd := AAttributes.Y + (CQuadSize - 1);
   BlockXEnd := AAttributes.X + (CQuadSize - 1);
+  LZValues := AAttributes.ZValues;
+  LStepA := AAttributes.StepA;
+  LStepB := AAttributes.StepB;
+  LStepD := AAttributes.StepD;
   //abuse padding fields to store Pixel-Pointer and increment it along with our X/Y position
   AFixedDeltas._XPadding := AAttributes.LineLength*SizeOf(TRGB32);
   AFixedDeltas._YPadding := -SizeOf(TRGB32);
@@ -104,7 +111,7 @@ begin
       asm movdqu [LX], xmm7 end;
       if (LX._1 or LX._2 or LX._3) >= 0 then
       begin
-        LDenormalizedZ := ((AAttributes.ZValues.Y*i + AAttributes.ZValues.Z) + AAttributes.ZValues.X * k);
+        LDenormalizedZ := ((LZValues.Y*i + LZValues.Z) + LZValues.X * k);
         {$B-}
         if (DepthTest = dtNone) or (LDenormalizedZ <= LDepthX^) then
         {$B+}
