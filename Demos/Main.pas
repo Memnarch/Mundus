@@ -3,6 +3,7 @@ unit Main;
 interface
 
 uses
+  Generics.Collections,
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ExtCtrls,
   Mundus.Renderer,
@@ -13,7 +14,9 @@ uses
   Mundus.Mesh,
   Mundus.ValueBuffer,
   Mundus.Math,
-  Mundus.Texture;
+  Mundus.Texture,
+  Mundus.Camera,
+  Mundus.Material;
 
 type
   TForm1 = class(TForm)
@@ -23,20 +26,31 @@ type
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormResize(Sender: TObject);
+    procedure FormActivate(Sender: TObject);
+    procedure FormDeactivate(Sender: TObject);
   private
     { Private-Deklarationen }
+    FScene: TMeshGroup;
     FSoftwareRenderer: TMundusRenderer;
-    FWatch: TStopWatch;
     FMinFPS, FMaxFPS: Integer;
-    FCube: TMesh;
     FLastReset: TDateTime;
     FGraph: TSamplerGraph;
     FDrawGraph: Boolean;
     FColors: TArray<TFloat4>;
-    FTexture: TTexture;
+    FCamera: TCamera;
+    FLastTick: TDateTime;
+    FSpeed: TFloat3;
+    FRotationSpeed: TFloat3;
+    FRotation: TFloat3;
+    FLastMousePos: TPoint;
+    FTextures: TObjectList<TTexture>;
+    FTextureCache: TDictionary<string, TTexture>;
     procedure HandleAfterFrame(ACanvas: TCanvas);
     procedure HandleException(Sender: TObject; E: Exception);
     procedure HandleInitBuffer(AMesh: TMesh; const ABuffer: PValueBuffers);
+    procedure FetchInput;
+    procedure Tick(const ASeconds: Single);
+    function GetTexture(const AMaterial: TMaterial): TTexture;
   public
     { Public-Deklarationen }
     procedure SetResolution(AWidth, AHeight: Integer);
@@ -48,13 +62,15 @@ var
 implementation
 
 uses
+  IOUtils,
   DateUtils,
   Math,
   System.UITypes,
   Mundus.Types,
   Mundus.Shader.Texture,
   Mundus.Shader.VertexGradient,
-  Mundus.Shader.DepthColor;
+  Mundus.Shader.DepthColor,
+  Mundus.Mesh.Loader;
 
 {$R *.dfm}
 
@@ -70,63 +86,114 @@ const
     (B: 0.5; G: 1; R: 0.5; A: 0)
   );
 
+const
+  CMoveSpeed = 1000;
+  CRotationSpeed = 5;
+  CLevelPath = 'C:\Users\Alexander\Downloads\doom-e1m1-hangar-map\source\DOOM_E1M1\doom_E1M1.obj';
+  CDefault = 'Default';
+
+procedure TForm1.FetchInput;
+var
+  LPos: TPoint;
+begin
+  FSpeed := Default(TFloat3);
+  FRotationSpeed := Default(TFloat3);
+  if GetAsyncKeyState(Ord('A')) <> 0 then
+    FSpeed.X := CMoveSpeed;
+  if GetAsyncKeyState(Ord('D')) <> 0 then
+    FSpeed.X := FSpeed.X - CMoveSpeed;
+  if GetAsyncKeyState(Ord('W')) <> 0 then
+    FSpeed.Z := CMoveSpeed;
+  if GetAsyncKeyState(Ord('S')) <> 0then
+    FSpeed.Z := FSpeed.Y - CMoveSpeed;
+
+  if Focused then
+  begin
+    LPos := Mouse.CursorPos;
+    FRotationSpeed.X := (FLastMousePos.Y - LPos.Y) * CRotationSpeed;
+    FRotationSpeed.Y := (FLastMousePos.X - LPos.X) * CRotationSpeed;
+    Mouse.CursorPos := FLastMousePos;
+  end;
+end;
+
+procedure TForm1.FormActivate(Sender: TObject);
+begin
+  Mouse.CursorPos := ClientToScreen(Point(Width div 2, Height div 2));
+  FLastMousePos := Mouse.CursorPos;
+  ShowCursor(False);
+end;
+
 procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   FSoftwareRenderer.Free;
-  FWatch.Free;
   FGraph.Free;
-  FTexture.Free;
+  FTextureCache.Free;
+  FTextures.Free;
+  FScene.Free;
   Application.OnException := nil;
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
+var
+  LMesh: TMesh;
+  LTexture: TTexture;
 begin
   SetLength(FColors, Length(CColors));
   CopyMemory(@FColors[0], @CColors[0], SizeOf(CColors));
   Application.OnException := HandleException;
   FGraph := TSamplerGraph.Create();
-  FCube := TPlane.Create(320, 180, 20);
-//  FCube := TCube.Create();
-  FCube.Position := Float3(0, 0, 246);
-//  FCube.Rotation := Float3(0, 0, 45);
-  FCube.Shader := TTextureShader;
-  FTexture := TTexture.Create();
-  FTexture.LoadFromFile('..\..\Crate_256.bmp');
-  FSoftwareRenderer := TMundusRenderer.Create(1);
-  FSoftwareRenderer.MeshList.Add(FCube);
+  FTextures := TObjectList<TTexture>.Create();
+  FTextureCache := TDictionary<string, TTexture>.Create();
+
+//  LMesh := TPlane.Create(320, 180, 20);
+//  LMesh.Position := Float3(0, 0, 246);
+//  LMesh.Rotation := Float3(180, 0, 0);
+//  LMesh.Shader := TTextureShader;
+//  FScene := TMeshGroup.Create();
+//  FScene.Meshes.Add(LMesh);
+  FScene := TMeshLoaders.LoadFromFile(CLevelPath, 3);
+  LTexture := TTexture.Create();
+  LTexture.LoadFromFile('..\..\Crate_256.bmp');
+  FTextures.Add(LTexture);
+  FTextureCache.Add(CDefault, LTexture);
+  FSoftwareRenderer := TMundusRenderer.Create(12);
+  for LMesh in FScene.Meshes do
+  begin
+    LMesh.Shader := TTextureShader;
+    LMesh.Position := Float3(0, -500, 12000);
+    FSoftwareRenderer.MeshList.Add(LMesh);
+    FSoftwareRenderer.Occluders.Add(LMesh);
+  end;
   FSoftwareRenderer.OnInitValueBuffer := HandleInitBuffer;
   FSoftwareRenderer.OnAfterFrame := HandleAfterFrame;
   SetResolution(1280, 720);
+  FCamera := FSoftwareRenderer.Camera;
 
   FLastReset := Now();
   FMinFPS := 1000;
   FMaxFPS := 0;
-  FWatch := TStopWatch.Create(False);
+  FLastTick := Now();
   GameTimer.Enabled := True;
+end;
+
+procedure TForm1.FormDeactivate(Sender: TObject);
+begin
+  ShowCursor(True);
 end;
 
 procedure TForm1.FormKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 begin
-  if (Key = VK_LEFT) then
-  begin
-    FCube.Position := Float3(FCube.Position.X + 3, FCube.Position.Y, FCube.Position.Z);
-  end;
-  if (Key = VK_RIGHT) then
-  begin
-    FCube.Position := Float3(FCube.Position.X - 3, FCube.Position.Y, FCube.Position.Z);
-  end;
-  if (Key = VK_UP) then
-  begin
-    FCube.Position := Float3(FCube.Position.X, FCube.Position.Y, FCube.Position.Z + 3);
-  end;
-  if (Key = VK_DOWN) then
-  begin
-    FCube.Position := Float3(FCube.Position.X, FCube.Position.Y, FCube.Position.Z - 3);
-  end;
   if (Key = VK_ESCAPE) and (WindowState = wsMaximized) then
   begin
     WindowState := wsNormal;
+    FormStyle := fsNormal;
+  end;
+
+  if (Key = VK_RETURN) and (WindowState = wsNormal) then
+  begin
+    WindowState := wsMaximized;
+    FormStyle := fsStayOnTop;
   end;
 
   if Key = VK_F1 then
@@ -151,10 +218,37 @@ begin
 end;
 
 procedure TForm1.GameTimerTimer(Sender: TObject);
+var
+  LNow: TDateTime;
 begin
+  FetchInput;
+  LNow := Now();
+  Tick(MilliSecondsBetween(LNow, FLastTick) / 1000);
+  FLastTick := LNow;
   FSoftwareRenderer.RenderFrame(Canvas);
-//  FCube.Rotation := Float3(FCube.Rotation.X + 0.25, FCube.Rotation.Y, FCube.Rotation.Z);
-  FCube.Rotation := Float3(180, FCube.Rotation.Y, FCube.Rotation.Z);
+end;
+
+function TForm1.GetTexture(const AMaterial: TMaterial): TTexture;
+var
+  LFile: string;
+  LTexture: TTexture;
+begin
+  if not FTextureCache.TryGetValue(AMaterial.Name, Result) then
+  begin
+    LFile := ExtractFilePath(CLevelPath) + '\' + AMaterial.Texture;
+    if TFile.Exists(LFile) then
+    begin
+      LTexture := TTexture.Create();
+      LTexture.LoadFromFile(LFile);
+      FTextures.Add(LTexture);
+      FTextureCache.Add(AMaterial.Name, LTexture);
+      Result := LTexture;
+    end
+    else
+      FTextureCache.Add(AMaterial.Name, FTextureCache[CDefault]);
+  end;
+  if not Assigned(Result) then
+    Result := FTextureCache[CDefault];
 end;
 
 procedure TForm1.HandleAfterFrame(ACanvas: TCanvas);
@@ -198,7 +292,7 @@ procedure TForm1.HandleInitBuffer(AMesh: TMesh;
   const ABuffer: PValueBuffers);
 begin
   ABuffer.Float2Array[ABuffer.Float2Array.Bind('UV0')] := AMesh.UV;
-  ABuffer.Texture[ABuffer.Texture.Bind('Tex0')] := FTexture;
+  ABuffer.Texture[ABuffer.Texture.Bind('Tex0')] := GetTexture(AMesh.Material);
 //  ABuffer.Float4Array[ABuffer.Float4Array.Bind('Color0')] := FColors;
 end;
 
@@ -208,6 +302,34 @@ begin
   ClientWidth := AWidth;
   ClientHeight := AHeight;
   Caption := 'SoftwareRenderer ' + IntToSTr(AWidth) + 'x' + IntToStr(AHeight);
+end;
+
+procedure TForm1.Tick(const ASeconds: Single);
+var
+  LSpeed: TFloat3;
+  LMoveSpeed: TFloat4;
+  LRotationX, LRotationY, LRotation: TMatrix4x4;
+begin
+  LSpeed := FRotationSpeed;
+  LSpeed.Mul(ASeconds);
+  FRotation.Add(LSpeed);
+  if FRotation.X < -90 then
+    FRotation.X := -90;
+  if FRotation.X > 90 then
+    FRotation.X := 90;
+
+  LRotationX.SetAsRotationXMatrix(DegToRad(FRotation.X));
+  LRotationY.SetAsRotationYMatrix(DegToRad(FRotation.Y));
+  LRotationY.MultiplyMatrix4D(LRotationX.Inverse);
+  LRotation.SetAsIdentMatrix4D;
+  LRotation.MultiplyMatrix4D(LRotationY);
+  FCamera.Rotation := LRotation;
+
+  LSpeed := FSpeed;
+  LSpeed.Mul(ASeconds);
+  LMoveSpeed := Float4(LSpeed.X, LSpeed.Y, LSpeed.Z, 1);
+  LMoveSpeed := LRotation.Transform(LMoveSpeed);
+  FCamera.Position.Add(Float3(LMoveSpeed.X, LMoveSpeed.Y, LMoveSpeed.Z));
 end;
 
 end.

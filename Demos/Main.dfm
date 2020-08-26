@@ -11,10 +11,11 @@ object Form1: TForm1
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
-  FormStyle = fsStayOnTop
   OldCreateOrder = False
+  OnActivate = FormActivate
   OnClose = FormClose
   OnCreate = FormCreate
+  OnDeactivate = FormDeactivate
   OnKeyDown = FormKeyDown
   OnResize = FormResize
   PixelsPerInch = 96

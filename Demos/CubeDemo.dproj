@@ -118,21 +118,40 @@
         <DCCReference Include="..\Mundus.Diagnostics.SamplerGraph.pas"/>
         <DCCReference Include="..\Mundus.Diagnostics.StopWatch.pas"/>
         <DCCReference Include="..\Mundus.DrawCall.pas"/>
+        <DCCReference Include="..\Mundus.Material.pas"/>
         <DCCReference Include="..\Mundus.Math.Interpolation.pas"/>
         <DCCReference Include="..\Mundus.Math.pas"/>
         <DCCReference Include="..\Mundus.Mesh.Cube.pas"/>
+        <DCCReference Include="..\Mundus.Mesh.Loader.Obj.pas"/>
+        <DCCReference Include="..\Mundus.Mesh.Loader.pas"/>
         <DCCReference Include="..\Mundus.Mesh.pas"/>
+        <DCCReference Include="..\Mundus.Mesh.Plane.pas"/>
+        <DCCReference Include="..\Mundus.PixelBuffer.pas"/>
         <DCCReference Include="..\Mundus.Rasterizer.pas"/>
+        <DCCReference Include="..\Mundus.Renderer.Clipping.pas"/>
         <DCCReference Include="..\Mundus.Renderer.pas"/>
         <DCCReference Include="..\Mundus.Renderer.Worker.pas"/>
         <DCCReference Include="..\Mundus.Shader.DepthColor.pas"/>
+        <DCCReference Include="..\Mundus.Shader.Occlusion.pas"/>
         <DCCReference Include="..\Mundus.Shader.pas"/>
         <DCCReference Include="..\Mundus.Shader.Texture.pas"/>
         <DCCReference Include="..\Mundus.Shader.VertexGradient.pas"/>
+        <DCCReference Include="..\Mundus.ShaderCache.pas"/>
         <DCCReference Include="..\Mundus.Texture.pas"/>
         <DCCReference Include="..\Mundus.Types.pas"/>
-        <DCCReference Include="..\Mundus.ValueBuffer.pas"/>
-        <DCCReference Include="..\Mundus.Mesh.Plane.pas"/>
+        <DCCReference Include="..\Mundus.ValueBuffer.pas">
+            <Form>$R *.res</Form>
+        </DCCReference>
+        <DCCReference Include="..\Mundus.Rasterizer.Helper.pas"/>
+        <DCCReference Include="..\Mundus.Rasterizer.Types.pas"/>
+        <None Include="..\Rasterizer.inc"/>
+        <None Include="..\InterpolateAttributes.inc"/>
+        <None Include="..\DenormalizeFactors.inc"/>
+        <None Include="..\InitFactorsX.inc"/>
+        <None Include="..\StepFactorsX.inc"/>
+        <None Include="..\StepFactorsY.inc"/>
+        <None Include="..\InitFactorsY.inc"/>
+        <None Include="..\SetupRegisters.inc"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -194,15 +213,63 @@
                 <Platform value="Win64">True</Platform>
             </Platforms>
             <Deployment Version="3">
-                <DeployFile LocalName="Win32\Release\CubeDemo.exe" Configuration="Release" Class="ProjectOutput">
+                <DeployFile LocalName="..\StepFactorsY.inc" Configuration="Release" Class="ProjectFile">
                     <Platform Name="Win32">
-                        <RemoteName>CubeDemo.exe</RemoteName>
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="..\InterpolateAttributes.inc" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="..\StepFactorsX.inc" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
                 <DeployFile LocalName="\CubeDemo.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>CubeDemo.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="..\DenormalizeFactors.inc" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="..\InitFactorsX.inc" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="..\SetupRegisters.inc" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Win32\Release\CubeDemo.exe" Configuration="Release" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>CubeDemo.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="..\InitFactorsY.inc" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="..\Rasterizer.inc" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
