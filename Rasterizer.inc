@@ -14,10 +14,14 @@ procedure RenderFullBlock(const AAttributes: PBlockAttributes);
 var
   LDenormalizeZY, LDenormalizeZX: Single;
   i, k: Integer;
-  LAttributesX, LAttributesY, LAttributesDenormalized: TAttributes;
+  LAttributesDenormalized: TAttributes;
   LPixelX, LPixelY: PRGB32;
   LDepthY, LDepthX: PSingle;
+  LX, LY: Single;
+  LStepD: TAttributes;
 begin
+  LStepD := AAttributes.StepD;
+  {$i SetupRegisters.inc}
   {$i InitFactorsY.inc}
   LDenormalizeZY := AAttributes.ZValues.Y * AAttributes.Y + AAttributes.ZValues.Z;
   LPixelY := AAttributes.FirstPixel;

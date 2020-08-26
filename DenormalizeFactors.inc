@@ -3,7 +3,7 @@ asm
   movss xmm0, [LDenormalizeZX]
   shufps xmm0, xmm0, 0
   rcpps xmm0, xmm0
-  mulps xmm0, [LAttributesX]
+  mulps xmm0, xmm7
   movups [LAttributesDenormalized], xmm0
 end;
 {$else}
