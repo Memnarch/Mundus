@@ -118,8 +118,8 @@ begin
   FDrawCalls[False] := TDrawCalls.Create();
   FCamera := TCamera.Create();
   SetResolution(512, 512);
-  FMeshList := TObjectList<TMesh>.Create();
-  FOccluders := TObjectList<TMesh>.Create();
+  FMeshList := TObjectList<TMesh>.Create(False);
+  FOccluders := TObjectList<TMesh>.Create(False);
   FShaderCache := TShaderCache.Create();
 
   FTimer := TStopWatch.Create(False);
