@@ -67,6 +67,15 @@ begin
   end;
 end;
 
+type
+  TSpan = packed record
+    LastX: Integer;
+    Count: Integer;
+  end;
+
+  PSpan = ^TSpan;
+
+  TSpans = array[0..7] of TSpan;
 
 procedure RenderHalfBlock(
       APosY: PTrianglePosition;
@@ -75,11 +84,16 @@ procedure RenderHalfBlock(
 var
   LDepthX, LDepthY: PSingle;
   BlockXEnd, BlockYEnd: Integer;
-  LX: TTrianglePosition;
+  LTriangle: TTrianglePosition;
   i, k: Integer;
-  LDenormalizedZ: Single;
+  LDenormalizeZX, LDenormalizeZY: Single;
   LStepA, LStepB, LStepD, LAttributesDenormalized: TAttributes;
   LZValues: TFloat3;
+  LSpans: TSpans;
+  LSpan: PSpan;
+  LPixelX, LPixelY: PRGB32;
+  LFirstX: Integer;
+  LX, LY: Single;
 begin
   if DepthTest <> dtNone then
     LDepthY := AAttributes.FirstDepth;
@@ -89,11 +103,7 @@ begin
   LStepA := AAttributes.StepA;
   LStepB := AAttributes.StepB;
   LStepD := AAttributes.StepD;
-  //abuse padding fields to store Pixel-Pointer and increment it along with our X/Y position
-  AFixedDeltas._XPadding := AAttributes.LineLength*SizeOf(TRGB32);
-  AFixedDeltas._YPadding := -SizeOf(TRGB32);
-  APosY._Padding := Integer(AAttributes.FirstPixel);
-  //LX, LY, DeltaX, DeltaY will be kept in sse registers
+  LSpan := @LSpans[0];
   asm
     mov eax, APosY
     movdqu xmm6, [eax];
@@ -101,42 +111,73 @@ begin
     movdqu xmm5, [eax + THalfSpaceDeltas.X12]
     movdqu xmm4, [eax + THalfSpaceDeltas.Y12]
   end;
+  //First, SCan ranges of pixel within the triangle as spans
   for i := AAttributes.Y to BlockYEnd do
   begin
     asm movdqu xmm7, xmm6 end;
-    if DepthTest <> dtNone then
-      LDepthX := LDepthY;
+    LSpan.LastX := High(Integer)-1;
+    LSpan.Count := 0;
     for k := AAttributes.X to BlockXEnd do
     begin
-      asm movdqu [LX], xmm7 end;
-      if (LX._1 or LX._2 or LX._3) >= 0 then
+      asm movdqu [LTriangle], xmm7 end;
+      if (LTriangle._1 or LTriangle._2 or LTriangle._3) >= 0 then
       begin
-        LDenormalizedZ := ((LZValues.Y*i + LZValues.Z) + LZValues.X * k);
-        {$B-}
-        if (DepthTest = dtNone) or (LDenormalizedZ <= LDepthX^) then
-        {$B+}
-        begin
-          {$I InterpolateAttributes.inc}
-          AAttributes.ShaderInstance.Fragment(PRGB32(LX._Padding), @LAttributesDenormalized);
-          if DepthTest = dtWrite then
-            LDepthX^ := LDenormalizedZ;
-        {$IFDEF ShowZFail}
-        end
-        else
-        begin
-          PRGB32(LX._Padding).R := 200;
-        {$ENDIF}
-        end;
+        LSpan.LastX := k;
+        Inc(LSpan.Count);
       end;
-
       asm psubd xmm7, xmm4 end;
+    end;
+    asm paddd xmm6, xmm5 end;
+    Inc(LSpan);
+  end;
+
+  //rasterize the spans
+  {$i SetupRegisters.inc}
+  {$i InitFactorsY.inc}
+  LDenormalizeZY := LZValues.Y * LY + LZValues.Z;
+  LPixelY := AAttributes.FirstPixel;
+  if DepthTest <> dtNone then
+    LDepthY := AAttributes.FirstDepth;
+  LSpan := @LSpans[0];
+  for i := AAttributes.Y to BlockYEnd do
+  begin
+    {$i InitFactorsX.inc}
+    LDenormalizeZX := LZValues.X * LX + LDenormalizeZY;
+    LFirstX := LSpan.LastX - (LSpan.Count - 1);
+    LPixelX := LPixelY;
+    Inc(LPixelX, LFirstX - AAttributes.X);
+    BlockXEnd := LSpan.LastX;
+    if DepthTest <> dtNone then
+      LDepthX := LDepthY;
+    for k := LFirstX to BlockXEnd do
+    begin
+      {$B-}
+      if (DepthTest = dtNone) or (LDenormalizeZX <= LDepthX^) then
+      {$B+}
+      begin
+        {$i DenormalizeFactors.inc}
+        AAttributes.ShaderInstance.Fragment(LPixelX, @LAttributesDenormalized);
+        if DepthTest = dtWrite then
+          LDepthX^ := LDenormalizeZX;
+      {$IFDEF ShowZFail}
+      end
+      else
+      begin
+        LPixelX.R := 200;
+      {$EndIF}
+      end;
+      {$i StepFactorsX.inc}
+      LDenormalizeZX := LDenormalizeZX + LZValues.X;
       if DepthTest <> dtNone then
         Inc(LDepthX);
+      Inc(LPixelX);
     end;
-
-    asm paddd xmm6, xmm5 end;
+    {$i StepFactorsY.inc}
+    LDenormalizeZY := LDenormalizeZY + LZValues.Y;
     if DepthTest <> dtNone then
       Inc(LDepthY, AAttributes.LineLength);
+    Inc(LPixelY, AAttributes.LineLength);
+    Inc(LSpan);
   end;
 end;
 
