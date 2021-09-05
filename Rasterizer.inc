@@ -295,9 +295,9 @@ begin
         begin
           // Corners of block
           LBlockCorners.X0 := LBlock.X*16;// shl 4;
-          LBlockCorners.X1 := (LBlock.X + CQuadSize - 1)*16;// shl 4;
+          LBlockCorners.X1 := (LBlock.X + (CQuadSize - 1))*16;// shl 4;
           LBlockCorners.Y0 := LBlock.Y*16;// shl 4;
-          LBlockCorners.Y1 := (LBlock.Y + CQuadSize - 1)*16;// shl 4;
+          LBlockCorners.Y1 := (LBlock.Y + (CQuadSize - 1))*16;// shl 4;
 
           EvalHalfspace(@LConstants, @LDeltas, @LBlockCorners, @LBlockState);
           // Skip block when outside an edge
@@ -315,7 +315,7 @@ begin
                 Continue;
               end;
             end;
-            // Accept whole block when totally covered
+//             Accept whole block when totally covered
             if LBlockState.IsFullBlock  then
             begin
               RenderFullBlock(@LBlock);
