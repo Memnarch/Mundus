@@ -135,8 +135,8 @@ begin
   if (LDesiredWidth <> FBitmap.Width) or (LDesiredHeight <> FBitmap.Height) then
     Resize(LDesiredWidth, LDesiredHeight);
 
-  FFirst := FBitmap.ScanLine[0];
-  FLineLengthInPixel := (Longint(FBitmap.Scanline[1]) - Longint(FFirst)) div SizeOf(TRGB32);
+  FFirst := FBitmap.ScanLine[FHeightMask];
+  FLineLengthInPixel := (Longint(FBitmap.Scanline[FHeightMask-1]) - Longint(FFirst)) div SizeOf(TRGB32);
 end;
 
 procedure TTexture.Resize(ANewWidth, ANewHeight: Integer);
