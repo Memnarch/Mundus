@@ -67,6 +67,13 @@ begin
   end;
 end;
 
+const
+  CSignByteMask: array[0..15] of Byte = (
+    128, 128, 128, 3,
+    128, 128, 128, 7,
+    128, 128, 128, 11,
+    128, 128, 128, 128
+  );
 
 procedure RenderHalfBlock(
       APosY: PTrianglePosition;
@@ -80,6 +87,8 @@ var
   LDenormalizedZ: Single;
   LStepA, LStepB, LStepD, LAttributesDenormalized: TAttributes;
   LZValues: TFloat3;
+label
+  BlockMissed;
 begin
   if DepthTest <> dtNone then
     LDepthY := AAttributes.FirstDepth;
@@ -108,8 +117,22 @@ begin
       LDepthX := LDepthY;
     for k := AAttributes.X to BlockXEnd do
     begin
-      asm movdqu [LX], xmm7 end;
-      if (LX._1 or LX._2 or LX._3) >= 0 then
+      //ahhhhh what do we want to do here?
+      //We need to check if X or Y or Z are negative (vecor in xmm7). Which equals this condition
+      //if (LX._1 or LX._2 or LX._3) >= 0 then
+      //This concludes, we are interested in the high byte of each integer which contains the sign bit, only
+      //therefore we set every byte we don't want to 0 using the Byteshuffle with our mask
+      //afterwards we create a bitmask which has a bit set for each byte which has its sign bit set (byte vectors are signed)
+      //if eax is 0, we know that all of our values were >= 0, if not, we need to skip this block
+      asm
+        movdqu xmm2, xmm7 //make copy to work nondestructive
+        movdqu xmm3, CSignByteMask //load mask
+        pshufb xmm2, xmm3 //zero all lower 3 bytes of each integer using mask
+        pmovmskb eax, xmm2 //create bitmask with bit for every negative byte
+        cmp eax, 0 //ehck if yn bit is set and jump to Blockmissed if any is
+        jnz BlockMissed
+        movdqu [LX], xmm7 //load to LX-Variable to access _padding
+      end;
       begin
         LDenormalizedZ := ((LZValues.Y*i + LZValues.Z) + LZValues.X * k);
         {$B-}
@@ -128,7 +151,7 @@ begin
         {$ENDIF}
         end;
       end;
-
+      BlockMissed:
       asm psubd xmm7, xmm4 end;
       if DepthTest <> dtNone then
         Inc(LDepthX);
@@ -165,6 +188,7 @@ var
   LMinDepth, LMaxDepth: Single;
   LFirstLowDepth: PSingle;
   LLowDepthLineLength: NativeInt;
+  LWasSolid: Boolean;
 begin
   LMinDepth := Min(AVerctorA.Z, Min(AvectorB.Z, AvectorC.Z));
   LMaxDepth := Max(AVerctorA.Z, Max(AvectorB.Z, AvectorC.Z));
@@ -250,49 +274,53 @@ begin
     while LBlock.Y < MaxY do
     begin
       LBlock.X := MinX;
-        while LBlock.X < MaxX do
+      LWasSolid := False;
+      while LBlock.X < MaxX do
+      begin
+        // Corners of block
+        LBlockCorners.X0 := LBlock.X*16;// shl 4;
+        LBlockCorners.X1 := (LBlock.X + (CQuadSize - 1))*16;// shl 4;
+        LBlockCorners.Y0 := LBlock.Y*16;// shl 4;
+        LBlockCorners.Y1 := (LBlock.Y + (CQuadSize - 1))*16;// shl 4;
+
+        EvalHalfspace(@LConstants, @LDeltas, @LBlockCorners, @LBlockState);
+        // Skip block when outside an edge
+        if LBlockState.Intersects then
         begin
-          // Corners of block
-          LBlockCorners.X0 := LBlock.X*16;// shl 4;
-          LBlockCorners.X1 := (LBlock.X + (CQuadSize - 1))*16;// shl 4;
-          LBlockCorners.Y0 := LBlock.Y*16;// shl 4;
-          LBlockCorners.Y1 := (LBlock.Y + (CQuadSize - 1))*16;// shl 4;
-
-          EvalHalfspace(@LConstants, @LDeltas, @LBlockCorners, @LBlockState);
-          // Skip block when outside an edge
-          if LBlockState.Intersects then
+          LWasSolid := True;
+          //calculate first pixel of block
+          LBlock.FirstPixel := @APixelBuffer[LBlock.Y*LBlock.LineLength + LBlock.X];
+          if DepthTest <> dtNone then
           begin
-            //calculate first pixel of block
-            LBlock.FirstPixel := @APixelBuffer[LBlock.Y*LBlock.LineLength + LBlock.X];
-            if DepthTest <> dtNone then
+            LBlock.FirstDepth := @ADepthBuffer[LBlock.Y*LBlock.LineLength + LBlock.X];
+            LFirstLowDepth := @ALowDepthBuffer[(LBlock.Y div CQuadSize) * LLowDepthLineLength + (LBlock.X div 8)];
+            if LFirstLowDepth^ < LMinDepth then
             begin
-              LBlock.FirstDepth := @ADepthBuffer[LBlock.Y*LBlock.LineLength + LBlock.X];
-              LFirstLowDepth := @ALowDepthBuffer[(LBlock.Y div CQuadSize) * LLowDepthLineLength + (LBlock.X div 8)];
-              if LFirstLowDepth^ < LMinDepth then
-              begin
-                LBlock.X := LBlock.X + CQuadSize;
-                Continue;
-              end;
-            end;
-//             Accept whole block when totally covered
-            if LBlockState.IsFullBlock  then
-            begin
-              RenderFullBlock(@LBlock);
-              if DepthTest = dtWrite then
-                LFirstLowDepth^ := LMaxDepth;
-            end
-            else //Partially covered Block
-            begin
-
-              LY._1 := LConstants.C1 + LDeltas.X12 * LBlockCorners.Y0 - LDeltas.Y12 * LBlockCorners.X0;
-              LY._2 := LConstants.C2 + LDeltas.X23 * LBlockCorners.Y0 - LDeltas.Y23 * LBlockCorners.X0;
-              LY._3 := LConstants.C3 + LDeltas.X31 * LBlockCorners.Y0 - LDeltas.Y31 * LBlockCorners.X0;
-
-              RenderHalfBlock(@LY, @LFixedDeltas, @LBlock);
+              LBlock.X := LBlock.X + CQuadSize;
+              Continue;
             end;
           end;
-          LBlock.X := LBlock.X + CQuadSize;
-        end;
+//             Accept whole block when totally covered
+          if LBlockState.IsFullBlock  then
+          begin
+            RenderFullBlock(@LBlock);
+            if DepthTest = dtWrite then
+              LFirstLowDepth^ := LMaxDepth;
+          end
+          else //Partially covered Block
+          begin
+
+            LY._1 := LConstants.C1 + LDeltas.X12 * LBlockCorners.Y0 - LDeltas.Y12 * LBlockCorners.X0;
+            LY._2 := LConstants.C2 + LDeltas.X23 * LBlockCorners.Y0 - LDeltas.Y23 * LBlockCorners.X0;
+            LY._3 := LConstants.C3 + LDeltas.X31 * LBlockCorners.Y0 - LDeltas.Y31 * LBlockCorners.X0;
+
+            RenderHalfBlock(@LY, @LFixedDeltas, @LBlock);
+          end;
+        end
+        else if LWasSolid then
+          Break;
+        LBlock.X := LBlock.X + CQuadSize;
+      end;
       LBlock.Y := LBlock.Y + LStepsPerQuad;
     end;
 end;
