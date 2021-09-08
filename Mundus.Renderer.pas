@@ -171,6 +171,8 @@ begin
     LWorker.LowDepthBuffer := @FLowDepthBuffer[LFrontBuffer];
     LWorker.ResolutionX := FResolutionX;
     LWorker.ResolutionY := FResolutionY;
+    LWorker.ZFar := FCamera.ZFar;
+    LWorker.ZNear := FCamera.ZNear;
     LFPS := LWorker.FPS;
     if LFPS < FWorkerFPS then
       FWorkerFPS := LFPS;
@@ -217,7 +219,7 @@ begin
 
     LWorld.MultiplyMatrix4D(LMove);
 
-    LProjection.SetAsPerspectiveProjectionMatrix(0.1, 10000, 0.7, FResolutionX/FResolutionY);
+    LProjection.SetAsPerspectiveProjectionMatrix(FCamera.ZNear, FCamera.ZFar, FCamera.FOV, FResolutionX/FResolutionY);
     LProjection.MultiplyMatrix4D(LWorld);
 
     LCall.Shader := TOcclusionShader;
@@ -239,7 +241,7 @@ begin
 
     LWorld.MultiplyMatrix4D(LMove);
 
-    LProjection.SetAsPerspectiveProjectionMatrix(0.1, 10000, 0.7, FResolutionX/FResolutionY);
+    LProjection.SetAsPerspectiveProjectionMatrix(FCamera.ZNear, FCamera.ZFar, FCamera.ZFar, FResolutionX/FResolutionY);
     LProjection.MultiplyMatrix4D(LWorld);
 
     LCall.Shader := LMesh.Shader;

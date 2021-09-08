@@ -34,6 +34,8 @@ type
     FDepthBuffer: PDepthsBuffer;
     FLowDepthBuffer: PDepthsBuffer;
     FShaderCache: TShaderCache;
+    FZNear: Single;
+    FZFar: Single;
     procedure SetResolutionX(const Value: Integer);
     procedure SetResolutionY(const Value: Integer);
     function GetFPS: Integer;
@@ -50,6 +52,8 @@ type
     property BlockOffset: Integer read FBlockOffset write FBlockOffset;
     property ResolutionX: Integer read FResolutionX write SetResolutionX;
     property ResolutionY: Integer read FResolutionY write SetResolutionY;
+    property ZNear: Single read FZNear write FZNear;
+    property ZFar: Single read FZFar write FZFar;
     property PixelBuffer: TPixelBuffer read FPixelBuffer write FPixelBuffer;
     property DepthBuffer: PDepthsBuffer read FDepthBuffer write FDepthBuffer;
     property LowDepthBuffer: PDepthsBuffer read FLowDepthBuffer write FLowDepthBuffer;
@@ -94,6 +98,9 @@ var
   LRasterizer: TRasterizer;
   LRenderTarget: Pointer;
   LFirstDepth, LFirstLowDepth: System.PSingle;
+  LZRange: Single;
+  LZMul: Single;
+  LZAdd: Single;
 begin
   while not Terminated do
   begin
@@ -106,6 +113,9 @@ begin
       LFirstLowDepth := @FLowDepthBuffer^[0];
       Inc(LFirstDepth, (FPixelBuffer.Height-1)*FPixelBuffer.Width);
       Inc(LFirstLowDepth, (((FPixelBuffer.Height+7) div 8) - 1) * ((FPixelBuffer.Width+7) div 8));
+      LZRange := FZFar - FZNear;
+      LZMul := LZRange / 2.0;
+      LZAdd := (FZFar+FZNear) / 2.0;
       for i := 0 to Pred(FDrawCalls.Count) do
       begin
         LCall := FDrawCalls[i];
@@ -123,10 +133,16 @@ begin
           //denormalize vectors to screenpos
           LVertexA.Element[0] := (1-LVertexA.Element[0]) * FHalfResolutionX;//half screen size
           LVertexA.Element[1] := (1-LVertexA.Element[1]) * FHalfResolutionY;
+
           LVertexB.Element[0] := (1-LVertexB.Element[0]) * FHalfResolutionX;
           LVertexB.Element[1] := (1-LVertexB.Element[1]) * FHalfResolutionY;
+
           LVertexC.Element[0] := (1-LVertexC.Element[0]) * FHalfResolutionX;
           LVertexC.Element[1] := (1-LVertexC.Element[1]) * FHalfResolutionY;
+
+          LVertexA.Element[2] := (LVertexA.Element[2]*LZMul + LZAdd) / LZRange;
+          LVertexB.Element[2] := (LVertexB.Element[2]*LZMul + LZAdd) / LZRange;
+          LVertexC.Element[2] := (LVertexC.Element[2]*LZMul + LZAdd) / LZRange;
 
           LRasterizer(
             FMaxResolutionX, FMaxResolutionY,
