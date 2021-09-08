@@ -32,7 +32,7 @@ begin
   FRotation.SetAsIdentMatrix4D;
   FFOV := 0.7;
   FZNear := 1;
-  FZFar := 1000;
+  FZFar := 10000;
 end;
 
 end.
