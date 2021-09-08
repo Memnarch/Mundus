@@ -1,7 +1,12 @@
+
+//const
+//  CPaddingBytes = 15 - SizeOf(TAttributes) mod 16;
 type
-  {$ALIGN 16}
+  {$Align 16}
   TBlockAttributes = record
-    StepA, StepB, StepD: TAttributes;
+    StepA: TAttributes;
+    StepB: TAttributes;
+    StepD: TAttributes;
     AttributesDenormalized: TAttributes; //only used in HalfBlock
     X, Y: Integer;
     ZValues: TFloat3;
@@ -196,7 +201,7 @@ begin
   LMaxDepth := Max(AVerctorA.Z, Max(AvectorB.Z, AvectorC.Z));
   LLowDepthLineLength := - (((AMaxResolutionX+1) + 7) div 8);
   //get a 16Byte aligned pointer to our BlockMemory
-  LBlock := Pointer(NativeInt(@LBlockMemory) + NativeInt(@LBlockMemory) mod 16);
+  LBlock := Pointer(NativeInt(@LBlockMemory) + (16-NativeInt(@LBlockMemory) mod 16));
   //calculate attribute factors
   Factorize(AVerctorA, AvectorB, AvectorC, AAttributesA, AAttributesB, AAttributesC, @LBlock.StepA, @LBlock.StepB, @LBlock.StepD, LBlock.ZValues, SizeOf(TAttributes));
   LBlock.LineLength := -(AMaxResolutionX+1);
