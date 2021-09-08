@@ -1,7 +1,9 @@
 type
-  TBlockAttributes = packed record
-    X, Y: Integer;
+  {$ALIGN 16}
+  TBlockAttributes = record
     StepA, StepB, StepD: TAttributes;
+    AttributesDenormalized: TAttributes; //only used in HalfBlock
+    X, Y: Integer;
     ZValues: TFloat3;
     ShaderInstance: Shader;
     FirstPixel: PRGB32;
@@ -15,6 +17,9 @@ var
   LDenormalizeZY, LDenormalizeZX: Single;
   i, k: Integer;
   LAttributesDenormalized: TAttributes;
+  {$if SizeOf(TAttributes) > 16}
+  LFactorX, LFactorY: TAttributes;
+  {$endif}
   LPixelX, LPixelY: PRGB32;
   LDepthY, LDepthX: PSingle;
   LX, LY: Single;
@@ -85,7 +90,6 @@ var
   LX: TTrianglePosition;
   i, k: Integer;
   LDenormalizedZ: Single;
-  LStepA, LStepB, LStepD, LAttributesDenormalized: TAttributes;
   LZValues: TFloat3;
 label
   BlockMissed;
@@ -95,9 +99,6 @@ begin
   BlockYEnd := AAttributes.Y + (CQuadSize - 1);
   BlockXEnd := AAttributes.X + (CQuadSize - 1);
   LZValues := AAttributes.ZValues;
-  LStepA := AAttributes.StepA;
-  LStepB := AAttributes.StepB;
-  LStepD := AAttributes.StepD;
   //abuse padding fields to store Pixel-Pointer and increment it along with our X/Y position
   AFixedDeltas._XPadding := AAttributes.LineLength*SizeOf(TRGB32);
   AFixedDeltas._YPadding := -SizeOf(TRGB32);
@@ -140,7 +141,7 @@ begin
         {$B+}
         begin
           {$I InterpolateAttributes.inc}
-          AAttributes.ShaderInstance.Fragment(PRGB32(LX._Padding), @LAttributesDenormalized);
+          AAttributes.ShaderInstance.Fragment(PRGB32(LX._Padding), @AAttributes.AttributesDenormalized);
           if DepthTest = dtWrite then
             LDepthX^ := LDenormalizedZ;
         {$IFDEF ShowZFail}
@@ -184,7 +185,8 @@ var
   LBlockCorners: TBlockCorners;
   LBlockState: TBlockState;
   LX, LY: TTrianglePosition;
-  LBlock: TBlockAttributes;
+  LBlockMemory: array[0..SizeOf(TBlockAttributes)+15] of Byte;
+  LBlock: PBlockAttributes;
   LMinDepth, LMaxDepth: Single;
   LFirstLowDepth: PSingle;
   LLowDepthLineLength: NativeInt;
@@ -193,6 +195,8 @@ begin
   LMinDepth := Min(AVerctorA.Z, Min(AvectorB.Z, AvectorC.Z));
   LMaxDepth := Max(AVerctorA.Z, Max(AvectorB.Z, AvectorC.Z));
   LLowDepthLineLength := - (((AMaxResolutionX+1) + 7) div 8);
+  //get a 16Byte aligned pointer to our BlockMemory
+  LBlock := Pointer(NativeInt(@LBlockMemory) + NativeInt(@LBlockMemory) mod 16);
   //calculate attribute factors
   Factorize(AVerctorA, AvectorB, AvectorC, AAttributesA, AAttributesB, AAttributesC, @LBlock.StepA, @LBlock.StepB, @LBlock.StepD, LBlock.ZValues, SizeOf(TAttributes));
   LBlock.LineLength := -(AMaxResolutionX+1);
@@ -303,7 +307,7 @@ begin
 //             Accept whole block when totally covered
           if LBlockState.IsFullBlock  then
           begin
-            RenderFullBlock(@LBlock);
+            RenderFullBlock(LBlock);
             if DepthTest = dtWrite then
               LFirstLowDepth^ := LMaxDepth;
           end
@@ -314,7 +318,7 @@ begin
             LY._2 := LConstants.C2 + LDeltas.X23 * LBlockCorners.Y0 - LDeltas.Y23 * LBlockCorners.X0;
             LY._3 := LConstants.C3 + LDeltas.X31 * LBlockCorners.Y0 - LDeltas.Y31 * LBlockCorners.X0;
 
-            RenderHalfBlock(@LY, @LFixedDeltas, @LBlock);
+            RenderHalfBlock(@LY, @LFixedDeltas, LBlock);
           end;
         end
         else if LWasSolid then

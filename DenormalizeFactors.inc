@@ -1,13 +1,20 @@
-{$IF SizeOf(TAttributes) = 16}//4 Values
+{$IF SizeOf(TAttributes) >= 16}//4 Values
 asm
   movss xmm0, [LDenormalizeZX]
   shufps xmm0, xmm0, 0
   rcpps xmm0, xmm0
-  mulps xmm0, xmm7
-  movups [LAttributesDenormalized], xmm0
+
+  movups xmm1, xmm7
+  mulps xmm1, xmm0
+  movups dqword ptr [LAttributesDenormalized], xmm1
+  {$IF SizeOf(TAttributes) >= 32}
+  movups xmm1, dqword ptr [LFactorX+16]
+  mulps xmm1, xmm0
+  movups dqword ptr [LAttributesDenormalized+16], xmm1
+  {$ifend}
 end;
-{$else}
-{$if SizeOf(TAttributes) > 0}
-{$Message Error 'Unsupported Shader Attributesize'}
 {$ifend}
+
+{$IF SizeOf(TAttributes) > 32}
+  {$Message Error 'Unsupported Shader Attributesize'}
 {$ifend}

@@ -1,32 +1,56 @@
-{$IF SizeOf(TAttributes) = 16}//4 Values
+{$IF SizeOf(TAttributes) >= 16}//4 Values
 asm
-  //save _AX (eax) for later
-  CVTSI2SS xmm3, [k]
-  //initfactor StepB
-  movups xmm0, [LStepB]
+  //calculate denormalized z for later
+  movss xmm3, [LDenormalizedZ]
+  shufps xmm3, xmm3, 0
+  rcpps xmm3, xmm3
+
+  //first 16
+  //load i
   CVTSI2SS xmm1, [i]
   shufps xmm1, xmm1, 0
+  //initfactor StepB
+  mov eax, [AAttributes]
+  movups xmm0, [eax + TBlockAttributes.StepB]
   mulps xmm0, xmm1
-//  mov eax, [AStepD]
-  movups xmm1, [LStepD]
-  addps xmm0, xmm1
+  //StepD
+  addps xmm0, [eax + TBlockAttributes.StepD]
   //initfactor StepA
-//  mov eax, [AStepA]
-  movups xmm2, [LStepA]
-//  mov eax, ptr dword AX
-
-  shufps xmm3, xmm3, 0
-  mulps xmm2, xmm3
-  addps xmm2, xmm0
-  //denormalize
-  movss xmm1, [LDenormalizedZ]
+  //get k to xmm1
+  CVTSI2SS xmm1, [k]
   shufps xmm1, xmm1, 0
-  rcpps xmm1, xmm1
+  movups xmm2, [eax + TBlockAttributes.StepA]
   mulps xmm2, xmm1
-  movups [LAttributesDenormalized], xmm2
+  addps xmm0, xmm2
+  //denormalize
+  mulps xmm0, xmm3
+  movups dqword ptr [eax + TBlockAttributes.AttributesDenormalized], xmm0
+
+  //next 16
+  {$if SizeOf(TAttributes) >= 32}
+    //load i
+  CVTSI2SS xmm1, [i]
+  shufps xmm1, xmm1, 0
+  //initfactor StepB
+  mov eax, [AAttributes]
+  movups xmm0, [eax + TBlockAttributes.StepB+16]
+  mulps xmm0, xmm1
+  //StepD
+  addps xmm0, [eax + TBlockAttributes.StepD+16]
+  //initfactor StepA
+  //get k to xmm1
+  CVTSI2SS xmm1, [k]
+  shufps xmm1, xmm1, 0
+  movups xmm2, [eax + TBlockAttributes.StepA+16]
+  mulps xmm2, xmm1
+  addps xmm0, xmm2
+  //denormalize
+  mulps xmm0, xmm3
+  movups dqword ptr [eax + TBlockAttributes.AttributesDenormalized + 16], xmm0
+  {$ifend}
 end;
-{$else}
-{$if SizeOf(TAttributes) > 0}
-{$Message Error 'Unsupported Shader Attributesize'}
 {$ifend}
+
+{$if SizeOf(TAttributes) > 32}
+{$Message Error 'Unsupported Shader Attributesize'}
 {$ifend}
