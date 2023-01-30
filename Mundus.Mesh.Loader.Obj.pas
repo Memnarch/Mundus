@@ -25,9 +25,8 @@ type
     class function ParseFace(const AText: string): TFacePoint;
     class procedure AddVertex(var AVertices: TArray<TVector>; const AParts: TStringDynArray; const AFormat: TFormatSettings);
     class procedure AddUV(var AUVs: TArray<TFloat2>; const AParts: TStringDynArray; const AFormat: TFormatSettings);
-    class procedure AddFace(const AMesh: TMesh;
-  const AVertices: TArray<TVector>; const AUVs: TArray<TFloat2>;
-  const AParts: TStringDynArray);
+    class procedure AddFace(const AMesh: TMesh; const AVertices: TArray<TVector>; const AUVs: TArray<TFloat2>; const AParts: TStringDynArray);
+    class procedure NormalizeUVs(const AMesh: TMesh);
     class function IndexOfMaterial(const AMaterials: TArray<TMaterial>; const AName: string): Integer;
   public
     class function CanLoad(const AFileName: string): Boolean; override;
@@ -139,7 +138,10 @@ begin
             if Assigned(LSubMesh) then
             begin
               if Assigned(LSubMesh.Vertices) then
+              begin
+                NormalizeUVs(LSubMesh);
                 Result.Meshes.Add(LSubMesh)
+              end
               else
                 FreeAndNil(LSubMesh);
             end;
@@ -203,6 +205,41 @@ begin
     finally
       LFile.Free;
     end;
+  end;
+end;
+
+class procedure TObjMeshLoader.NormalizeUVs(const AMesh: TMesh);
+var
+  i: Integer;
+  LLowest, LDiff, LUV: TFloat2;
+begin
+  if not Assigned(AMesh.UV) then Exit;
+
+  LLowest := AMesh.UV[0];
+  for i := 1 to High(AMesh.UV) do
+  begin
+    if AMesh.UV[i].U < LLowest.U then
+      LLowest.U := AMesh.UV[i].U;
+    if AMesh.UV[i].V < LLowest.V then
+      LLowest.V := AMesh.UV[i].V;
+  end;
+
+  if (LLowest.U < 0) then
+    LDiff.U := (1+Frac(LLowest.U)) - LLowest.U
+  else
+    LDiff.U := 0;
+
+  if (LLowest.V < 0) then
+    LDiff.V := (1+Frac(LLowest.V)) - LLowest.V
+  else
+    LDiff.V := 0;
+
+  for i := Low(AMesh.UV) to High(AMesh.UV) do
+  begin
+    LUV := AMesh.UV[i];
+    LUV.U := LUV.U + LDiff.U;
+    LUV.V := LUV.V + LDiff.V;
+    AMesh.UV[i] := LUV;
   end;
 end;
 
