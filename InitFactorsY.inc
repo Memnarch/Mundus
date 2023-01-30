@@ -16,4 +16,22 @@ asm
   addps xmm1, [eax + TBlockAttributes.StepD + 16]
   movups dqword ptr [LFactorY + 16], xmm1
   {$ifend}
+
+  {$if SizeOf(TAttributes) >= 48}
+  movups xmm1, [eax + TBlockAttributes.StepB + 32]
+  mulps xmm1, xmm0
+  addps xmm1, [eax + TBlockAttributes.StepD + 32]
+  movups dqword ptr [LFactorY + 32], xmm1
+  {$ifend}
+
+  {$if SizeOf(TAttributes) >= 64}
+  movups xmm1, [eax + TBlockAttributes.StepB + 48]
+  mulps xmm1, xmm0
+  addps xmm1, [eax + TBlockAttributes.StepD + 48]
+  movups dqword ptr [LFactorY + 48], xmm1
+  {$ifend}
 end;
+
+{$IF SizeOf(TAttributes) > 64}
+  {$Message Error 'Unsupported Shader Attributesize'}
+{$ifend}
