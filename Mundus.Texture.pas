@@ -7,6 +7,7 @@ uses
   Types,
   Graphics,
   Mundus.Types,
+  Mundus.Math,
   Math;
 
 {$IFDEF Debug}
@@ -31,7 +32,8 @@ type
     constructor Create;
     destructor Destroy; override;
     procedure LoadFromFile(const AFile: string);
-    procedure SampleDot(const AUV: tfloat2; const ATarget: PRGB32);
+    procedure SampleDot(const AUV: TUV; const ATarget: PRGB32);
+    procedure SampleBilinear(const AUV: TUV; const ATarget: PRGB32);
     property Width: Integer read GetWidth;
     property Height: Integer read GetHeight;
     property MaxX: Integer read GetMaxX;
@@ -152,6 +154,66 @@ begin
   finally
     LTemp.Free;
   end;
+end;
+
+procedure TTexture.SampleBilinear(const AUV: TUV; const ATarget: PRGB32);
+var
+  LLowX, LLowY, LHighX, LHighY: Integer;
+  LLowLeft, LLowRight, LHighLeft, LHighRight: TFloat4;
+  LPixel: TRGB32;
+  LFracX, LFracY: Single;
+begin
+  LLowX := Floor(AUV.U);
+  LLowY := Floor(AUV.V);
+  LHighX := Ceil(AUV.U);
+  LHighY := Ceil(AUV.V);
+  LFracX := Frac(AUV.U);
+  LFracY := Frac(AUV.V);
+  //interpolate low left/right
+  //lower left pixel
+  LPixel := FFirst[(LLowY and FHeightMask) * FLineLengthInPixel + (LLowX and FWidthMask)];
+  LLowLeft.B := LPixel.B;
+  LLowLeft.G := LPixel.G;
+  LLowLeft.R := LPixel.R;
+  LLowLeft.A := LPixel.A;
+  //lower right pixel
+  LPixel := FFirst[(LLowY and FHeightMask) * FLineLengthInPixel + (LHighX and FWidthMask)];
+  LLowRight.B := LPixel.B;
+  LLowRight.G := LPixel.G;
+  LLowRight.R := LPixel.R;
+  LLowRight.A := LPixel.A;
+  //linear interpolate between lower left and lower right
+  LLowLeft.Mul(1-LFracX);
+  LLowRight.Mul(LFracX);
+  LLowLeft.Add(LLowRight);
+
+  //interpolate high left/right
+  //high left pixel
+  LPixel := FFirst[(LHighY and FHeightMask) * FLineLengthInPixel + (LLowX and FWidthMask)];
+  LHighLeft.B := LPixel.B;
+  LHighLeft.G := LPixel.G;
+  LHighLeft.R := LPixel.R;
+  LHighLeft.A := LPixel.A;
+  //high right pixel
+  LPixel := FFirst[(LHighY and FHeightMask) * FLineLengthInPixel + (LHighX and FWidthMask)];
+  LHighRight.B := LPixel.B;
+  LHighRight.G := LPixel.G;
+  LHighRight.R := LPixel.R;
+  LHighRight.A := LPixel.A;
+  //linear interpolate between high left and high right
+  LHighLeft.Mul(1-LFracX);
+  LHighRight.Mul(LFracX);
+  LHighLeft.Add(LHighRight);
+
+//  //interpolate between low and high results
+  LLowLeft.Mul(1-LFracY);
+  LHighLeft.Mul(LFracY);
+  LLowLeft.Add(LHighLeft);
+  //output
+  ATarget.B := Trunc(LLowLeft.B);
+  ATarget.G := Trunc(LLowLeft.G);
+  ATarget.R := Trunc(LLowLeft.R);
+  ATarget.A := Trunc(LLowLeft.A);
 end;
 
 procedure TTexture.SampleDot(const AUV: TUV; const ATarget: PRGB32);
