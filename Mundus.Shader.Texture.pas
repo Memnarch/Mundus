@@ -14,20 +14,23 @@ uses
   Mundus.ValueBuffer;
 
 type
-  TTexturePSInput = record
-    UV: TFloat2;
+  TTexturePSInput = packed record
+    UV: TUV;
     Padding: TFloat2;
   end;
 
   TTextureShader = class sealed(TShader<TTexturePSInput>)
   private
-    FUVs: ^TFloat2;
+    FUVs: TArray<TFloat2>;
     FTexture: TTexture;
   public
     procedure BindBuffer(const ABuffer: PValueBuffers); override;
     procedure Vertex(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: TShader<TTexturePSInput>.PAttributeType); override; final;
     procedure Fragment(const APixel: PRGB32; const PSInput: TShader<TTexturePSInput>.PAttributeType); override; final;
     class function GetRasterizer: TRasterizer; override; final;
+  published
+    property UV0: TArray<TFloat2> read FUVs write FUVs;
+    property Tex0: TTexture read FTexture write FTexture;
   end;
 
 implementation
@@ -44,28 +47,13 @@ uses
 procedure TTextureShader.BindBuffer(const ABuffer: PValueBuffers);
 begin
   inherited;
-  FUVs := @ABuffer.Float2Array[ABuffer.Float2Array.GetBinding('UV0')][0];
+  FUVs := ABuffer.Float2Array[ABuffer.Float2Array.GetBinding('UV0')];
   FTexture := ABuffer.Texture[ABuffer.Texture.GetBinding('Tex0')];
 end;
 
 procedure TTextureShader.Fragment(const APixel: PRGB32; const PSInput: TShader<TTexturePSInput>.PAttributeType);
-var
-  LTexX, LTextY: Integer;
-const
-  sizeofsingle = sizeof(single);
 begin
-  //truncate from single to int without using trunc which is a function and sloooow
-  asm
-    mov eax, [PSInput]
-    movss xmm0, [eax]
-    //SizeOf(SIngle) results in $31 instead of $4 wtf delphi?
-    movss xmm1, [eax + SizeOfSingle]
-    cvttss2si eax, xmm0
-    mov LTexX, eax
-    cvttss2si eax, xmm1
-    mov LTextY, eax
-  end;
-  FTexture.Sample(LTexX, LTextY, APixel);
+  FTexture.SampleDot(PSInput.UV, APixel);
 end;
 
 type

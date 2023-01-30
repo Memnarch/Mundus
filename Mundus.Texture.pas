@@ -31,7 +31,7 @@ type
     constructor Create;
     destructor Destroy; override;
     procedure LoadFromFile(const AFile: string);
-    procedure Sample(AX, AY: Integer; const ATarget: PRGB32); inline;
+    procedure SampleDot(const AUV: tfloat2; const ATarget: PRGB32);
     property Width: Integer read GetWidth;
     property Height: Integer read GetHeight;
     property MaxX: Integer read GetMaxX;
@@ -41,6 +41,7 @@ type
 implementation
 
 uses
+  jpeg,
   PngImage,
   SysUtils;
 
@@ -153,9 +154,42 @@ begin
   end;
 end;
 
-procedure TTexture.Sample(AX, AY: Integer; const ATarget: PRGB32);
-begin
-  ATarget^ := FFirst[(AY and FHeightMask) * FLineLengthInPixel + (AX and FWidthMask)];
+procedure TTexture.SampleDot(const AUV: TUV; const ATarget: PRGB32);
+asm
+  //eax = Self
+  //edx = AUV
+  //ecx = ATarget
+
+  //save ebx to get another scratch register
+  push ebx
+
+  //mov U(X) & V(Y) into simd registers
+  movss xmm0, [edx + TUV.U]
+  movss xmm1, [edx + TUV.V]
+
+  //Truncate V and store in edx
+  cvttss2si edx, xmm1
+  //wrap V by Height
+  and edx, [eax + TTexture.FHeightMask]
+  //calculate total number of pixel on V
+  imul edx, [eax + TTexture.FLineLengthInPixel]
+
+  //Truncate U and store in ecx
+  cvttss2si ebx, xmm0
+  //Wrap by Width
+  and ebx, [eax + TTexture.FWidthMask]
+  //SUM U/V position in Texture
+  add ebx, edx
+
+  //dereference to FFirst
+  mov eax, [eax + TTexture.FFirst]
+  //copy pixel at calculate location i.e. FFirst[Index]. 4 is the size of TRGB32 in bytes
+  mov ebx, [eax + ebx*4]
+  //copy pixelvalues to Target
+  mov [ATarget], ebx
+
+  //restore ebx
+  pop ebx
 end;
 
 end.

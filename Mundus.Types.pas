@@ -35,7 +35,7 @@ type
 
   PVector = ^TVector;
 
-  TUV = record
+  TUV = packed record
     U, V: Single;
   end;
 
