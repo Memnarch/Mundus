@@ -29,9 +29,8 @@ implementation
 
 uses
   Math,
-  Mundus.Rasterizer;
-
-  {$PointerMath On}
+  Mundus.Rasterizer.Types,
+  Mundus.Rasterizer.Helper;
 
 const
   CDenormalizer: TFloat4 = (B: 255; G: 255; R: 255; A: 255);
@@ -69,9 +68,20 @@ asm
   PEXTRD [APixel], xmm2, 0
 end;
 
+type
+  TAttributes = TGradientPSInput;
+  Shader = TVertexGradientShader;
+
+const
+  DepthTest = dtNone;
+
+{$i Rasterizer.inc}
+
+{$PointerMath On}
+
 class function TVertexGradientShader.GetRasterizer: TRasterizer;
 begin
-  Result := TRasterizer(@TRasterizerFactory<TGradientPSInput, TVertexGradientShader, TNoDepth>.RasterizeTriangle);
+  Result := @RasterizeTriangle;
 end;
 
 procedure TVertexGradientShader.Vertex(const AWorld, AProjection: TMatrix4x4;

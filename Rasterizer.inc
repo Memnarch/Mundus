@@ -1,4 +1,6 @@
 
+{$POINTERMATH ON}
+{$EXCESSPRECISION OFF}
 //const
 //  CPaddingBytes = 15 - SizeOf(TAttributes) mod 16;
 type
@@ -17,6 +19,7 @@ type
   end;
   PBlockAttributes = ^TBlockAttributes;
 
+{$IFDEF CPUX86}
 procedure RenderFullBlock(const AAttributes: PBlockAttributes);
 var
   LDenormalizeZY, LDenormalizeZX: Single;
@@ -36,13 +39,16 @@ begin
   {$i SetupRegisters.inc}
   {$i InitFactorsY.inc}
 
-  //LDenormalizeZY := LZValues.Y * LY + LZValues.Z;
+  {$IFDEF CPUX86}
   asm
     movss xmm0, [LZValues.Y]
     mulss xmm0, [LY]
     addss xmm0, [LZValues.Z]
     movss [LDenormalizeZY], xmm0
   end;
+  {$ELSE}
+  LDenormalizeZY := LZValues.Y * LY + LZValues.Z;
+  {$IFEND}
 
   LPixelY := AAttributes.FirstPixel;
   if DepthTest <> dtNone then
@@ -51,13 +57,16 @@ begin
   begin
     {$i InitFactorsX.Inc}
 
-    //LDenormalizeZX := LZValues.X * LX + LDenormalizeZY;
+    {$IFDEF CPUX86}
     asm
       movss xmm0, [LZValues.X]
       mulss xmm0, [LX]
       addss xmm0, [LDenormalizeZY]
       movss [LDenormalizeZX], xmm0
     end;
+    {$ELSE}
+    LDenormalizeZX := LZValues.X * LX + LDenormalizeZY;
+    {$ENDIF}
 
     LPixelX := LPixelY;
     if DepthTest <> dtNone then
@@ -81,12 +90,15 @@ begin
       end;
       {$i StepFactorsX.inc}
 
-      //LDenormalizeZX := LDenormalizeZX + LZValues.X;
+      {$IFDEF CPUX86}
       asm
         movss xmm0, [LDenormalizeZX]
         addss xmm0, LZValues.X
         movss [LDenormalizeZX], xmm0
       end;
+      {$ELSE}
+      LDenormalizeZX := LDenormalizeZX + LZValues.X;
+      {$ENDIF}
 
       if DepthTest <> dtNone then
         Inc(LDepthX);
@@ -94,18 +106,73 @@ begin
     end;
     {$i StepFactorsY.inc}
 
-    //LDenormalizeZY := LDenormalizeZY + LZValues.Y;
+    {$IFDEF CPUX86}
     asm
       movss xmm0, [LDenormalizeZY]
       addss xmm0, [LZValues.Y]
       movss [LDenormalizeZY], xmm0
     end;
+    {$ELSE}
+    LDenormalizeZY := LDenormalizeZY + LZValues.Y;
+    {$ENDIF}
 
     if DepthTest <> dtNone then
       Inc(LDepthY, AAttributes.LineLength);
     Inc(LPixelY, AAttributes.LineLength);
   end;
 end;
+{$ELSE}
+procedure RenderFullBlock(const AAttributes: PBlockAttributes);
+var
+  LDenormalizeZY, LDenormalizeZX: Single;
+  i, k: Integer;
+  LAttributesX, LAttributesY, LAttributesDenormalized: TAttributes;
+  LPixelX, LPixelY: PRGB32;
+  LDepthY, LDepthX: PSingle;
+begin
+  InitFactors(@AAttributes.StepB, AAttributes.Y, @LAttributesY, @AAttributes.StepD, SizeOf(TAttributes));
+  LDenormalizeZY := AAttributes.ZValues.Y * AAttributes.Y + AAttributes.ZValues.Z;
+  LPixelY := AAttributes.FirstPixel;
+  if DepthTest <> dtNone then
+    LDepthY := AAttributes.FirstDepth;
+  for i := AAttributes.Y to AAttributes.Y + (CQuadSize - 1) do
+  begin
+    InitFactors(@AAttributes.StepA, AAttributes.X, @LAttributesX, @LAttributesY, SizeOf(TAttributes));
+    LDenormalizeZX := AAttributes.ZValues.X * AAttributes.X + LDenormalizeZY;
+    LPixelX := LPixelY;
+    if DepthTest <> dtNone then
+      LDepthX := LDepthY;
+    for k := AAttributes.X to AAttributes.X + (CQuadSize - 1) do
+    begin
+      {$B-}
+      if (DepthTest = dtNone) or (LDenormalizeZX <= LDepthX^) then
+      {$B+}
+      begin
+        DenormalizeFactors(@LAttributesDenormalized, @LAttributesX, LDenormalizeZX, SizeOf(TAttributes));
+        AAttributes.ShaderInstance.Fragment(LPixelX, @LAttributesDenormalized);
+        if DepthTest = dtWrite then
+          LDepthX^ := LDenormalizeZX;
+      {$IFDEF ShowZFail}
+      end
+      else
+      begin
+        LPixelX.R := 200;
+      {$EndIF}
+      end;
+      StepFactors(@AAttributes.StepA, @LAttributesX, SizeOf(TAttributes));
+      LDenormalizeZX := LDenormalizeZX + AAttributes.ZValues.X;
+      if DepthTest <> dtNone then
+        Inc(LDepthX);
+      Inc(LPixelX);
+    end;
+    StepFactors(@AAttributes.StepB, @LAttributesY, SizeOf(TAttributes));
+    LDenormalizeZY := LDenormalizeZY + AAttributes.ZValues.Y;
+    if DepthTest <> dtNone then
+      Inc(LDepthY, AAttributes.LineLength);
+    Inc(LPixelY, AAttributes.LineLength);
+  end;
+end;
+{$ENDIF}
 
 const
   CSignByteMask: array[0..15] of Byte = (
@@ -115,6 +182,7 @@ const
     128, 128, 128, 128
   );
 
+{$IFDEF CPUX86}
 procedure RenderHalfBlock(
       APosY: PTrianglePosition;
       AFixedDeltas: PHalfSpaceDeltas;
@@ -131,6 +199,7 @@ label
 begin
   if DepthTest <> dtNone then
     LDepthY := AAttributes.FirstDepth;
+
   BlockYEnd := AAttributes.Y + (CQuadSize - 1);
   BlockXEnd := AAttributes.X + (CQuadSize - 1);
   LZValues := AAttributes.ZValues;
@@ -139,6 +208,7 @@ begin
   AFixedDeltas._YPadding := -SizeOf(TRGB32);
   APosY._Padding := Integer(AAttributes.FirstPixel);
   //LX, LY, DeltaX, DeltaY will be kept in sse registers
+
   asm
     mov eax, APosY
     movdqu xmm6, [eax];
@@ -146,6 +216,7 @@ begin
     movdqu xmm5, [eax + THalfSpaceDeltas.X12]
     movdqu xmm4, [eax + THalfSpaceDeltas.Y12]
   end;
+
   for i := AAttributes.Y to BlockYEnd do
   begin
     asm movdqu xmm7, xmm6 end;
@@ -171,6 +242,15 @@ begin
       end;
       begin
         LDenormalizedZ := ((LZValues.Y*i + LZValues.Z) + LZValues.X * k);
+//        asm
+//          CVTSI2SS xmm0, i
+//          mulss xmm0, [LZValues.Y]
+//          addss xmm0, [LZValues.Z]
+//          CVTSI2SS xmm1, k
+//          mulss xmm1, [LZValues.X]
+//          addss xmm0, xmm1
+//          movss [LDenormalizedZ], xmm0
+//        end;
         {$B-}
         if (DepthTest = dtNone) or (LDenormalizedZ <= LDepthX^) then
         {$B+}
@@ -198,6 +278,73 @@ begin
       Inc(LDepthY, AAttributes.LineLength);
   end;
 end;
+{$ELSE}
+procedure RenderHalfBlock(
+      APosY: PTrianglePosition;
+      AFixedDeltas: PHalfSpaceDeltas;
+      const AAttributes: PBlockAttributes);
+var
+  LPixelX, LPixelY: PRGB32;
+  LDepthX, LDepthY: PSingle;
+  BlockXEnd, BlockYEnd: Integer;
+  LX, LY: TTrianglePosition;
+  i, k: Integer;
+  LDenormalizedZ: Single;
+  LAttributesDenormalized: TAttributes;
+begin
+  LPixelY := AAttributes.FirstPixel;
+  if DepthTest <> dtNone then
+    LDepthY := AAttributes.FirstDepth;
+  BlockYEnd := AAttributes.Y + (CQuadSize - 1);
+  BlockXEnd := AAttributes.X + (CQuadSize - 1);
+  LY := APosY^;
+  for i := AAttributes.Y to BlockYEnd do
+  begin
+    LX._1 := LY._1;
+    LX._2 := LY._2;
+    LX._3 := LY._3;
+    LPixelX := LPixelY;
+    if DepthTest <> dtNone then
+      LDepthX := LDepthY;
+    for k := AAttributes.X to BlockXEnd do
+    begin
+      if (LX._1 or LX._2 or LX._3) >= 0 then
+      begin
+        LDenormalizedZ := ((AAttributes.ZValues.Y*i + AAttributes.ZValues.Z) + AAttributes.ZValues.X * k);
+        {$B-}
+        if (DepthTest = dtNone) or (LDenormalizedZ <= LDepthX^) then
+        {$B+}
+        begin
+          InterpolateAttributes(k, i, @LAttributesDenormalized, @AAttributes.StepA, @AAttributes.StepB, @AAttributes.StepD, LDenormalizedZ, SizeOf(TAttributes));
+          AAttributes.ShaderInstance.Fragment(LPixelX, @LAttributesDenormalized);
+          if DepthTest = dtWrite then
+            LDepthX^ := LDenormalizedZ;
+        {$IFDEF ShowZFail}
+        end
+        else
+        begin
+          LPixelX.R := 200;
+        {$ENDIF}
+        end;
+      end;
+
+      LX._1 := LX._1 - AFixedDeltas.Y12;
+      LX._2 := LX._2 - AFixedDeltas.Y23;
+      LX._3 := LX._3 - AFixedDeltas.Y31;
+      Inc(LPixelX);
+      if DepthTest <> dtNone then
+        Inc(LDepthX);
+    end;
+
+    LY._1 := LY._1 + AFixedDeltas.X12;
+    LY._2 := LY._2 + AFixedDeltas.X23;
+    LY._3 := LY._3 + AFixedDeltas.X31;
+    Inc(LPixelY, AAttributes.LineLength);
+    if DepthTest <> dtNone then
+      Inc(LDepthY, AAttributes.LineLength);
+  end;
+end;
+{$ENDIF}
 
 procedure RasterizeTriangle(
       AMaxResolutionX, AMaxResolutionY: Integer;
@@ -205,8 +352,8 @@ procedure RasterizeTriangle(
       const AAttributesA, AAttributesB, AAttributesC: Pointer;
       AShader: Shader;
       APixelBuffer: PRGB32Array;
-      ADepthBuffer: PDepthsBuffer;
-      ALowDepthBuffer: PDepthsBuffer;
+      ADepthBuffer: PSingle;
+      ALowDepthBuffer: PSingle;
       ABlockOffset, ABlockStep: Integer);
 var
   Y1, Y2, Y3, X1, X2, X3: Integer;
@@ -363,3 +510,5 @@ begin
       LBlock.Y := LBlock.Y + LStepsPerQuad;
     end;
 end;
+
+{$POINTERMATH OFF}

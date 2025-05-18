@@ -53,7 +53,6 @@ type
   public
     type
       PAttributeType = ^T;
-    class function GetRasterizer: TRasterizer; override;
     class function GetAttributeBufferSize: Integer; override;
     procedure VertexShader(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: Pointer); override;
     procedure Vertex(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: PAttributeType); virtual;
@@ -67,7 +66,8 @@ type
 implementation
 
 uses
-  Mundus.Rasterizer;
+  System.TypInfo,
+  System.Rtti;
 
 function PointF(X, Y: Single): TPointF;
 begin
@@ -107,11 +107,6 @@ end;
 class function TShader<T>.GetAttributeBufferSize: Integer;
 begin
   Result := SizeOf(T);
-end;
-
-class function TShader<T>.GetRasterizer: TRasterizer;
-begin
-  Result := TRasterizer(@TRasterizerFactory<T, TShader<T>, TNoDepth>.RasterizeTriangle);
 end;
 
 procedure TShader<T>.Vertex(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: PAttributeType);

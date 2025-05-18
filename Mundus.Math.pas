@@ -620,6 +620,7 @@ asm
 end;
 
 procedure TFloat3.Mul(const AFactor: Single);
+{$IFDEF CPUX86}
 asm
   //load xy
   movq xmm0, [Self]
@@ -636,11 +637,14 @@ asm
   extractps [Self.Z], xmm0, 3 shl 0
   //extract xy
   movq [Self], xmm0
-//begin
-//  X := X * AFactor;
-//  Y := Y * AFactor;
-//  Z := Z * AFactor;
 end;
+{$ELSE}
+begin
+  X := X * AFactor;
+  Y := Y * AFactor;
+  Z := Z * AFactor;
+end;
+{$ENDIF}
 
 procedure TFloat3.CalculateSurfaceNormal(const AVecA, AVecB, AVecC: TFloat3);
 var

@@ -61,7 +61,6 @@ implementation
 
 uses
   Windows,
-  Mundus.Rasterizer,
   Mundus.Shader;
 
 { TRenderWorker }

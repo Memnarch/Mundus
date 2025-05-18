@@ -1,3 +1,4 @@
+{$IFDEF CPUX86}
 {$IF SizeOf(TAttributes) >= 16}//4 Values
 asm
   //calculate denormalized z for later
@@ -96,3 +97,5 @@ end;
 {$if SizeOf(TAttributes) > 64}
 {$Message Error 'Unsupported Shader Attributesize'}
 {$ifend}
+
+{$ENDIF}

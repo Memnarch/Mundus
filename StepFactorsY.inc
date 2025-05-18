@@ -1,3 +1,4 @@
+{$IFDEF CPUX86}
 asm
 
   addps xmm6, xmm4
@@ -25,3 +26,4 @@ end;
 {$IF SizeOf(TAttributes) > 64}
   {$Message Error 'Unsupported Shader Attributesize'}
 {$ifend}
+{$ENDIF}

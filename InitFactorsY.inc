@@ -1,3 +1,4 @@
+{$IFDEF CPUX86}
 asm
   movss xmm0, [LY]
 //  //set all parts of xmm0 to the value in the lowest part of xmm1
@@ -35,3 +36,4 @@ end;
 {$IF SizeOf(TAttributes) > 64}
   {$Message Error 'Unsupported Shader Attributesize'}
 {$ifend}
+{$ENDIF}

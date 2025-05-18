@@ -47,6 +47,8 @@ uses
   PngImage,
   SysUtils;
 
+{$EXCESSPRECISION OFF}
+
 { TTexture }
 
 procedure TTexture.CalculateMaskAndSize(AValue: Integer; out AMask, ADesiredSize: Integer);
@@ -217,6 +219,7 @@ begin
 end;
 
 procedure TTexture.SampleDot(const AUV: TUV; const ATarget: PRGB32);
+{$IFDEF CPUX86}
 asm
   //eax = Self
   //edx = AUV
@@ -253,5 +256,39 @@ asm
   //restore ebx
   pop ebx
 end;
+{$ELSE}
+asm
+  //rcx = Self
+  //rdx = AUV
+  //r8 = ATarget
+
+
+  //r10 U
+  //r11 V
+  cvttss2si r10d, [rdx + TUV.U];
+  cvttss2si r11d, [rdx + TUV.V];
+  //Truncate V and store in edx
+
+  //wrap V by Height
+  and r11d, [rcx + TTexture.FHeightMask]
+  //calculate total number of pixel on V
+  imul r11d, [rcx + TTexture.FLineLengthInPixel]
+
+  //Wrap by Width
+  and r10d, [rcx + TTexture.FWidthMask]
+  //SUM U/V position in Texture
+  add r11d, r10d
+
+  //dereference to FFirst
+  mov rax, [rcx + TTexture.FFirst]
+  //copy pixel at calculate location i.e. FFirst[Index]. 4 is the size of TRGB32 in bytes
+  mov edx, [rax + r11*4]
+  //copy pixelvalues to Target
+  mov dword ptr [ATarget], edx
+end;
+//begin
+//  ATarget^ := FFirst[(Trunc(AUV.V) and FHeightMask) * FLineLengthInPixel + (Trunc(AUV.U) and FWidthMask)];
+//end;
+{$ENDIF}
 
 end.

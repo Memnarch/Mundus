@@ -53,6 +53,7 @@ implementation
 {$B+}
 
 procedure DenormalizeFactors4(ATarget, ASource: PSingle; AZ: Single);
+{$IFDEF CPUX86}
 asm
   movups xmm0, [ASource]
   movss xmm1, [AZ]
@@ -61,6 +62,16 @@ asm
   mulps xmm0, xmm1
   movups [ATarget], xmm0
 end;
+{$ELSE}
+asm
+  movups xmm0, [ASource]
+  movss xmm1, AZ
+  shufps xmm1, xmm1, 0
+  rcpps xmm1, xmm1
+  mulps xmm0, xmm1
+  movups [ATarget], xmm0
+end;
+{$ENDIF}
 
 procedure DenormalizeFactors(
         ATarget: PSingle;
@@ -110,6 +121,7 @@ procedure InitFactors4(
         const ATarget: PSingle;
         const AAdd: PSingle
       );
+{$IFDEF CPUX86}
 asm
 //  mov eax, [AMultiplier]
   CVTSI2SS xmm0, AMultiplier
@@ -124,6 +136,22 @@ asm
   mov eax, ATarget
   movups [eax], xmm1
 end;
+{$ELSE}
+asm
+//  mov eax, [AMultiplier]
+  CVTSI2SS xmm0, AMultiplier
+//  //set all parts of xmm0 to the value in the lowest part of xmm1
+  shufps xmm0, xmm0, 0
+//  mov eax, [ABase];
+  movups xmm1, [ABase]
+//  mov rax, [AAdd]
+  movups xmm2, [AAdd]
+  mulps xmm1, xmm0
+  addps xmm1, xmm2
+  mov rax, ATarget
+  movups [rax], xmm1
+end;
+{$ENDIF}
 
 procedure InitFactors(
         const ABase: PSingle;
@@ -143,6 +171,7 @@ end;
 //                      LDenormalizeZX := LStepsZ.X * k + LDenormalizeZY;
 //                      DenormalizeFactors<TAttributes>(@LAttributesDenormalized, @LAttributesX, LDenormalizeZX);
 procedure InterpolateAttributes4(const _AX, AY: PInteger; ATarget, AStepA, AStepB, AStepD: PSingle; AZ: Single);
+{$IFDEF CPUX86}
 asm
   //save _AX (eax) for later
   CVTSI2SS xmm3, [_AX]
@@ -170,6 +199,35 @@ asm
   mulps xmm2, xmm1
   movups [ATarget], xmm2
 end;
+{$ELSE}
+asm
+  //save _AX (rax) for later
+  CVTSI2SS xmm3, [_AX]
+  //initfactor StepB
+  mov rax, [AStepB]
+  movups xmm0, [rax]
+  CVTSI2SS xmm1, [AY]
+  shufps xmm1, xmm1, 0
+  mulps xmm0, xmm1
+  mov rax, [AStepD]
+  movups xmm1, [rax]
+  addps xmm0, xmm1
+  //initfactor StepA
+//  mov rax, [AStepA]
+  movups xmm2, [AStepA]
+//  mov eax, ptr dword AX
+
+  shufps xmm3, xmm3, 0
+  mulps xmm2, xmm3
+  addps xmm2, xmm0
+  //denormalize
+  movss xmm1, [AZ]
+  shufps xmm1, xmm1, 0
+  rcpps xmm1, xmm1
+  mulps xmm2, xmm1
+  movups [ATarget], xmm2
+end;
+{$ENDIF}
 
 procedure InterpolateAttributes(AX, AY: Integer; ATarget, AStepA, AStepB, AStepD: PSingle; const AZValue: Single; const AAttributeSize: Integer);
 begin

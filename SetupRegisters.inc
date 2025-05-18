@@ -1,5 +1,6 @@
 //XMM7 represents LAttributesX
 //XMM6 represents LAttributesY
+{$IFDEF CPUX86}
 asm
   mov eax, [AAttributes]
   movups xmm5, [eax + TBlockAttributes.StepA]
@@ -9,3 +10,4 @@ asm
   CVTSI2SS xmm0, [eax + TBlockAttributes.Y]
   movss [LY], xmm0
 end;
+{$ENDIF}

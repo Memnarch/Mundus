@@ -25,7 +25,9 @@ type
 implementation
 
 uses
-  Mundus.Rasterizer;
+  System.Math,
+  Mundus.Rasterizer.Types,
+  Mundus.Rasterizer.Helper;
 
 { TDepthColorShader }
 
@@ -46,9 +48,18 @@ asm
   PEXTRD [APixel], xmm2, 0
 end;
 
+type
+  TAttributes = TDepthPSInput;
+  Shader = TDepthColorShader;
+
+const
+  DepthTest = dtNone;
+
+{$I Rasterizer.inc}
+
 class function TDepthColorShader.GetRasterizer: TRasterizer;
 begin
-  Result := TRasterizer(@TRasterizerFactory<TDepthPSInput, TDepthColorShader, TNoDepth>.RasterizeTriangle);
+  Result := @RasterizeTriangle;
 end;
 
 procedure TDepthColorShader.Vertex(const AWorld, AProjection: TMatrix4x4;

@@ -45,7 +45,6 @@ type
     FWorkerFPS: Integer;
     FCamera: TCamera;
     FOnInitValueBuffer: TInitBufferEvent;
-    FOccluders: TObjectList<TMesh>;
     FShaderCache: TShaderCache;
     procedure SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);
     procedure ClearDepthBuffer(ABuffer: Boolean);
@@ -66,7 +65,6 @@ type
     procedure RenderFrame(ACanvas: TCanvas);
     function GetCurrentFPS(): Integer;
     property MeshList: TObjectList<TMesh> read FMeshList;
-    property Occluders: TObjectList<TMesh> read FOccluders;
     property OnAfterFrame: TRenderEvent read FOnAfterFrame write FOnAfterFrame;
     property ResolutionX: Integer read FResolutionX;
     property ResolutionY: Integer read FResolutionY;
@@ -85,9 +83,7 @@ uses
   Mundus.Shader.VertexGradient,
   Mundus.Shader.DepthColor,
   Mundus.Shader.Texture,
-  Mundus.Rasterizer,
-  Mundus.Renderer.Clipping,
-  Mundus.Shader.Occlusion;
+  Mundus.Renderer.Clipping;
 
 { TSoftwareRenderer }
 
@@ -119,7 +115,6 @@ begin
   FCamera := TCamera.Create();
   SetResolution(512, 512);
   FMeshList := TObjectList<TMesh>.Create(False);
-  FOccluders := TObjectList<TMesh>.Create(False);
   FShaderCache := TShaderCache.Create();
 
   FTimer := TStopWatch.Create(False);
@@ -133,7 +128,6 @@ begin
   TerminateWorkers;
   FWorkers.Free;
   FMeshList.Free;
-  FOccluders.Free;
   FBackBuffer[True].Free();
   FBackBuffer[False].Free();
   FDrawCalls[True].Free;
@@ -202,27 +196,6 @@ var
 begin
   Result := FDrawCalls[not FCurrentBuffer];
   Result.Reset;
-  for LMesh in FOccluders do
-  begin
-    LCall := Result.Add;
-    LWorld := AViewMatrix;
-    LRotationX.SetAsRotationXMatrix(DegToRad(LMesh.Rotation.X));
-    LRotationY.SetAsRotationYMatrix(DegToRad(LMesh.Rotation.Y));
-    LRotationZ.SetAsRotationZMatrix(DegToRad(LMesh.Rotation.Z));
-
-    LMove.SetAsMoveMatrix(LMesh.Position.X, LMesh.Position.Y, LMesh.Position.Z);
-    LMove.MultiplyMatrix4D(LRotationX);
-    LMove.MultiplyMatrix4D(LRotationY);
-    LMove.MultiplyMatrix4D(LRotationZ);
-
-    LWorld.MultiplyMatrix4D(LMove);
-
-    LProjection.SetAsPerspectiveProjectionMatrix(FCamera.ZNear, FCamera.ZFar, FCamera.FOV, FResolutionX/FResolutionY);
-    LProjection.MultiplyMatrix4D(LWorld);
-
-    LCall.Shader := TOcclusionShader;
-    TransformMesh(LMesh, LWorld, LProjection, LCall);
-  end;
 
   for LMesh in FMeshList do
   begin

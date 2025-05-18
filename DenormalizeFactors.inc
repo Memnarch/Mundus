@@ -1,3 +1,4 @@
+{$IFDEF CPUX86}
 {$IF SizeOf(TAttributes) >= 16}//4 Values
 asm
   movss xmm0, [LDenormalizeZX]
@@ -32,3 +33,5 @@ end;
 {$IF SizeOf(TAttributes) > 64}
   {$Message Error 'Unsupported Shader Attributesize'}
 {$ifend}
+
+{$IFEND}

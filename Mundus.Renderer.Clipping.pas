@@ -65,7 +65,9 @@ end;
 
 const
   COne: Single = 1;
+
 procedure InterpolateVertex(A, B: PSingle; AFactor: PSingle; AOut: PSingle);
+{$IFDEF CPUX86}
 asm
   movups XMM0, [A]
   movups XMM1, [B]
@@ -82,6 +84,24 @@ asm
   mov eax, [AOut]
   movups [eax], XMM0
 end;
+{$ELSE}
+asm
+  movups XMM0, [A]
+  movups XMM1, [B]
+  movss XMM2, [AFactor]
+  shufps XMM2, XMM2, 0
+  movss XMM3, [COne]
+  shufps XMM3, XMM3, 0
+  subps XMM3, XMM2
+
+  mulps XMM0, XMM3
+  mulps XMM1, XMM2
+  addps XMM0, XMM1
+  //lea eax, [AOut]
+//  mov rax, [AOut]
+  movups [AOut], XMM0
+end;
+{$ENDIF}
 
 function AddInterpolatedVertex(const ACall: PDrawCall; APrevIndex, AIndex: Integer; AT: Single): Integer;
 var
