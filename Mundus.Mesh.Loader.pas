@@ -46,7 +46,7 @@ begin
       Result := LLoader.LoadFromFile(AFileName);
       for LMesh in Result.Meshes do
       begin
-        for i := 0 to Length(LMesh.Vertices) do
+        for i := 0 to High(LMesh.Vertices) do
         begin
           LVector := LMesh.Vertices[i];
           LVector.Mul(AUnitConversion);
