@@ -86,7 +86,7 @@ function TMesh.AddVertice(const AVertice: TVector): Integer;
 begin
   Result := Length(FVertexList);
   SetLength(FVertexList, Length(FVertexList)+1);
-  FVertexList[High(FVertexList)] := AVertice;
+  FVertexList[Result] := AVertice;
 end;
 
 function TMesh.GetTriangles: TTriangles;
