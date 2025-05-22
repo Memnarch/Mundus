@@ -189,19 +189,24 @@ procedure RenderHalfBlock(
       const AAttributes: PBlockAttributes);
 var
   LDepthX, LDepthY: PSingle;
-  BlockXEnd, BlockYEnd: Integer;
+  BlockXStart, BlockYStart, BlockXEnd, BlockYEnd: Integer;
   LX: TTrianglePosition;
   i, k: Integer;
   LDenormalizedZ: Single;
   LZValues: TFloat3;
-label
-  BlockMissed;
+  LShader: Shader;
+const
+  CSizeOfSingle = SizeOf(Single);
 begin
   if DepthTest <> dtNone then
     LDepthY := AAttributes.FirstDepth;
 
-  BlockYEnd := AAttributes.Y + (CQuadSize - 1);
-  BlockXEnd := AAttributes.X + (CQuadSize - 1);
+  BlockXStart := AAttributes.X;
+  BlockXEnd := BlockXStart + (CQuadSize - 1);
+  BlockYStart := AAttributes.Y;
+  BlockYEnd := BlockYStart + (CQuadSize - 1);
+  LShader := AAttributes.ShaderInstance;
+
   LZValues := AAttributes.ZValues;
   //abuse padding fields to store Pixel-Pointer and increment it along with our X/Y position
   AFixedDeltas._XPadding := AAttributes.LineLength*SizeOf(TRGB32);
@@ -217,66 +222,26 @@ begin
     movdqu xmm4, [eax + THalfSpaceDeltas.Y12]
   end;
 
-  for i := AAttributes.Y to BlockYEnd do
+  for i := BlockYStart to BlockYEnd do
   begin
-    asm movdqu xmm7, xmm6 end;
-    if DepthTest <> dtNone then
-      LDepthX := LDepthY;
-    for k := AAttributes.X to BlockXEnd do
-    begin
-      //ahhhhh what do we want to do here?
-      //We need to check if X or Y or Z are negative (vecor in xmm7). Which equals this condition
-      //if (LX._1 or LX._2 or LX._3) >= 0 then
-      //This concludes, we are interested in the high byte of each integer which contains the sign bit, only
-      //therefore we set every byte we don't want to 0 using the Byteshuffle with our mask
-      //afterwards we create a bitmask which has a bit set for each byte which has its sign bit set (byte vectors are signed)
-      //if eax is 0, we know that all of our values were >= 0, if not, we need to skip this block
-      asm
-        movdqu xmm2, xmm7 //make copy to work nondestructive
-        movdqu xmm3, CSignByteMask //load mask
-        pshufb xmm2, xmm3 //zero all lower 3 bytes of each integer using mask
-        pmovmskb eax, xmm2 //create bitmask with bit for every negative byte
-        cmp eax, 0 //ehck if yn bit is set and jump to Blockmissed if any is
-        jnz BlockMissed
-        movdqu [LX], xmm7 //load to LX-Variable to access _padding
-      end;
-      begin
-        LDenormalizedZ := ((LZValues.Y*i + LZValues.Z) + LZValues.X * k);
-//        asm
-//          CVTSI2SS xmm0, i
-//          mulss xmm0, [LZValues.Y]
-//          addss xmm0, [LZValues.Z]
-//          CVTSI2SS xmm1, k
-//          mulss xmm1, [LZValues.X]
-//          addss xmm0, xmm1
-//          movss [LDenormalizedZ], xmm0
-//        end;
-        {$B-}
-        if (DepthTest = dtNone) or (LDenormalizedZ <= LDepthX^) then
-        {$B+}
-        begin
-          {$I InterpolateAttributes.inc}
-          AAttributes.ShaderInstance.Fragment(PRGB32(LX._Padding), @AAttributes.AttributesDenormalized);
-          if DepthTest = dtWrite then
-            LDepthX^ := LDenormalizedZ;
-        {$IFDEF ShowZFail}
-        end
-        else
-        begin
-          PRGB32(LX._Padding).R := 200;
-        {$ENDIF}
-        end;
-      end;
-      BlockMissed:
-      asm psubd xmm7, xmm4 end;
-      if DepthTest <> dtNone then
-        Inc(LDepthX);
-    end;
-
-    asm paddd xmm6, xmm5 end;
-    if DepthTest <> dtNone then
-      Inc(LDepthY, AAttributes.LineLength);
+    {$i RenderHalfBlock_Loop_Y.inc}
   end;
+//  i := BlockYStart;
+//  {$i RenderHalfBlock_Loop_Y.inc}
+//  Inc(i);
+//  {$i RenderHalfBlock_Loop_Y.inc}
+//  Inc(i);
+//  {$i RenderHalfBlock_Loop_Y.inc}
+//  Inc(i);
+//  {$i RenderHalfBlock_Loop_Y.inc}
+//  Inc(i);
+//  {$i RenderHalfBlock_Loop_Y.inc}
+//  Inc(i);
+//  {$i RenderHalfBlock_Loop_Y.inc}
+//  Inc(i);
+//  {$i RenderHalfBlock_Loop_Y.inc}
+//  Inc(i);
+//  {$i RenderHalfBlock_Loop_Y.inc}
 end;
 {$ELSE}
 procedure RenderHalfBlock(
