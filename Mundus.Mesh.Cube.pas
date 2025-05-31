@@ -26,6 +26,7 @@ uses
 constructor TCube.Create;
 var
   LVertices: array[0..7] of TVector;
+  LUV: TArray<TFloat2>;
 begin
   inherited Create();
   LVertices[0] := Vector(-32, -32, -32);
@@ -75,54 +76,56 @@ begin
   AddVertice(LVertices[3]);
 // add uv
   //UV cooridnates
-  SetLength(FUV, Length(FVertexList));
-  FUV[0] := TFloat2.Create(1, 1);
-  FUV[1] := TFloat2.Create(1, 0);
-  FUV[2] := TFloat2.Create(0, 0);
+  SetLength(FUVs, 1);
+  SetLength(FUVs[0], Length(FVertexList));
+  LUV := FUVs[0];
+  LUV[0] := TFloat2.Create(1, 1);
+  LUV[1] := TFloat2.Create(1, 0);
+  LUV[2] := TFloat2.Create(0, 0);
 
-  FUV[3] := TFloat2.Create(0, 0);
-  FUV[4] := TFloat2.Create(0, 1);
-  FUV[5] := TFloat2.Create(1, 1);
+  LUV[3] := TFloat2.Create(0, 0);
+  LUV[4] := TFloat2.Create(0, 1);
+  LUV[5] := TFloat2.Create(1, 1);
 
-  FUV[6] := TFloat2.Create(1, 1);
-  FUV[7] := TFloat2.Create(1, 0);
-  FUV[8] := TFloat2.Create(0, 0);
+  LUV[6] := TFloat2.Create(1, 1);
+  LUV[7] := TFloat2.Create(1, 0);
+  LUV[8] := TFloat2.Create(0, 0);
 
-  FUV[9] := TFloat2.Create(0, 0);
-  FUV[10] := TFloat2.Create(0, 1);
-  FUV[11] := TFloat2.Create(1, 1);
+  LUV[9] := TFloat2.Create(0, 0);
+  LUV[10] := TFloat2.Create(0, 1);
+  LUV[11] := TFloat2.Create(1, 1);
 
-  FUV[12] := TFloat2.Create(1, 1);
-  FUV[13] := TFloat2.Create(0, 0);
-  FUV[14] := TFloat2.Create(0, 1);
+  LUV[12] := TFloat2.Create(1, 1);
+  LUV[13] := TFloat2.Create(0, 0);
+  LUV[14] := TFloat2.Create(0, 1);
 
-  FUV[15] := TFloat2.Create(1, 0);
-  FUV[16] := TFloat2.Create(0, 0);
-  FUV[17] := TFloat2.Create(1, 1);
+  LUV[15] := TFloat2.Create(1, 0);
+  LUV[16] := TFloat2.Create(0, 0);
+  LUV[17] := TFloat2.Create(1, 1);
 
-  FUV[18] := TFloat2.Create(1, 0);
-  FUV[19] := TFloat2.Create(0, 1);
-  FUV[20] := TFloat2.Create(1, 1);
+  LUV[18] := TFloat2.Create(1, 0);
+  LUV[19] := TFloat2.Create(0, 1);
+  LUV[20] := TFloat2.Create(1, 1);
 
-  FUV[21] := TFloat2.Create(1, 0);
-  FUV[22] := TFloat2.Create(0, 0);
-  FUV[23] := TFloat2.Create(0, 1);
+  LUV[21] := TFloat2.Create(1, 0);
+  LUV[22] := TFloat2.Create(0, 0);
+  LUV[23] := TFloat2.Create(0, 1);
 
-  FUV[24] := TFloat2.Create(0, 1);
-  FUV[25] := TFloat2.Create(1, 1);
-  FUV[26] := TFloat2.Create(1, 0);
+  LUV[24] := TFloat2.Create(0, 1);
+  LUV[25] := TFloat2.Create(1, 1);
+  LUV[26] := TFloat2.Create(1, 0);
 
-  FUV[27] := TFloat2.Create(0, 1);
-  FUV[28] := TFloat2.Create(1, 0);
-  FUV[29] := TFloat2.Create(0, 0);
+  LUV[27] := TFloat2.Create(0, 1);
+  LUV[28] := TFloat2.Create(1, 0);
+  LUV[29] := TFloat2.Create(0, 0);
 
-  FUV[30] := TFloat2.Create(1, 1);
-  FUV[31] := TFloat2.Create(1, 0);
-  FUV[32] := TFloat2.Create(0, 0);
+  LUV[30] := TFloat2.Create(1, 1);
+  LUV[31] := TFloat2.Create(1, 0);
+  LUV[32] := TFloat2.Create(0, 0);
 
-  FUV[33] := TFloat2.Create(0, 1);
-  FUV[34] := TFloat2.Create(1, 1);
-  FUV[35] := TFloat2.Create(0, 0);
+  LUV[33] := TFloat2.Create(0, 1);
+  LUV[34] := TFloat2.Create(1, 1);
+  LUV[35] := TFloat2.Create(0, 0);
 
   //FrontFace
   AddTriangle(Triangle(0, 1, 2));

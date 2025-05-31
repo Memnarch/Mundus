@@ -212,16 +212,19 @@ class procedure TObjMeshLoader.NormalizeUVs(const AMesh: TMesh);
 var
   i: Integer;
   LLowest, LDiff, LUV: TFloat2;
+  LUVSet: TArray<TFloat2>;
 begin
-  if not Assigned(AMesh.UV) then Exit;
+  if not Assigned(AMesh.UVs) then Exit;
 
-  LLowest := AMesh.UV[0];
-  for i := 1 to High(AMesh.UV) do
+  LUVSet := AMesh.UVs[0];
+
+  LLowest := LUVSet[0];
+  for i := 1 to High(LUVSet) do
   begin
-    if AMesh.UV[i].U < LLowest.U then
-      LLowest.U := AMesh.UV[i].U;
-    if AMesh.UV[i].V < LLowest.V then
-      LLowest.V := AMesh.UV[i].V;
+    if LUVSet[i].U < LLowest.U then
+      LLowest.U := LUVSet[i].U;
+    if LUVSet[i].V < LLowest.V then
+      LLowest.V := LUVSet[i].V;
   end;
 
   if (LLowest.U < 0) then
@@ -234,12 +237,12 @@ begin
   else
     LDiff.V := 0;
 
-  for i := Low(AMesh.UV) to High(AMesh.UV) do
+  for i := Low(LUVSet) to High(LUVSet) do
   begin
-    LUV := AMesh.UV[i];
+    LUV := LUVSet[i];
     LUV.U := LUV.U + LDiff.U;
     LUV.V := LUV.V + LDiff.V;
-    AMesh.UV[i] := LUV;
+    LUVSet[i] := LUV;
   end;
 end;
 

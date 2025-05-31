@@ -39,16 +39,16 @@ type
   protected
     FVertexList: TArray<TVector>;
     FTriangles: TArray<TTriangle>;
-    FUV: TArray<TFloat2>;
+    FUVs: TArray<TArray<TFloat2>>;
     FRotation: TFloat3;
     FPosition: TFloat3;
   public
     function AddVertice(const AVertice: TVector): Integer;
     function AddTriangle(const ATriangle: TTriangle): Integer;
-    function AddUV(const AUV: TFloat2): Integer;
+    function AddUV(const AUV: TFloat2; AUVSet: Integer = 0): Integer;
     property Triangles: TTriangles read GetTriangles;
     property Vertices: TArray<TVector> read FVertexList;
-    property UV: TArray<TFloat2> read FUV;
+    property UVs: TArray<TArray<TFloat2>> read FUVs;
     property Position: TFloat3 read FPosition write FPosition;
     property Rotation: TFloat3 read FRotation write Frotation;
     property Shader: TShaderClass read FShader write FShader;
@@ -75,11 +75,14 @@ begin
   FTriangles[High(FTriangles)] := ATriangle;
 end;
 
-function TMesh.AddUV(const AUV: TFloat2): Integer;
+function TMesh.AddUV(const AUV: TFloat2; AUVSet: Integer = 0): Integer;
 begin
-  Result := Length(FUV);
-  SetLength(FUV, Length(FUV)+1);
-  FUV[High(FUV)] := AUV;
+  if High(FUVs) < AUVSet then
+    SetLength(FUVs, AUVSet+1);
+
+  Result := Length(FUVs[AUVSet]);
+  SetLength(FUVs[AUVSet], Result+1);
+  FUVs[AUVSet, Result] := AUV;
 end;
 
 function TMesh.AddVertice(const AVertice: TVector): Integer;

@@ -100,8 +100,7 @@ var
   LLayerIndex: Int32;
 begin
   LLayerIndex := ANode.Properties[0].AsInteger;
-  if LLayerIndex <> 0 then Exit;
-  
+
   for LNode in ANode.Childs do
   begin
     case IndexText(LNode.Name, ['UV', 'UVIndex']) of
@@ -114,7 +113,7 @@ begin
   begin
     LUV.X := LUVValues[LIndices[i]*2];
     LUV.Y := LUVValues[LIndices[i]*2+1];
-    ATarget.AddUV(LUV);
+    ATarget.AddUV(LUV, LLayerIndex);
   end;
 end;
 
