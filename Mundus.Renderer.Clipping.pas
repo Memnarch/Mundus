@@ -118,10 +118,12 @@ begin
   LInvAT := 1.0 - AT;
   InterpolateVertex(PSingle(LPrevVertex), PSingle(LVertex), @AT, @LNewVertex);
 
-  LPrevAttributes := ACall.Attributes[APrevIndex];
-  LAttributes := ACall.Attributes[AIndex];
   Result := ACall.AddVertex(LNewVertex);
   LNewAttributes := ACall.Attributes[Result];
+
+  LPrevAttributes := ACall.Attributes[APrevIndex];
+  LAttributes := ACall.Attributes[AIndex];
+
   LCount := ACall.AttributesPerVertex;
   if LCount > 0 then
   begin
