@@ -17,7 +17,7 @@ type
   TFBXMeshLoader = class(TAbstractMeshLoader)
   private
     class function ReadHeader(ASource: TStream): TFBXHeader;
-    class procedure ReadNode(const ASource: TStream; var ANode: TNode);
+    class procedure ReadNode(const ASource: TStream; AIs64Bit: Boolean; var ANode: TNode);
     class procedure ReadProperty(const ASource: TStream; var ATarget: TNodeProperty);
     class function ReadValue<T>(const ASource: TStream): TValue;
     class function ReadRawBuffer(const ASource: TStream): TValue;
@@ -27,6 +27,7 @@ type
     class function ReadVertices(const ANode: TNode): TArray<TVector>;
     class procedure AddIndices(ATarget: TMesh; const ANode: TNode; const AVertices: TArray<TVector>);
     class procedure AddUVs(ATarget: TMesh; const ANode: TNode);
+    class procedure AddNormals(ATarget: TMesh; const ANode: TNode);
    public
     class function CanLoad(const AFileName: string): Boolean; override;
     class function LoadFromFile(const AFileName: string): TMeshGroup; override;
@@ -79,14 +80,49 @@ begin
     SetLength(LIndices, LPolyCount);
     for k := i to Pred(i+LPolyCount) do
       LIndices[k-i] := ATarget.AddVertice(AVertices[NormalizeIndex(LValues[k])]);
-    if LPolyCount > 2 then
+
+    for k := 2 to Pred(LPolyCount) do
     begin
       LTriangle.VertexA := LIndices[0];
-      LTriangle.VertexB := LIndices[1];
-      LTriangle.VertexC := LIndices[2];
+      LTriangle.VertexB := LIndices[k-1];
+      LTriangle.VertexC := LIndices[k];
       ATarget.AddTriangle(LTriangle);
     end;
+
     Inc(i, LPolyCount);
+  end;
+end;
+
+class procedure TFBXMeshLoader.AddNormals(ATarget: TMesh; const ANode: TNode);
+var
+  LChild: TNode;
+  LMappingType, LReferenceType: string;
+  LNormals, LNormalsW: TArray<Double>;
+  i: Integer;
+  LW: Double;
+begin
+  for LChild in ANode.Childs do
+  begin
+    case IndexText(LChild.Name, ['MappingInformationType', 'ReferenceInformationType', 'Normals', 'NormalsW']) of
+      0: LMappingType := LChild.Properties[0].Data.AsString;
+      1: LReferenceType := LChild.Properties[0].Data.AsString;
+      2: LNormals := LChild.Properties[0].Data.AsType<TArray<Double>>;
+      3: LNormalsW := LChild.Properties[0].Data.AsType<TArray<Double>>;
+    end;
+  end;
+
+  i := 0;
+  while i < Length(LNormals) do
+  begin
+    //for now we always assume MappingType ByPolygonVertex
+    if Assigned(LNormalsW) then
+    begin
+      LW := LNormalsW[i div 3];
+      ATarget.AddNormal(Vector(LNormals[i] / LW, LNormals[i+1] / LW, LNormals[1+2] / LW));
+    end
+    else
+      ATarget.AddNormal(Vector(LNormals[i], LNormals[i+1], LNormals[1+2]));
+    Inc(i, 3);
   end;
 end;
 
@@ -98,14 +134,17 @@ var
   LNode: TNode;
   LUV: TFloat2;
   LLayerIndex: Int32;
+  LMappingType, LReferenceType: string;
 begin
   LLayerIndex := ANode.Properties[0].AsInteger;
 
   for LNode in ANode.Childs do
   begin
-    case IndexText(LNode.Name, ['UV', 'UVIndex']) of
-      0: LUVValues := LNode.Properties[0].Data.AsType<TArray<Double>>;
-      1: LIndices := LNode.Properties[0].Data.AsType<TArray<Int32>>;
+    case IndexText(LNode.Name, ['MappingInformationType', 'ReferenceInformationType', 'UV', 'UVIndex']) of
+      0: LMappingType := LNode.Properties[0].Data.AsString;
+      1: LReferenceType := LNode.Properties[0].Data.AsString;
+      2: LUVValues := LNode.Properties[0].Data.AsType<TArray<Double>>;
+      3: LIndices := LNode.Properties[0].Data.AsType<TArray<Int32>>;
     end;
   end;
 
@@ -150,13 +189,15 @@ var
   LNode: TNode;
   LChild: TNode;
   LNodes: TArray<TNode>;
+  LIs64Bit: Boolean;
 begin
   Result := TMeshGroup.Create();
   LSource := TFileStream.Create(AFileName, fmOpenRead);
   try
     LHeader := ReadHeader(LSource);
+    LIs64Bit := LHeader.Version >= 7500;
     repeat
-      ReadNode(LSource, LNode);
+      ReadNode(LSource, LIs64Bit, LNode);
       if not LNode.IsNull then
         LNodes := LNodes + [LNode];
     until LNode.IsNull;
@@ -187,10 +228,11 @@ begin
   try
     for LChild in ANode.Childs do
     begin
-      case IndexText(LChild.Name, ['Vertices', 'PolygonVertexIndex', 'LayerElementUV']) of
+      case IndexText(LChild.Name, ['Vertices', 'PolygonVertexIndex', 'LayerElementUV', 'LayerElementNormal']) of
         0: LVertices := ReadVertices(LChild);
         1: AddIndices(LMesh, LChild, LVertices);
         2: AddUVs(LMesh, LChild);
+        3: AddNormals(LMesh, LChild);
       end;
     end;
     Result := LMesh;
@@ -235,14 +277,24 @@ begin
   ASource.Read(Result, SizeOf(Result));
 end;
 
-class procedure TFBXMeshLoader.ReadNode(const ASource: TStream; var ANode: TNode);
+class procedure TFBXMeshLoader.ReadNode(const ASource: TStream; AIs64Bit: Boolean; var ANode: TNode);
 var
   i: Integer;
   LChild: TNode;
+  LHeader74: TNodeHeader74;
   LName: AnsiString;
 begin
   ANode := Default(TNode);
-  ASource.Read(ANode.Header, SizeOf(ANode.Header));
+  if AIs64Bit then
+    ASource.Read(ANode.Header, SizeOf(ANode.Header))
+  else
+  begin
+    ASource.Read(LHeader74, SizeOf(LHeader74));
+    ANode.Header.EndOffset := LHeader74.EndOffset;
+    ANode.Header.NumProperties := LHeader74.NumProperties;
+    ANode.Header.PropertyListLen := LHeader74.PropertyListLen;
+    ANode.Header.NameLen := LHeader74.NameLen;
+  end;
   if ANode.Header.NameLen > 0 then
   begin
     SetLength(LName, ANode.Header.NameLen);
@@ -256,7 +308,7 @@ begin
   if ASource.Position < ANode.Header.EndOffset then
   begin
     repeat
-      ReadNode(ASource, LChild);
+      ReadNode(ASource, AIs64Bit, LChild);
       if not LChild.IsNull then
         ANode.Childs := ANode.Childs + [LChild];
     until LChild.IsNull;

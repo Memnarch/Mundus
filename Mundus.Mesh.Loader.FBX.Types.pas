@@ -13,12 +13,21 @@ type
     Version: UInt32;
   end;
 
-  TNodeHeader = packed record
+  TNodeHeader74 = packed record
     EndOffset: UInt32;
     NumProperties: UInt32;
     PropertyListLen: UInt32;
     NameLen: Byte;
   end;
+
+  TNodeHeader75 = packed record
+    EndOffset: UInt64;
+    NumProperties: UInt64;
+    PropertyListLen: UInt64;
+    NameLen: Byte;
+  end;
+
+  TNodeHeader = TNodeHeader75;
 
   TArrayHeader = packed record
     ArrayLength: UInt32;

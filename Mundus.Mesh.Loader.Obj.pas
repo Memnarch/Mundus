@@ -23,9 +23,9 @@ type
   private
     class function LoadMaterial(const AFileName: string): TArray<TMaterial>;
     class function ParseFace(const AText: string): TFacePoint;
-    class procedure AddVertex(var AVertices: TArray<TVector>; const AParts: TStringDynArray; const AFormat: TFormatSettings);
+    class procedure AddVector(var ATarget: TArray<TVector>; const AParts: TStringDynArray; const AFormat: TFormatSettings);
     class procedure AddUV(var AUVs: TArray<TFloat2>; const AParts: TStringDynArray; const AFormat: TFormatSettings);
-    class procedure AddFace(const AMesh: TMesh; const AVertices: TArray<TVector>; const AUVs: TArray<TFloat2>; const AParts: TStringDynArray);
+    class procedure AddFace(const AMesh: TMesh; const AVertices, ANormals: TArray<TVector>; const AUVs: TArray<TFloat2>; const AParts: TStringDynArray);
     class procedure NormalizeUVs(const AMesh: TMesh);
     class function IndexOfMaterial(const AMaterials: TArray<TMaterial>; const AName: string): Integer;
   public
@@ -42,7 +42,7 @@ uses
 { TObjMeshLoader }
 
 class procedure TObjMeshLoader.AddFace(const AMesh: TMesh;
-  const AVertices: TArray<TVector>; const AUVs: TArray<TFloat2>;
+  const AVertices, ANormals: TArray<TVector>; const AUVs: TArray<TFloat2>;
   const AParts: TStringDynArray);
 var
   LPoints: TArray<TFacePoint>;
@@ -59,6 +59,8 @@ begin
     LIndices[i] := AMesh.AddVertice(AVertices[LPoints[i].VIndex]);
     if LPoints[i].UVIndex > -1 then
       AMesh.AddUV(AUVs[LPoints[i].UVIndex]);
+    if LPoints[i].NIndex > -1 then
+      AMesh.AddNormal(ANormals[LPoints[i].NIndex]);
   end;
 
   if Length(LIndices) > 2 then
@@ -73,9 +75,9 @@ begin
   AUVs := AUVs + [TFloat2.Create(StrToFloatDef(AParts[1], 0, AFormat), StrToFloatDef(AParts[2], 0, AFormat))]
 end;
 
-class procedure TObjMeshLoader.AddVertex(var AVertices: TArray<TVector>; const AParts: TStringDynArray; const AFormat: TFormatSettings);
+class procedure TObjMeshLoader.AddVector(var ATarget: TArray<TVector>; const AParts: TStringDynArray; const AFormat: TFormatSettings);
 begin
-  AVertices := AVertices + [Vector(StrToFloatDef(AParts[1], 0, AFormat), StrToFloatDef(AParts[2], 0, AFormat), StrToFloatDef(AParts[3], 0, AFormat))];
+  ATarget := ATarget + [Vector(StrToFloatDef(AParts[1], 0, AFormat), StrToFloatDef(AParts[2], 0, AFormat), StrToFloatDef(AParts[3], 0, AFormat))];
 end;
 
 class function TObjMeshLoader.CanLoad(const AFileName: string): Boolean;
@@ -102,6 +104,7 @@ var
   LFormat: TFormatSettings;
   LVertices: TArray<TVector>;
   LUVs: TArray<TFloat2>;
+  LNormals: TArray<TVector>;
   LSubMesh: TMesh;
   LMaterials: TArray<TMaterial>;
   LMatIndex: Integer;
@@ -120,17 +123,17 @@ begin
       begin
         case AnsiIndexText(LParts[0], ['v', 'vt', 'vn', 'f', 'mtllib', 'usemtl']) of
           //vertex
-          0: AddVertex(LVertices, LParts, LFormat);
+          0: AddVector(LVertices, LParts, LFormat);
           //UV coordinate
           1: AddUV(LUVs, LParts, LFormat);
           //normal
-//          2:
+          2: AddVector(LNormals, LParts, LFormat);
           //face
           3:
           begin
             if not Assigned(LSubMesh) then
               LSubMesh := TMesh.Create();
-            AddFace(LSubMesh, LVertices, LUVs, LParts);
+            AddFace(LSubMesh, LVertices, LNormals, LUVs, LParts);
           end;
           4: LMaterials := LoadMaterial(TPath.Combine(ExtractFilePath(AFileName), LParts[1]));
           5:

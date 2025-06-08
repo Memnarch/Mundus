@@ -35,6 +35,7 @@ type
   private
     FShader: TShaderClass;
     FMaterial: TMaterial;
+    FNormals: TArray<TVector>;
     function GetTriangles: TTriangles; inline;
   protected
     FVertexList: TArray<TVector>;
@@ -46,8 +47,10 @@ type
     function AddVertice(const AVertice: TVector): Integer;
     function AddTriangle(const ATriangle: TTriangle): Integer;
     function AddUV(const AUV: TFloat2; AUVSet: Integer = 0): Integer;
+    function AddNormal(const ANormal: TVector): Integer;
     property Triangles: TTriangles read GetTriangles;
     property Vertices: TArray<TVector> read FVertexList;
+    property Normals: TArray<TVector> read FNormals;
     property UVs: TArray<TArray<TFloat2>> read FUVs;
     property Position: TFloat3 read FPosition write FPosition;
     property Rotation: TFloat3 read FRotation write Frotation;
@@ -65,6 +68,13 @@ type
   end;
 
 implementation
+
+function TMesh.AddNormal(const ANormal: TVector): Integer;
+begin
+  Result := Length(FNormals);
+  SetLength(FNormals, Result + 1);
+  FNormals[Result] := ANormal;
+end;
 
 { TBaseMesh }
 
