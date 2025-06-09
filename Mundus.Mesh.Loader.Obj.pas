@@ -175,6 +175,7 @@ var
   LParts: TStringDynArray;
   i: Integer;
   LMaterial: TMaterial;
+  LTexture: TTextureReference;
 begin
   Result := [];
   LMaterial := Default(TMaterial);
@@ -198,7 +199,8 @@ begin
             end;
             1:
             begin
-              LMaterial.Texture := ExtractFileName(LParts[1]);
+              LTexture.FileName := ExtractFileName(LParts[1]);
+              LTexture.Name := ChangeFileExt(LTexture.FileName, '');
             end;
           end;
         end;

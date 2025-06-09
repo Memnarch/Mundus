@@ -31,31 +31,39 @@ type
     function GetEnumerator: TTriangleEnumerator; //inline;
   end;
 
+  TTextureReference = record
+    Name: string;
+    FileName: string;
+  end;
+
   TMesh = class
   private
     FShader: TShaderClass;
     FMaterial: TMaterial;
     FNormals: TArray<TVector>;
+    FTextures: TArray<TTextureReference>;
     function GetTriangles: TTriangles; inline;
   protected
     FVertexList: TArray<TVector>;
     FTriangles: TArray<TTriangle>;
-    FUVs: TArray<TArray<TFloat2>>;
+    FUVs: TArray<TArray<TUV>>;
     FRotation: TFloat3;
     FPosition: TFloat3;
   public
     function AddVertice(const AVertice: TVector): Integer;
     function AddTriangle(const ATriangle: TTriangle): Integer;
-    function AddUV(const AUV: TFloat2; AUVSet: Integer = 0): Integer;
+    function AddUV(const AUV: TUV; AUVSet: Integer = 0): Integer;
     function AddNormal(const ANormal: TVector): Integer;
+    function AddTextureReference(const AReference: TTextureReference): Integer;
     property Triangles: TTriangles read GetTriangles;
     property Vertices: TArray<TVector> read FVertexList;
     property Normals: TArray<TVector> read FNormals;
-    property UVs: TArray<TArray<TFloat2>> read FUVs;
+    property UVs: TArray<TArray<TUV>> read FUVs;
     property Position: TFloat3 read FPosition write FPosition;
     property Rotation: TFloat3 read FRotation write Frotation;
     property Shader: TShaderClass read FShader write FShader;
     property Material: TMaterial read FMaterial write FMaterial;
+    property Textures: TArray<TTextureReference> read FTextures;
   end;
 
   TMeshGroup = class
@@ -76,6 +84,13 @@ begin
   FNormals[Result] := ANormal;
 end;
 
+function TMesh.AddTextureReference(const AReference: TTextureReference): Integer;
+begin
+  Result := Length(FTextures);
+  SetLength(FTextures, Result + 1);
+  FTextures[Result] := AReference;
+end;
+
 { TBaseMesh }
 
 function TMesh.AddTriangle(const ATriangle: TTriangle): Integer;
@@ -85,7 +100,7 @@ begin
   FTriangles[High(FTriangles)] := ATriangle;
 end;
 
-function TMesh.AddUV(const AUV: TFloat2; AUVSet: Integer = 0): Integer;
+function TMesh.AddUV(const AUV: TUV; AUVSet: Integer = 0): Integer;
 begin
   if High(FUVs) < AUVSet then
     SetLength(FUVs, AUVSet+1);

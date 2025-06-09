@@ -2,10 +2,14 @@ unit Mundus.Material;
 
 interface
 
+uses
+  Mundus.Types;
+
 type
   TMaterial = record
     Name: string;
-    Texture: string;
+    AmbientColor: TVector;
+    DiffuseColor: TVector;
   end;
 
 implementation

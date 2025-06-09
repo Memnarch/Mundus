@@ -39,7 +39,7 @@ begin
       LVector.Y := LY;
       LVector.Z := 0;
       AddVertice(LVector);
-      AddUV(TFloat2.Create(k mod 2, i mod 2));
+      AddUV(UV(k mod 2, i mod 2));
       Inc(LX, LCellWidth);
     end;
     Inc(LY, LCellHeight);

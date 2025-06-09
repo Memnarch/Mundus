@@ -35,9 +35,7 @@ type
 
   PVector = ^TVector;
 
-  TUV = packed record
-    U, V: Single;
-  end;
+  TUV = TFloat2;
 
   TTriangle = record
     VertexA, VertexB, VertexC: Integer;

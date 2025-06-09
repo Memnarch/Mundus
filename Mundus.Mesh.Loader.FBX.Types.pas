@@ -4,9 +4,11 @@ interface
 
 uses
   SysUtils,
-  System.Rtti;
+  System.Rtti,
+  Mundus.Types;
 
 type
+  ///basic types to parse the document
   TFBXHeader = packed record
     Magic: array[0..20] of AnsiChar;
     Unknown: array[0..1] of Byte;
@@ -70,6 +72,49 @@ type
     property IsNull: Boolean read GetIsNull;
   end;
 
+//types to store and handled loaded information
+  TMappingType = (mtUnknown, mtByVertex, mtByPolygon, mtByPolygonVertex, mtByEdge, mtAllSame);
+  TReferenceType = (rtUnknown, rtDirect, rtIndexToDirect);
+
+  TUVLayer = record
+    Index: Integer;
+    UVs: TArray<TUV>;
+    UVIndices: TArray<Int32>;
+    MappingType: TMappingType;
+    ReferenceType: TReferenceType;
+  end;
+
+  TMaterialLayer = record
+    MappingType: TMappingType;
+    ReferenceType: TReferenceType;
+    Materials: TArray<Int32>;
+  end;
+
+  TNormalLayer = record
+    MappingType: TMappingType;
+    ReferenceType: TReferenceType;
+    Normals: TArray<TVector>;
+  end;
+
+  TGeometry = record
+    Vertices: TArray<TVector>;
+    VertexIndices: TArray<Int32>;
+    UVLayers: TArray<TUVLayer>;
+    MaterialLayer: TMaterialLayer;
+    NormalLayer: TNormalLayer;
+  end;
+
+  TIDElement<T> = record
+    ID: Int64;
+    Element: T;
+  end;
+
+  TConnection = record
+    Source: Int64;
+    Target: Int64;
+    Attribute: string;
+  end;
+
   EFBX = class(Exception)
 
   end;
@@ -80,7 +125,13 @@ type
 
 function TypeCodeToPropertyType(ACode: AnsiChar): TPropertyType;
 
+function StrToMappingType(const AText: string): TMappingType;
+function StrToReferenceType(const AText: string): TReferenceType;
+
 implementation
+
+uses
+  StrUtils;
 
 procedure RaiseChildNotFound(const AName: string);
 begin
@@ -110,6 +161,29 @@ begin
     'b': Result := ptArrayBoolean;
   else
     Result := ptUnknown;
+  end;
+end;
+
+function StrToMappingType(const AText: string): TMappingType;
+begin
+  case IndexText(AText, ['ByPolygon', 'ByPolygonVertex', 'ByVertex', 'ByEdge', 'AllSame']) of
+    0: Result := mtByPolygon;
+    1: Result := mtByPolygonVertex;
+    2: Result := mtByVertex;
+    3: Result := mtByEdge;
+    4: Result := mtAllSame;
+  else
+    Result := mtUnknown;
+  end;
+end;
+
+function StrToReferenceType(const AText: string): TReferenceType;
+begin
+  case IndexText(AText, ['Direct', 'IndexToDirect', 'Index']) of
+    0: Result := rtDirect;
+    1, 2: Result := rtIndexToDirect;
+  else
+    Result := rtUnknown;
   end;
 end;
 
