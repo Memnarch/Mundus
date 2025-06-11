@@ -109,7 +109,6 @@ begin
       begin
         LCall := FDrawCalls[i];
         LShader := FShaderCache.GetShader(LCall.Shader);
-        LShader.PixelBuffer := FPixelBuffer;
         LShader.BindBuffer(@LCall.Values);
         LRasterizer := LCall.Shader.GetRasterizer();
         for k := 0 to Pred(LCall.TriangleCount) do

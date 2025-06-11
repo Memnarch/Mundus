@@ -8,6 +8,10 @@ uses
   Mundus.Math.Interpolation,
   Mundus.Rasterizer.Types;
 
+{$IFDEF DEBUG}
+  {$inline off}
+{$ENDIF}
+
 procedure EvalHalfspace(const AConstants: PHalfEdgeConstants; const ADeltas: PHalfSpaceDeltas; ACorners: PBlockCorners; AState: PBlockState);
 procedure DenormalizeFactors4(ATarget, ASource: PSingle; AZ: Single);
 procedure InitFactors4(
@@ -94,24 +98,27 @@ var
   LAW, LBW, LCW: Single;
   LStepCZ: Single;
   i: Integer;
+  LSteps: TFloat3;
 begin
-  LAW := AVectorA.W;
-  LBW := AVectorB.W;
-  LCW := AVectorC.W;
-  LStepCZ := CalculateFactorC(AVectorA, AVectorB, AVectorC);
+  LAW := 1 / AVectorA.W;
+  LBW := 1 / AVectorB.W;
+  LCW := 1 / AVectorC.W;
+  LStepCZ := CalculateFactorC(AVectorA.XY, AVectorB.XY, AVectorC.XY);
   if LStepCZ <> 0 then
     LStepCZ := 1 / LStepCZ
   else
     LStepCZ := 1;
-  AVecZ.X := CalculateFactorA(AVectorA, AVectorB, AVectorC, 1/LAW, 1/LBW, 1/LCW) * LStepCZ;
-  AVecZ.Y := CalculateFactorB(AVectorA, AVectorB, AVectorC, 1/LAW, 1/LBW, 1/LCW) * LStepCZ;
-  AVecZ.Z := CalculateFactorD(AVectorA, AVectorB, AVectorC, 1/LAW, 1/LBW, 1/LCW) * LStepCZ;
+
+  AVecZ := CalculateFactors(AVectorA.XY, AVectorB.XY, AVectorC.XY, LAW, LBW, LCW);
+  AVecZ.Mul(LStepCZ);
 
   for i := 0 to Pred(AAttributeSize div SizeOf(Single)) do
   begin
-    AStepA[i] := CalculateFactorA(AVectorA, AVectorB, AVectorC, AAttributeA[i]/LAW, AAttributeB[i]/LBW, AAttributeC[i]/LCW) * LStepCZ;
-    AStepB[i] := CalculateFactorB(AVectorA, AVectorB, AVectorC, AAttributeA[i]/LAW, AAttributeB[i]/LBW, AAttributeC[i]/LCW) * LStepCZ;
-    AStepD[i] := CalculateFactorD(AVectorA, AVectorB, AVectorC, AAttributeA[i]/LAW, AAttributeB[i]/LBW, AAttributeC[i]/LCW) * LStepCZ;
+    LSteps := CalculateFactors(AVectorA.XY, AVectorB.XY, AVectorC.XY, AAttributeA[i] * LAW, AAttributeB[i] * LBW, AAttributeC[i] * LCW);
+    LSteps.Mul(LStepCZ);
+    AStepA[i] := LSteps.X;
+    AStepB[i] := LSteps.Y;
+    AStepD[i] := LSteps.Z;
   end;
 end;
 

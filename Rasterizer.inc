@@ -388,9 +388,6 @@ begin
     maxx := Min(AMaxResolutionX, (max(X1, Max(X2, X3)) + 15) div 16);// shr 4;
     miny := Max(0, (min(Y1, min(Y2, Y3)) + 15) div 16);// shr 4;
     maxy := Min(AMaxResolutionY, (max(Y1, MAx(Y2, Y3)) + 15) div 16);// shr 4;
-    LBlock.ShaderInstance.MinX := minx;
-    LBlock.ShaderInstance.MinY := miny;
-
 
     // Start in corner of 8x8 block
 //    minx &= ~(q - 1);
