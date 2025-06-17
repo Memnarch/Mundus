@@ -99,6 +99,9 @@ var
   LStepCZ: Single;
   i: Integer;
   LSteps: TFloat3;
+  LInput: TFloat4;
+  LAttributeA, LAttributeB, LAttributeC: PFloat4;
+  LStepA, LStepB, LStepD: PFloat4;
 begin
   LAW := 1 / AVectorA.W;
   LBW := 1 / AVectorB.W;
@@ -112,13 +115,23 @@ begin
   AVecZ := CalculateFactors(AVectorA.XY, AVectorB.XY, AVectorC.XY, LAW, LBW, LCW);
   AVecZ.Mul(LStepCZ);
 
-  for i := 0 to Pred(AAttributeSize div SizeOf(Single)) do
+  LAttributeA := @AAttributeA[0];
+  LAttributeB := @AAttributeB[0];
+  LAttributeC := @AAttributeC[0];
+
+  LStepA := @AStepA[0];
+  LStepB := @AStepB[0];
+  LStepD := @AStepD[0];
+
+  for i := 0 to Pred(AAttributeSize div SizeOf(TFloat4)) do
   begin
-    LSteps := CalculateFactors(AVectorA.XY, AVectorB.XY, AVectorC.XY, AAttributeA[i] * LAW, AAttributeB[i] * LBW, AAttributeC[i] * LCW);
-    LSteps.Mul(LStepCZ);
-    AStepA[i] := LSteps.X;
-    AStepB[i] := LSteps.Y;
-    AStepD[i] := LSteps.Z;
+    CalculateFactors4(AVectorA.XY, AVectorB.XY, AVectorC.XY, @LAW, @LBW, @LCW, @LStepCZ, LAttributeA, LAttributeB, LAttributeC, LStepA, LStepB, LStepD);
+    Inc(LAttributeA);
+    Inc(LAttributeB);
+    Inc(LAttributeC);
+    Inc(LStepA);
+    Inc(LStepB);
+    Inc(LStepD);
   end;
 end;
 
