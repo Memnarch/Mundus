@@ -19,7 +19,7 @@ uses
   Mundus.Camera,
   Mundus.ValueBuffer,
   Mundus.ShaderCache,
-  Mundus.PixelBuffer;
+  Mundus.FrameBuffer;
 
 type
   TRenderEvent = procedure(Canvas: TCanvas) of object;
@@ -27,14 +27,10 @@ type
 
   TMundusRenderer = class
   private
-    FDepthBuffer: array[boolean] of TDepthBuffer;
-    FLowDepthBuffer: array[boolean] of TDepthBuffer;
-    FBackBuffer: array[boolean] of TPixelBuffer;
+    FBackBuffer: array[boolean] of TFrameBuffer;
     FDrawCalls: array[boolean] of TDrawCalls;
     FMeshList: TObjectList<TMesh>;
     FFPS: Integer;
-    FLineLength: NativeInt;
-    FFirstLine: PRGB32Array;
     FResolutionX: Integer;
     FResolutionY: Integer;
     FOnAfterFrame: TRenderEvent;
@@ -46,8 +42,6 @@ type
     FCamera: TCamera;
     FOnInitValueBuffer: TInitBufferEvent;
     FShaderCache: TShaderCache;
-    procedure SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);
-    procedure ClearDepthBuffer(ABuffer: Boolean);
     procedure TransformMesh(AMesh: TMesh; AWorld, AProjection: TMatrix4x4; ATargetCall: PDrawCall);
     procedure DoAfterFrame(ACanvas: TCanvas);
     function GenerateDrawCalls(const AViewMatrix: TMatrix4x4): TDrawCalls;
@@ -115,24 +109,15 @@ begin
   end;
 end;
 
-procedure TMundusRenderer.ClearDepthBuffer;
-var
-  LBytes, i: Integer;
-  LBuffer: TDepthBuffer;
+procedure TMundusRenderer.ClearBuffer(ABuffer: Boolean);
 begin
-  LBuffer := FDepthBuffer[ABuffer];
-  LBytes := Length(LBuffer) * SizeOf(Single);
-  ZeroMemory(@LBuffer[0], LBytes);
-
-  LBuffer := FLowDepthBuffer[ABuffer];
-  for i := 0 to High(LBuffer) do
-    LBuffer[i] := 1;
+  FBackBuffer[ABuffer].Clear;
 end;
 
 constructor TMundusRenderer.Create;
 begin
-  FBackBuffer[True] := TPixelBuffer.Create();
-  FBackBuffer[False] := TPixelBuffer.Create();
+  FBackBuffer[True] := TFrameBuffer.Create();
+  FBackBuffer[False] := TFrameBuffer.Create();
   FDrawCalls[True] := TDrawCalls.Create();
   FDrawCalls[False] := TDrawCalls.Create();
   FCamera := TCamera.Create();
@@ -173,7 +158,6 @@ begin
   //ResetBackBuffer from last frame
   UpdateBufferResolution(LFrontBuffer, FResolutionX, FResolutionY);
   ClearBuffer(LFrontBuffer);
-  ClearDepthBuffer(LFrontBuffer);
 
   //wait for workers to finish frame
   WaitForRender;
@@ -183,9 +167,7 @@ begin
   for LWorker in FWorkers do
   begin
     LWorker.DrawCalls := ACalls;
-    LWorker.PixelBuffer := FBackBuffer[LFrontBuffer];
-    LWorker.DepthBuffer := @FDepthBuffer[LFrontBuffer];
-    LWorker.LowDepthBuffer := @FLowDepthBuffer[LFrontBuffer];
+    LWorker.FrameBuffer := FBackBuffer[LFrontBuffer];
     LWorker.ResolutionX := FResolutionX;
     LWorker.ResolutionY := FResolutionY;
     LFPS := LWorker.FPS;
@@ -195,8 +177,8 @@ begin
   end;
 
   //Draw Backbuffer to FrontBuffer
-  DoAfterFrame(FBackBuffer[LBackBuffer].Canvas);
-  ACanvas.Draw(0, 0, FBackBuffer[LBackBuffer].Graphic);
+  FBackBuffer[LBackBuffer].Draw(ACanvas, ACanvas.ClipRect);
+  DoAfterFrame(ACanvas);
   //flip buffers
   FCurrentBuffer := not FCurrentBuffer;
 end;
@@ -273,12 +255,6 @@ begin
     FFPS := Min(FWorkerFPS, 1000000 div LMicro)
   else
     FFPS := FWorkerFPS;
-end;
-
-procedure TMundusRenderer.SetDepthBufferSize(ABuffer: Boolean; AWidth, AHeight: Integer);
-begin
-  SetLength(FDepthBuffer[ABuffer], AHeight*AWidth);
-  SetLength(FLowDepthBuffer[ABuffer], ((AHeight+7) div 8) * ((AWidth+7) div 8));
 end;
 
 procedure TMundusRenderer.SetResolution(AWidth, AHeight: Integer);
@@ -371,19 +347,11 @@ end;
 
 procedure TMundusRenderer.UpdateBufferResolution(ABuffer: Boolean; AWidth, AHeight: Integer);
 var
-  LBuffer: TPixelBuffer;
+  LBuffer: TFrameBuffer;
 begin
   LBuffer := FBackBuffer[ABuffer];
   if (LBuffer.Width <> AWidth) or (LBuffer.Height <> AHeight) then
-  begin
-    LBuffer.Resize(AWidth, Aheight);
-    FFirstLIne := LBuffer.FirstLine;
-    FLineLength := LBuffer.LineLength;
-    LBuffer.Canvas.Pen.Color := clBlack;
-    LBuffer.Canvas.Brush.Color := clBlack;
-    SetDepthBufferSize(ABuffer, AWidth, AHeight);
-    ClearDepthBuffer(ABuffer);
-  end;
+    LBuffer.Resize(AWidth, AHeight);
 end;
 
 procedure TMundusRenderer.WaitForRender;

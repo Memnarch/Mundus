@@ -341,12 +341,12 @@ var
 begin
   LMinDepth := Min(AVerctorA.Z, Min(AvectorB.Z, AvectorC.Z));
   LMaxDepth := Max(AVerctorA.Z, Max(AvectorB.Z, AvectorC.Z));
-  LLowDepthLineLength := - (((AMaxResolutionX+1) + 7) div 8);
+  LLowDepthLineLength := (((AMaxResolutionX+1) + 7) div 8);
   //get a 16Byte aligned pointer to our BlockMemory
   LBlock := Pointer(NativeInt(@LBlockMemory) + (16-NativeInt(@LBlockMemory) mod 16));
   //calculate attribute factors
   Factorize(AVerctorA, AvectorB, AvectorC, AAttributesA, AAttributesB, AAttributesC, @LBlock.StepA, @LBlock.StepB, @LBlock.StepD, LBlock.ZValues, SizeOf(TAttributes));
-  LBlock.LineLength := -(AMaxResolutionX+1);
+  LBlock.LineLength := AMaxResolutionX+1;
   LBlock.ShaderInstance := AShader;
   // 28.4 fixed-point coordinates
     X1 := Round(16*AVerctorA.Element[0]);

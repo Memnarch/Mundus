@@ -13,7 +13,7 @@ uses
   Mundus.Types,
   Mundus.Diagnostics.StopWatch,
   Mundus.ShaderCache,
-  Mundus.PixelBuffer;
+  Mundus.FrameBuffer;
 
 type
   TRenderWorker = class(TThread)
@@ -30,9 +30,7 @@ type
     FHalfResolutionX: Integer;
     FHalfResolutionY: Integer;
     FWatch: TStopWatch;
-    FPixelBuffer: TPixelBuffer;
-    FDepthBuffer: PDepthsBuffer;
-    FLowDepthBuffer: PDepthsBuffer;
+    FFrameBuffer: TFrameBuffer;
     FShaderCache: TShaderCache;
     FBlockEnd: Integer;
     procedure SetResolutionX(const Value: Integer);
@@ -52,9 +50,7 @@ type
     property BlockEnd:Integer read FBlockEnd write FBlockEnd;
     property ResolutionX: Integer read FResolutionX write SetResolutionX;
     property ResolutionY: Integer read FResolutionY write SetResolutionY;
-    property PixelBuffer: TPixelBuffer read FPixelBuffer write FPixelBuffer;
-    property DepthBuffer: PDepthsBuffer read FDepthBuffer write FDepthBuffer;
-    property LowDepthBuffer: PDepthsBuffer read FLowDepthBuffer write FLowDepthBuffer;
+    property FrameBuffer: TFrameBuffer read FFrameBuffer write FFrameBuffer;
     property FPS: Integer read GetFPS;
     property RenderFence: THandle read GetRenderFence;
   end;
@@ -90,23 +86,22 @@ var
   LCall: PDrawCall;
   LTriangle: PTriangle;
   i, k: Integer;
-  LVertexA, LVertexB, LVertexC, LNormal: TFloat4;
+  LVertexA, LVertexB, LVertexC: TFloat4;
   LShader: TShader;
   LRasterizer: TRasterizer;
   LRenderTarget: Pointer;
   LFirstDepth, LFirstLowDepth: System.PSingle;
 begin
+  NameThreadForDebugging('RenderWorker');
   while not Terminated do
   begin
     FStart.WaitFor();
     FWatch.Start;
     if Assigned(FDrawCalls) then
     begin
-      LRenderTarget := FPixelBuffer.FirstLine;
-      LFirstDepth := @FDepthBuffer^[0];
-      LFirstLowDepth := @FLowDepthBuffer^[0];
-      Inc(LFirstDepth, (FPixelBuffer.Height-1)*FPixelBuffer.Width);
-      Inc(LFirstLowDepth, (((FPixelBuffer.Height+7) div 8) - 1) * ((FPixelBuffer.Width+7) div 8));
+      LRenderTarget := FFrameBuffer.FirstPixel;
+      LFirstDepth := FFrameBuffer.DepthBuffer;
+      LFirstLowDepth := FFrameBuffer.LowDepthBuffer;
       for i := 0 to Pred(FDrawCalls.Count) do
       begin
         LCall := FDrawCalls[i];
@@ -157,7 +152,7 @@ begin
   if LMicro > 0 then
     Result := 1000000 div LMicro
   else
-    Result := 1000;
+    Result := 10000;
 end;
 
 function TRenderWorker.GetRenderFence: THandle;

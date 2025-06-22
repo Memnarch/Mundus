@@ -8,8 +8,7 @@ uses
   Graphics,
   Mundus.Types,
   Mundus.Math,
-  Mundus.ValueBuffer,
-  Mundus.PixelBuffer;
+  Mundus.ValueBuffer;
 
 type
 
