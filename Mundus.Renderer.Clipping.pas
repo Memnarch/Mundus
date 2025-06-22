@@ -47,6 +47,39 @@ type
   TClipPlanes = set of TClipPlane;
 
 function ClipPlanes(const AVector: TFloat4): TClipPlanes;
+{$IFDEF CPUX86}
+var
+  LResult: array[0..3] of Cardinal;
+label NoX, NoY, NoZ, NoNegX, NoNegY, NoNegZ;
+const CLastToAll = 3 + 3 shl 2 + 3 shl 4 + 3 shl 6;
+const CMaskPos: array[0..3] of Cardinal = (1 shl Ord(PosX), 1 shl Ord(PosY), 1 shl Ord(PosZ), 0);
+const CMaskNeg: array[0..3] of Cardinal = (1 shl Ord(NegX), 1 shl Ord(NegY), 1 shl Ord(NegZ), 0);
+asm
+  movups xmm0, [AVector]
+  movaps xmm1, xmm0
+  shufps xmm1, xmm1, CLastToAll
+  xorps xmm2, xmm2
+
+  movaps xmm3, xmm1
+  subps xmm3, xmm0
+  CMPLTPS xmm3, xmm2
+  movups xmm5, CMaskPos
+  ANDPS xmm3, xmm5
+
+  movaps xmm4, xmm1
+  addps xmm4, xmm0
+  CMPLTPS xmm4, xmm2
+  movups xmm5, CMaskNeg
+  ANDPS xmm4, xmm5
+
+  ORPS XMM3, XMM4
+  movups LResult, xmm3
+  xor eax, eax
+  mov al, byte ptr LResult
+  or al, byte ptr LResult[4]
+  or al, byte ptr LResult[8]
+end;
+{$ELSE}
 begin
   Result := [];
   if AVector.W - AVector.X < 0 then
@@ -62,6 +95,7 @@ begin
   if AVector.Z + AVector.W < 0 then
     Include(Result, NegZ);
 end;
+{$ENDIF}
 
 const
   COne: Single = 1;
