@@ -319,7 +319,7 @@ procedure RasterizeTriangle(
       APixelBuffer: PRGB32Array;
       ADepthBuffer: PSingle;
       ALowDepthBuffer: PSingle;
-      ABlockOffset, ABlockStep: Integer);
+      ABlockOffset, ABlockStep, ABlockEnd: Integer);
 var
   Y1, Y2, Y3, X1, X2, X3: Integer;
   MinX, MinY, MAxX, MAxY, BlockXEnd, BlockYEnd: Integer;
@@ -396,7 +396,8 @@ begin
     MinY := MinY div (CQuadSize) * CQuadSize;
         //align to block matching stepping
     LStepsPerQuad := CQuadSize*ABlockStep;
-    MinY := MinY div LStepsPerQuad * LStepsPerQuad + ABlockOffset*CQuadSize;
+    MinY := Max(MinY, ABlockOffset*CQuadSize);
+    MaxY := Min(MaxY, (ABlockEnd * CQuadSize)-1);
 
     // Half-edge constants
     LConstants.C1 := LDeltas.Y12 * X1 - LDeltas.X12 * Y1;

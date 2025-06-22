@@ -29,7 +29,7 @@ type
     APixelBuffer: PRGB32Array;
     ADepthBuffer: PSingle;
     ALowDepthBuffer: PSingle;
-    ABlockOffset, ABlockStep: Integer);
+    ABlockOffset, ABlockStep, ABlockEnd: Integer);
 
   TVector = TFloat3;
 

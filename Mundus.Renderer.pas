@@ -58,6 +58,7 @@ type
     procedure UpdateBufferResolution(ABuffer: Boolean; AWidth, AHeight: Integer);
     procedure ClearBuffer(ABuffer: Boolean);
     function GetRenderWorkers: Integer;
+    procedure AssignWorkerAreas(const ABufferHeight: Integer);
   public
     constructor Create(AWorker: Integer = 1);
     destructor Destroy(); override;
@@ -87,9 +88,31 @@ uses
 
 { TSoftwareRenderer }
 
-procedure TMundusRenderer.ClearBuffer(ABuffer: Boolean);
+procedure TMundusRenderer.AssignWorkerAreas(const ABufferHeight: Integer);
+var
+  LRows, LRowsPerWorker, LMissingRows: Integer;
+  i, LOffset, LBlockEnd: Integer;
+  LWorker: TRenderWorker;
 begin
-  FBackBuffer[ABuffer].Clear;
+  LRows := ABufferHeight div CQuadSize;
+  LRowsPerWorker := LRows div FWorkers.Count;
+  LMissingRows := LRows mod FWorkers.Count;
+  LOffset := 0;
+  LBlockEnd := 0;
+  for i := 0 to Pred(FWorkers.Count) do
+  begin
+    LOffset := LBlockEnd;
+    LBlockEnd := LOffset + LRowsPerWorker;
+    if LMissingRows > 0 then
+    begin
+      Inc(LBlockEnd);
+      Dec(LMissingRows);
+    end;
+    LWorker := FWorkers[i];
+    LWorker.BlockSteps := 1;
+    LWorker.BlockOffset := LOffset;
+    LWorker.BlockEnd := LBlockEnd;
+  end;
 end;
 
 procedure TMundusRenderer.ClearDepthBuffer;
@@ -154,7 +177,7 @@ begin
 
   //wait for workers to finish frame
   WaitForRender;
-
+  AssignWorkerAreas(FResolutionY);
   //load workers with new stuff and start
   FWorkerFPS := High(FWorkerFPS);
   for LWorker in FWorkers do

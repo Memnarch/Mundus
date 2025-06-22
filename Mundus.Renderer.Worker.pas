@@ -34,6 +34,7 @@ type
     FDepthBuffer: PDepthsBuffer;
     FLowDepthBuffer: PDepthsBuffer;
     FShaderCache: TShaderCache;
+    FBlockEnd: Integer;
     procedure SetResolutionX(const Value: Integer);
     procedure SetResolutionY(const Value: Integer);
     function GetFPS: Integer;
@@ -48,6 +49,7 @@ type
     property DrawCalls: TDrawCalls read FDrawCalls write FDrawCalls;
     property BlockSteps: Integer read FBlockSteps write FBlockSteps;
     property BlockOffset: Integer read FBlockOffset write FBlockOffset;
+    property BlockEnd:Integer read FBlockEnd write FBlockEnd;
     property ResolutionX: Integer read FResolutionX write SetResolutionX;
     property ResolutionY: Integer read FResolutionY write SetResolutionY;
     property PixelBuffer: TPixelBuffer read FPixelBuffer write FPixelBuffer;
@@ -138,7 +140,7 @@ begin
             LRenderTarget,
             LFirstDepth,
             LFirstLowDepth,
-            FBlockOffset, FBlockSteps);
+            FBlockOffset, FBlockSteps, FBlockEnd);
         end;
       end;
     end;
