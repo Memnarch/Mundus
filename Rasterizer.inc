@@ -33,22 +33,19 @@ var
   LX, LY: Single;
   LStepD: TAttributes;
   LZValues: TFloat3;
+label ZFail;
 begin
   LStepD := AAttributes.StepD;
   LZValues := AAttributes.ZValues;
   {$i SetupRegisters.inc}
   {$i InitFactorsY.inc}
 
-  {$IFDEF CPUX86}
   asm
     movss xmm0, [LZValues.Y]
     mulss xmm0, [LY]
     addss xmm0, [LZValues.Z]
     movss [LDenormalizeZY], xmm0
   end;
-  {$ELSE}
-  LDenormalizeZY := LZValues.Y * LY + LZValues.Z;
-  {$IFEND}
 
   LPixelY := AAttributes.FirstPixel;
   if DepthTest <> dtNone then
@@ -57,48 +54,41 @@ begin
   begin
     {$i InitFactorsX.Inc}
 
-    {$IFDEF CPUX86}
     asm
       movss xmm0, [LZValues.X]
       mulss xmm0, [LX]
       addss xmm0, [LDenormalizeZY]
       movss [LDenormalizeZX], xmm0
     end;
-    {$ELSE}
-    LDenormalizeZX := LZValues.X * LX + LDenormalizeZY;
-    {$ENDIF}
 
     LPixelX := LPixelY;
     if DepthTest <> dtNone then
       LDepthX := LDepthY;
     for k := AAttributes.X to AAttributes.X + (CQuadSize - 1) do
     begin
-      {$B-}
-      if (DepthTest = dtNone) or (LDenormalizeZX <= LDepthX^) then
-      {$B+}
-      begin
-        {$i DenormalizeFactors.inc}
-        AAttributes.ShaderInstance.Fragment(LPixelX, @LAttributesDenormalized);
-        if DepthTest = dtWrite then
-          LDepthX^ := LDenormalizeZX;
-      {$IFDEF ShowZFail}
-      end
-      else
-      begin
-        LPixelX.R := 200;
-      {$EndIF}
+      //if (DepthTest = dtNone) or (LDenormalizedZ <= LDepthX^) then
+      asm
+      {$IF DepthTest <> dtNone}
+        mov eax, [LDepthX]
+        movss xmm1, [eax]
+        ucomiss xmm1, xmm0
+        jb ZFail
+      {$ENDIF}
+      {$IF DepthTest = dtWrite}
+        //LDepthX^ := LDenormalizedZ;
+        movss [eax], xmm0
+      {$ENDIF}
       end;
+      {$i DenormalizeFactors.inc}
+      AAttributes.ShaderInstance.Fragment(LPixelX, @LAttributesDenormalized);
+      ZFail:
       {$i StepFactorsX.inc}
 
-      {$IFDEF CPUX86}
       asm
         movss xmm0, [LDenormalizeZX]
         addss xmm0, LZValues.X
         movss [LDenormalizeZX], xmm0
       end;
-      {$ELSE}
-      LDenormalizeZX := LDenormalizeZX + LZValues.X;
-      {$ENDIF}
 
       if DepthTest <> dtNone then
         Inc(LDepthX);
