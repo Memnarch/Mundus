@@ -289,16 +289,18 @@ begin
 end;
 
 procedure TMundusRenderer.TransformMesh(AMesh: TMesh; AWorld, AProjection: TMatrix4x4; ATargetCall: PDrawCall);
+
 var
-  i: Integer;
+  i, k: Integer;
   LVertex: TFloat4;
   LTriangle: PTriangle;
   LShader: TShader;
   LBuffer: TVertexAttributeBuffer;
   LBufferSize: Integer;
   LVInput: TVertexShaderInput;
-  LClippedTriangle: TTriangle;
   LClipContext: TClipContext;
+  LClippedTriangle: TTriangle;
+  LNormal, LA, LB, LC: TFloat4;
 begin
   LBufferSize := AMesh.Shader.GetAttributeBufferSize;
   SetLength(LBuffer, LBufferSize);
@@ -321,8 +323,9 @@ begin
 
   //add visible triangles
   LClipContext := TClipContext.Create();
-  for LTriangle in AMesh.Triangles do
+  for i := 0 to High(AMesh.Triangles) do
   begin
+    LTriangle := @AMesh.Triangles[i];
     ClipPolygon(ATargetCall, @LClipContext, LTriangle.VertexA, LTriangle.VertexB, LTriangle.VertexC);
     //if less than 3, it is fully clipped
     if LClipContext.ResultBuffer.Count >= 3 then
@@ -330,13 +333,24 @@ begin
       LClippedTriangle.VertexA := LClipContext.ResultBuffer.Indices[0];
       LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[1];
       LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[2];
-      ATargetCall.AddTriangle(@LClippedTriangle);
-      for i := 3 to Pred(LClipContext.ResultBuffer.Count) do
+      LA := ATargetCall.Vertices[LClippedTriangle.VertexA];
+      LA.NormalizeKeepW;
+      LB := ATargetCall.Vertices[LClippedTriangle.VertexB];
+      LB.NormalizeKeepW;
+      LC := ATargetCall.Vertices[LClippedTriangle.VertexC];
+      LC.NormalizeKeepW;
+      LNormal.CalculateSurfaceNormal(LA, LB, LC);
+      //Backface culling
+      if LNormal.Z < 0 then
       begin
-        LClippedTriangle.VertexA := LClipContext.ResultBuffer.Indices[0];
-        LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[i-1];
-        LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[i];
         ATargetCall.AddTriangle(@LClippedTriangle);
+        for k := 3 to Pred(LClipContext.ResultBuffer.Count) do
+        begin
+          LClippedTriangle.VertexA := LClipContext.ResultBuffer.Indices[0];
+          LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[k-1];
+          LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[k];
+          ATargetCall.AddTriangle(@LClippedTriangle);
+        end;
       end;
     end;
   end;

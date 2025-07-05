@@ -15,22 +15,6 @@ uses
 type
   TMesh = class;
 
-  TTriangleEnumerator = packed record
-    FCurentTriangle: PTriangle;
-    FCount: Integer;
-  private
-    function GetCurrent: PTriangle; inline;
-  public
-    function MoveNext: Boolean; inline;
-    property Current: PTriangle read GetCurrent;
-  end;
-
-  //dummy class to have something as collectiontype
-  TTriangles = class
-  public
-    function GetEnumerator: TTriangleEnumerator; //inline;
-  end;
-
   TTextureReference = record
     Name: string;
     FileName: string;
@@ -42,7 +26,6 @@ type
     FMaterial: TMaterial;
     FNormals: TArray<TVector>;
     FTextures: TArray<TTextureReference>;
-    function GetTriangles: TTriangles; inline;
   protected
     FVertexList: TArray<TVector>;
     FTriangles: TArray<TTriangle>;
@@ -55,7 +38,7 @@ type
     function AddUV(const AUV: TUV; AUVSet: Integer = 0): Integer;
     function AddNormal(const ANormal: TVector): Integer;
     function AddTextureReference(const AReference: TTextureReference): Integer;
-    property Triangles: TTriangles read GetTriangles;
+    property Triangles: TArray<TTriangle> read FTriangles;
     property Vertices: TArray<TVector> read FVertexList;
     property Normals: TArray<TVector> read FNormals;
     property UVs: TArray<TArray<TUV>> read FUVs;
@@ -115,34 +98,6 @@ begin
   Result := Length(FVertexList);
   SetLength(FVertexList, Length(FVertexList)+1);
   FVertexList[Result] := AVertice;
-end;
-
-function TMesh.GetTriangles: TTriangles;
-begin
-  Result := TTriangles(Self);
-end;
-
-{ TTriangleEnumerator }
-
-function TTriangleEnumerator.GetCurrent: PTriangle;
-begin
-  Result := FCurentTriangle;
-end;
-
-function TTriangleEnumerator.MoveNext: Boolean;
-begin
-  Inc(FCurentTriangle);
-  Dec(FCount);
-  Result := FCount > -1;
-end;
-
-{ TTriangles }
-
-function TTriangles.GetEnumerator: TTriangleEnumerator;
-begin
-  Result.FCount := Length(TMesh(Self).FTriangles);
-  Result.FCurentTriangle := @TMesh(Self).FTriangles[0];
-  Dec(Result.FCurentTriangle);
 end;
 
 { TMeshGroup }
