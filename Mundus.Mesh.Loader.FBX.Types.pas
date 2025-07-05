@@ -5,7 +5,8 @@ interface
 uses
   SysUtils,
   System.Rtti,
-  Mundus.Types;
+  Mundus.Types,
+  Mundus.Material;
 
 type
   ///basic types to parse the document
@@ -107,6 +108,12 @@ type
   TIDElement<T> = record
     ID: Int64;
     Element: T;
+  end;
+
+  TMaterialElement = TIDElement<TMaterial>;
+
+  TMaterialElementHelper = record helper for TMaterialElement
+    class function Create: TMaterialElement; static;
   end;
 
   TConnection = record
@@ -239,6 +246,14 @@ end;
 function TNode.GetIsNull: Boolean;
 begin
   Result := Header.EndOffset = 0;
+end;
+
+{ TMaterialElementHelper }
+
+class function TMaterialElementHelper.Create: TMaterialElement;
+begin
+  Result.ID := 0;
+  Result.Element := TMaterial.Create;
 end;
 
 end.

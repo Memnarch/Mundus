@@ -31,7 +31,7 @@ type
     class function ReadString(const ASource: TStream): TValue;
     class function ReadArray<T>(const ASource: TStream): TValue;
     class function LoadGeometry(const ATarget: TMeshGroup; const ANode: TNode): TGeometry;
-    class function LoadMaterial(const ANode: TNode): TIDElement<TMaterial>;
+    class function LoadMaterial(const ANode: TNode): TMaterialElement;
     class function LoadTexture(const ANode: TNode): TIDElement<TTextureReference>;
     class function LoadUVLayer(const ANode: TNode): TUVLayer;
     class function LoadNormalLayer(const ANode: TNode): TNormalLayer;
@@ -175,9 +175,8 @@ begin
   while i < Length(LValues)  do
   begin
     LVertex.X := LValues[i];
-    //assume the default of Y-Up in FBX and convert to Z-Up
-    LVertex.Z := -LValues[i+1];
-    LVertex.Y := LValues[i+2];
+    LVertex.Y := LValues[i+1];
+    LVertex.Z := LValues[i+2];
     Result[i div 3] := LVertex;
     Inc(i, 3);
   end;
@@ -210,7 +209,7 @@ var
   LIDTexture: TIDElement<TTextureReference>;
   LTextures: TArray<TTextureReference>;
   LTextureIDs: TArray<Int64>;
-  LIDMaterial: TIDElement<TMaterial>;
+  LIDMaterial: TMaterialElement;
   LMaterialIDs: TArray<Int64>;
   LConnections: TArray<TConnection>;
   LConnection, LIndirectConnection: TConnection;
@@ -310,14 +309,18 @@ begin
   end;
 end;
 
-class function TFBXMeshLoader.LoadMaterial(const ANode: TNode): TIDElement<TMaterial>;
+class function TFBXMeshLoader.LoadMaterial(const ANode: TNode): TMaterialElement;
 var
   LChild, LPropChild: TNode;
   LDescriptor: TPropertyDescriptor;
+  LZero: Integer;
 begin
-  Result := Default(TIDElement<TMaterial>);
+  Result := TMaterialElement.Create();;
   Result.ID := ANode.Properties[0].Data.AsInt64;
   Result.Element.Name := ANode.Properties[1].Data.AsString;
+  LZero := Pos(#0, Result.Element.Name);
+  if LZero > 0 then
+    Result.Element.Name := Copy(Result.Element.Name, 0, LZero-1);
   for LChild in ANode.Childs do
   begin
     if SameText(LChild.Name, 'Properties70') then
