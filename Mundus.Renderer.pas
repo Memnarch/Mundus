@@ -23,7 +23,7 @@ uses
 
 type
   TRenderEvent = procedure(Canvas: TCanvas) of object;
-  TInitBufferEvent = reference to procedure(AMesh: TMesh; const ABuffer: PValueBuffers);
+  TInitBufferEvent = reference to procedure(AMesh: TMesh; const AConstantBuffer, AVertexBuffer: PValueBuffer);
 
   TMundusRenderer = class
   private
@@ -42,9 +42,9 @@ type
     FCamera: TCamera;
     FOnInitValueBuffer: TInitBufferEvent;
     FShaderCache: TShaderCache;
-    procedure TransformMesh(AMesh: TMesh; AWorld, AProjection: TMatrix4x4; ATargetCall: PDrawCall);
+    procedure TransformMesh(AMesh: TMesh; ATargetCall: PDrawCall);
     procedure DoAfterFrame(ACanvas: TCanvas);
-    function GenerateDrawCalls(const AViewMatrix: TMatrix4x4): TDrawCalls;
+    function GenerateDrawCalls: TDrawCalls;
     procedure DispatchCalls(ACanvas: TCanvas; ACalls: TDrawCalls);
     procedure SpinupWorkers(AWorkerCount: Integer);
     procedure TerminateWorkers;
@@ -191,13 +191,10 @@ begin
   end;
 end;
 
-function TMundusRenderer.GenerateDrawCalls(const AViewMatrix: TMatrix4x4): TDrawCalls;
+function TMundusRenderer.GenerateDrawCalls: TDrawCalls;
 var
   LMesh: TMesh;
   LCall: PDrawCall;
-  LMove, LWorld: TMatrix4x4;
-  LRotationX, LRotationY, LRotationZ: TMatrix4x4;
-  LProjection: TMatrix4x4;
 begin
   Result := FDrawCalls[not FCurrentBuffer];
   Result.Reset;
@@ -205,23 +202,9 @@ begin
   for LMesh in FMeshList do
   begin
     LCall := Result.Add;
-    LWorld := AViewMatrix;
-    LRotationX.SetAsRotationXMatrix(DegToRad(LMesh.Rotation.X));
-    LRotationY.SetAsRotationYMatrix(DegToRad(LMesh.Rotation.Y));
-    LRotationZ.SetAsRotationZMatrix(DegToRad(LMesh.Rotation.Z));
-
-    LMove.SetAsMoveMatrix(LMesh.Position.X, LMesh.Position.Y, LMesh.Position.Z);
-    LMove.MultiplyMatrix4D(LRotationX);
-    LMove.MultiplyMatrix4D(LRotationY);
-    LMove.MultiplyMatrix4D(LRotationZ);
-
-    LWorld.MultiplyMatrix4D(LMove);
-
-    LProjection.SetAsPerspectiveProjectionMatrix(FCamera.ZNear, FCamera.ZFar, FCamera.FOV, FResolutionX/FResolutionY);
-    LProjection.MultiplyMatrix4D(LWorld);
 
     LCall.Shader := LMesh.Shader;
-    TransformMesh(LMesh, LWorld, LProjection, LCall);
+    TransformMesh(LMesh, LCall);
   end;
 end;
 
@@ -238,15 +221,11 @@ end;
 procedure TMundusRenderer.RenderFrame(ACanvas: TCanvas);
 var
   LDrawCalls: TDrawCalls;
-  LViewMoveMatrix: TMatrix4x4;
   LMicro: UInt64;
 begin
   FTimer.Start();
 
-  LViewMoveMatrix.SetAsMoveMatrix(FCamera.Position.X, FCamera.Position.Y, FCamera.Position.Z);
-  LViewMoveMatrix.MultiplyMatrix4D(FCamera.Rotation);
-
-  LDrawCalls := GenerateDrawCalls(LViewMoveMatrix.Inverse);
+  LDrawCalls := GenerateDrawCalls();
   DispatchCalls(ACanvas, LDrawCalls);
 
   FTimer.Stop();
@@ -288,37 +267,40 @@ begin
     LWorker.Terminate;
 end;
 
-procedure TMundusRenderer.TransformMesh(AMesh: TMesh; AWorld, AProjection: TMatrix4x4; ATargetCall: PDrawCall);
+procedure TMundusRenderer.TransformMesh(AMesh: TMesh; ATargetCall: PDrawCall);
 
 var
   i, k: Integer;
   LVertex: TFloat4;
   LTriangle: PTriangle;
-  LShader: TShader;
+  LShader: TShaderCacheEntry;
   LBuffer: TVertexAttributeBuffer;
   LBufferSize: Integer;
-  LVInput: TVertexShaderInput;
+  LVInput: PByte;
   LClipContext: TClipContext;
   LClippedTriangle: TTriangle;
   LNormal, LA, LB, LC: TFloat4;
 begin
-  LBufferSize := AMesh.Shader.GetAttributeBufferSize;
+  LBufferSize := AMesh.Shader.GetFragmentAttributeSize;
   SetLength(LBuffer, LBufferSize);
   LShader := FShaderCache.GetShader(AMesh.Shader);
+  ATargetCall.ConstantValues.Initialize(LShader.ConstantBufferDescriptor, 1);
+  ATargetCall.Values.Initialize(LShader.VertexBufferDescriptor, Length(AMesh.Vertices));
   if Assigned(FOnInitValueBuffer) then
-    FOnInitValueBuffer(AMesh, @ATargetCall.Values);
-  LShader.BindBuffer(@ATargetCall.Values);
+    FOnInitValueBuffer(AMesh, @ATargetCall.ConstantValues, @ATargetCall.Values);
+  LShader.Instance.SetConstants(@ATargetCall.ConstantValues.Data[0]);
 
   //transform all vertices
+  LVInput := @ATargetCall.Values.Data[0];
   for i := 0 to High(AMesh.Vertices) do
   begin
     LVertex.Element[0] := AMesh.Vertices[i].X;
     LVertex.Element[1] := AMesh.Vertices[i].Y;
     LVertex.Element[2] := AMesh.Vertices[i].Z;
     LVertex.Element[3] := 1;
-    LVInput.VertexID := i;
-    LShader.VertexShader(AWorld, AProjection, LVertex, LVInput, LBuffer);
+    LShader.Instance.VertexShader(LVertex, LVInput, LBuffer);
     ATargetCall.AddVertex(LVertex, @LBuffer[0]);
+    Inc(LVInput, ATargetCall.Values.Descriptor.RecordSize);
   end;
 
   //add visible triangles

@@ -5,103 +5,217 @@ interface
 uses
   SysUtils,
   Mundus.Math,
-  Mundus.Texture;
+  Mundus.Texture,
+  System.TypInfo,
+  System.Rtti;
+
+const
+  CMaxFields = 8;
 
 type
-  TValueBinding = type SmallInt;
-
-  TValueBuffer<T> = record
-  private
-    FValues: array[0..7] of T;
-    FNames: array [0..7] of string;
-    FCount: Byte;
-    function GetValue(Index: TValueBinding): T; inline;
-    procedure SetValue(Index: TValueBinding; const Value: T); inline;
-  public
-    function Bind(const AName: string): TValueBinding;
-    function GetBinding(const AName: string): TValueBinding;
-    procedure Reset; inline;
-    property Values[Index: TValueBinding]: T read GetValue write SetValue; default;
+  TFieldSize = Byte;
+  TFieldInfo = record
+    Name: string;
+    Size: TFieldSize;
+    Offset: TFieldSize;
   end;
 
-  TValueBuffers = record
+  PFieldInfo = ^TFieldInfo;
+
+  TFieldInfos = array[0..CMaxFields - 1] of TFieldInfo;
+
+  TValueBufferDescriptor = record
   private
-    FMatrix4X4: TValueBuffer<TMatrix4x4>;
-    FFloat2Array: TValueBuffer<TArray<TFloat2>>;
-    FFloat3Array: TValueBuffer<TArray<TFloat3>>;
-    FFloat4ARray: TValueBuffer<TArray<TFloat4>>;
-    FFloatArray: TValueBuffer<TArray<Single>>;
-    FFloat2: TValueBuffer<TFloat2>;
-    FFloat3: TValueBuffer<TFloat3>;
-    FFloat4: TValueBuffer<TFloat4>;
-    FFloat: TValueBuffer<Single>;
-    FTexture: TValueBuffer<TTexture>;
+    FFieldCount: Integer;
+    FFields: TFieldInfos;
+    FRecordSize: NativeUInt;
   public
-    procedure Reset; inline;
-    property Float: TValueBuffer<Single> read FFloat;
-    property Float2: TValueBuffer<TFloat2> read FFloat2;
-    property Float3: TValueBuffer<TFloat3> read FFloat3;
-    property Float4: TValueBuffer<TFloat4> read FFloat4;
-    property Matrix4x4: TValueBuffer<TMatrix4x4> read FMatrix4X4;
-    property Texture: TValueBuffer<TTexture> read FTexture;
-    property FloatArray: TValueBuffer<TArray<Single>> read FFloatArray;
-    property Float2Array: TValueBuffer<TArray<TFloat2>> read FFloat2Array;
-    property Float3Array: TValueBuffer<TArray<TFloat3>> read FFloat3Array;
-    property Float4Array: TValueBuffer<TArray<TFloat4>> read FFloat4ARray;
+    class function Create(AInfo: TRttiRecordType): TValueBufferDescriptor; overload; static;
+    class function Create<T: record>(): TValueBufferDescriptor; overload; static;
+    function TryGetField(const AName: string; out AField: PFieldInfo): Boolean;
+    property RecordSize: NativeUInt read FRecordSize;
   end;
 
-  PValueBuffers = ^TValueBuffers;
+  TValueBuffer = record
+  private
+    FDescriptor: TValueBufferDescriptor;
+    FRecordCount: Integer;
+    FData: TArray<Byte>;
+    procedure InternalBindValues(const AName: string; AData: Pointer; ADataSize, ADataCount: Integer);
+    procedure InternalBindValue(const AName: string; AData: Pointer; ADataSize: Integer);
+  public
+    procedure Initialize(const ADescriptor: TValueBufferDescriptor; const ARecordCount: Integer);
+    procedure BindArray(const AName: string; const AValues: TArray<TFloat2>); overload;
+    procedure BindArray(const AName: string; const AValues: TArray<TFloat3>); overload;
+    procedure BindArray(const AName: string; const AValues: TArray<TFloat4>); overload;
+    procedure Bind(const AName: string; const AValue: Single); overload;
+    procedure Bind(const AName: string; const AValue: TFloat2); overload;
+    procedure Bind(const AName: string; const AValue: TFloat3); overload;
+    procedure Bind(const AName: string; const AValue: TFloat4); overload;
+    procedure Bind(const AName: string; const AValue: TTexture); overload;
+    procedure Bind(const AName: string; const AValue: TMatrix4x4); overload;
+    property Data: TArray<Byte> read FData;
+    property Descriptor: TValueBufferDescriptor read FDescriptor;
+  end;
+
+  PValueBuffer = ^TValueBuffer;
 
 implementation
 
-{ TValueBuffer<T> }
+uses
+  System.Math,
+  Winapi.Windows;
 
-function TValueBuffer<T>.Bind(const AName: string): TValueBinding;
+procedure RaiseToManyFields;
 begin
-  FNames[FCount] := AName;
-  Result := FCount;
-  Inc(FCount);
+  raise Exception.Create('Attribute record has more than ' + IntToStr(CMaxFields) + ' fields');
 end;
 
-function TValueBuffer<T>.GetBinding(const AName: string): TValueBinding;
+
+{ TValueBufferDescriptor }
+
+class function TValueBufferDescriptor.Create(AInfo: TRttiRecordType): TValueBufferDescriptor;
+var
+  LFields: TArray<TRttiField>;
+  LField: TRttiField;
+  i: Integer;
+  LFieldInfo: TFieldInfo;
+  LOffset: TFieldSize;
+begin
+  LFields := AInfo.GetFields();
+  Result.FFieldCount := Length(LFields);
+  Result.FRecordSize := AInfo.TypeSize;
+
+  if Result.FFieldCount > CMaxFields then
+    RaiseToManyFields;
+
+  LOffset := 0;
+  for i := 0 to High(LFields) do
+  begin
+    LField := LFields[i];
+    LFieldInfo.Name := LField.Name;
+    LFieldInfo.Offset := LField.Offset;
+    LFieldInfo.Size := LField.FieldType.TypeSize;
+    Result.FFields[i] := LFieldInfo;
+  end;
+end;
+
+class function TValueBufferDescriptor.Create<T>: TValueBufferDescriptor;
+var
+  LContext: TRttiContext;
+begin
+  Result := Create(LContext.GetType(TypeInfo(T)) as TRttiRecordType);
+end;
+
+function TValueBufferDescriptor.TryGetField(const AName: string; out AField: PFieldInfo): Boolean;
 var
   i: Integer;
 begin
-  for i := 0 to High(FNames) do
-    if SameText(FNames[i], AName) then
-      Exit(i);
-  Result := -1;
+  for i := 0 to Pred(FFieldCount) do
+    if AnsiSameText(AName, FFields[i].Name) then
+    begin
+      AField := @FFields[i];
+      Exit(True);
+    end;
+  Result := False;
 end;
 
-function TValueBuffer<T>.GetValue(Index: TValueBinding): T;
+{ TValueBuffer }
+
+procedure TValueBuffer.Bind(const AName: string; const AValue: TTexture);
 begin
-  Result := FValues[Index];
+  InternalBindValue(AName, @AValue, SizeOf(AValue));
 end;
 
-procedure TValueBuffer<T>.Reset;
+procedure TValueBuffer.Bind(const AName: string; const AValue: TFloat4);
 begin
-  FCount := 0;
+  InternalBindValue(AName, @AValue, SizeOf(AValue));
 end;
 
-procedure TValueBuffer<T>.SetValue(Index: TValueBinding; const Value: T);
+procedure TValueBuffer.Bind(const AName: string; const AValue: TFloat3);
 begin
-  FValues[Index] := Value;
+  InternalBindValue(AName, @AValue, SizeOf(AValue));
 end;
 
-{ TValueBuffers }
-
-procedure TValueBuffers.Reset;
+procedure TValueBuffer.Bind(const AName: string; const AValue: TFloat2);
 begin
-  FFloat.Reset;
-  FFloat2.Reset;
-  FFloat3.Reset;
-  FFloat4.Reset;
-  FMatrix4X4.Reset;
-  FTexture.Reset;
-  FFloatArray.Reset;
-  FFloat2Array.Reset;
-  FFloat3Array.Reset;
-  FFloat4Array.Reset;
+  InternalBindValue(AName, @AValue, SizeOf(AValue));
+end;
+
+procedure TValueBuffer.Bind(const AName: string; const AValue: TMatrix4x4);
+begin
+  InternalBindValue(AName, @AValue, SizeOf(AValue));
+end;
+
+procedure TValueBuffer.Bind(const AName: string; const AValue: Single);
+begin
+  InternalBindValue(AName, @AValue, SizeOf(AValue));
+end;
+
+procedure TValueBuffer.BindArray(const AName: string; const AValues: TArray<TFloat4>);
+begin
+  InternalBindValues(AName, @AValues[0], SizeOf(TFloat4), Length(AValues));
+end;
+
+procedure TValueBuffer.BindArray(const AName: string; const AValues: TArray<TFloat3>);
+begin
+  InternalBindValues(AName, @AValues[0], SizeOf(TFloat3), Length(AValues));
+end;
+
+procedure TValueBuffer.BindArray(const AName: string; const AValues: TArray<TFloat2>);
+begin
+  InternalBindValues(AName, @AValues[0], SizeOf(TFloat2), Length(AValues));
+end;
+
+procedure TValueBuffer.Initialize(const ADescriptor: TValueBufferDescriptor; const ARecordCount: Integer);
+var
+  LSize: NativeUInt;
+begin
+  FDescriptor := ADescriptor;
+  FRecordCount := ARecordCount;
+  LSize := FDescriptor.FRecordSize * ARecordCount;
+  if Length(FData) < LSize then
+    SetLength(FData, LSize);
+end;
+
+procedure TValueBuffer.InternalBindValue(const AName: string; AData: Pointer; ADataSize: Integer);
+var
+  LField: PFieldInfo;
+  LTarget: PByte;
+  LSource: PByte;
+  i: Integer;
+begin
+  if FDescriptor.TryGetField(AName, LField) then
+  begin
+    LTarget := @FData[LField.Offset];
+    LSource := AData;
+    for i := 0 to Pred(FRecordCount) do
+    begin
+      CopyMemory(LTarget, LSource, ADataSize);
+      Inc(LTarget, FDescriptor.FRecordSize);
+      Inc(LSource, ADataSize);
+    end;
+  end;
+end;
+
+procedure TValueBuffer.InternalBindValues(const AName: string; AData: Pointer; ADataSize, ADataCount: Integer);
+var
+  LField: PFieldInfo;
+  LTarget: PByte;
+  LSource: PByte;
+  i: Integer;
+begin
+  if FDescriptor.TryGetField(AName, LField) then
+  begin
+    LTarget := @FData[LField.Offset];
+    LSource := AData;
+    for i := 0 to Min(FRecordCount, ADataCount) - 1 do
+    begin
+      CopyMemory(LTarget, LSource, ADataSize);
+      Inc(LTarget, FDescriptor.FRecordSize);
+      Inc(LSource, ADataSize);
+    end;
+  end;
 end;
 
 end.

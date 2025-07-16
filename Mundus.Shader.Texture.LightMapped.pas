@@ -10,21 +10,26 @@ uses
   Mundus.Shader;
 
 type
+  TTextureConstantInput = record
+    Projection: TMatrix4x4;
+    Diffuse: TTexture;
+    LightMap: TTexture;
+  end;
+
+  TTextureVSInput = record
+    UV: TUV;
+    UV2: TUV;
+  end;
+
   TTexturePSInput = record
     UV: TUV;
     UV2: TUV;
   end;
 
-  TLightMappedTextureShader = class(TShader<TTexturePSInput>)
-  private
-    FUV: TArray<TFloat2>;
-    FUV2: TArray<TFloat2>;
-    FDiffuseTexture: TTexture;
-    FLightMap: TTexture;
+  TLightMappedTextureShader = class(TShader<TTexturePSInput, TTextureVSInput, TTextureConstantInput>)
   public
-    procedure BindBuffer(const ABuffer: PValueBuffers); override;
-    procedure Vertex(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: TShader<TTexturePSInput>.PAttributeType); override; final;
-    procedure Fragment(const APixel: PRGB32; const PSInput: TShader<TTexturePSInput>.PAttributeType); override; final;
+    procedure Vertex(var AVertex: TFloat4; const AVInput: TLightMappedTextureShader.PVertexAttributes; const AVOutput: TLightMappedTextureShader.PFragmentAttributes); override; final;
+    procedure Fragment(const APixel: PRGB32; const PSInput: TLightMappedTextureShader.PFragmentAttributes); override; final;
     class function GetRasterizer: TRasterizer; override; final;
   end;
 
@@ -37,21 +42,12 @@ uses
 
 { TLightMappedTextureSHader }
 
-procedure TLightMappedTextureShader.BindBuffer(const ABuffer: PValueBuffers);
-begin
-  inherited;
-  FUV := ABuffer.Float2Array[ABuffer.Float2Array.GetBinding('UV0')];
-  FUV2 := ABuffer.Float2Array[ABuffer.Float2Array.GetBinding('UV1')];
-  FDiffuseTexture := ABuffer.Texture[ABuffer.Texture.GetBinding('Tex0')];
-  FLightMap := ABuffer.Texture[ABuffer.Texture.GetBinding('Tex1')];
-end;
-
-procedure TLightMappedTextureShader.Fragment(const APixel: PRGB32; const PSInput: TShader<TTexturePSInput>.PAttributeType);
+procedure TLightMappedTextureShader.Fragment(const APixel: PRGB32; const PSInput: TLightMappedTextureShader.PFragmentAttributes);
 var
   LDiffuse, LLight: TRGB32;
 begin
-  FDiffuseTexture.SampleDot(PSInput.UV, @LDiffuse);
-  FLightMap.SampleDot(PSInput.UV2, @LLight);
+  Constants.Diffuse.SampleDot(PSInput.UV, @LDiffuse);
+  Constants.LightMap.SampleDot(PSInput.UV2, @LLight);
   APixel.R := (LDiffuse.R * LLight.R) shr 8;
   APixel.G := (LDiffuse.G * LLight.G) shr 8;
   APixel.B := (LDiffuse.B * LLight.B) shr 8;
@@ -71,16 +67,13 @@ begin
   Result := @RasterizeTriangle;
 end;
 
-procedure TLightMappedTextureShader.Vertex(const AWorld,
-  AProjection: TMatrix4x4; var AVertex: TFloat4;
-  const AVInput: TVertexShaderInput;
-  const AAttributeBuffer: TShader<TTexturePSInput>.PAttributeType);
+procedure TLightMappedTextureShader.Vertex(var AVertex: TFloat4; const AVInput: TLightMappedTextureShader.PVertexAttributes; const AVOutput: TLightMappedTextureShader.PFragmentAttributes);
 begin
-  AVertex := AProjection.Transform(AVertex);
-  AAttributeBuffer.UV.U := FUV[AVInput.VertexID].U * FDiffuseTexture.MaxX;
-  AAttributeBuffer.UV.V := FUV[AVInput.VertexID].V * FDiffuseTexture.MaxY;
-  AAttributeBuffer.UV2.U := FUV2[AVInput.VertexID].U * FLightMap.MaxX;
-  AAttributeBuffer.UV2.V := FUV2[AVInput.VertexID].V * FLightMap.MaxY;
+  AVertex := Constants.Projection.Transform(AVertex);
+  AVOutput.UV.U := AVInput.UV.U * Constants.Diffuse.MaxX;
+  AVOutput.UV.V := AVInput.UV.V * Constants.Diffuse.MaxY;
+  AVOutput.UV2.U := AVInput.UV2.U * Constants.LightMap.MaxX;
+  AVOutput.UV2.V := AVInput.UV2.V * Constants.LightMap.MaxY;
 end;
 
 end.

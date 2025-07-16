@@ -7,6 +7,7 @@ uses
   Types,
   Mundus.Types,
   Mundus.Shader,
+  Mundus.ValueBuffer,
   Mundus.Math,
   Graphics,
   SysUtils;
@@ -15,10 +16,15 @@ type
   TDepthPSInput = TFloat4;
   PDepthPSInput = ^TDepthPSInput;
 
-  TDepthColorShader = class sealed(TShader<TDepthPSInput>)
+  TDepthConstants = record
+    Projection: TMatrix4x4;
+    ZDistance: Single;
+  end;
+
+  TDepthColorShader = class sealed(TShader<TDepthPSInput, TNoAttributes, TDepthConstants>)
   public
-    procedure Vertex(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: TShader<TDepthPSInput>.PAttributeType); override; final;
-    procedure Fragment(const APixel: PRGB32; const PSInput: TShader<TDepthPSInput>.PAttributeType); override; final;
+    procedure Vertex(var AVertex: TFloat4; const AVInput: TDepthColorShader.PVertexAttributes; const AVOutput: TDepthColorShader.PFragmentAttributes); override; final;
+    procedure Fragment(const APixel: PRGB32; const PSInput: TDepthColorShader.PFragmentAttributes); override; final;
     class function GetRasterizer: TRasterizer; override;
   end;
 
@@ -33,8 +39,7 @@ uses
 
 { TDepthColorShader }
 
-procedure TDepthColorShader.Fragment(const APixel: PRGB32;
-  const PSInput: TShader<TDepthPSInput>.PAttributeType);
+procedure TDepthColorShader.Fragment(const APixel: PRGB32; const PSInput: TDepthColorShader.PFragmentAttributes);
 asm
   //load input
   movups xmm2, [PSInput]
@@ -53,7 +58,7 @@ type
   Shader = TDepthColorShader;
 
 const
-  DepthTest = dtNone;
+  DepthTest = dtWrite;
 
 {$I Rasterizer.inc}
 
@@ -62,12 +67,10 @@ begin
   Result := @RasterizeTriangle;
 end;
 
-procedure TDepthColorShader.Vertex(const AWorld, AProjection: TMatrix4x4;
-  var AVertex: TFloat4; const AVInput: TVertexShaderInput;
-  const AAttributeBuffer: TShader<TDepthPSInput>.PAttributeType);
+procedure TDepthColorShader.Vertex(var AVertex: TFloat4; const AVInput: TDepthColorShader.PVertexAttributes; const AVOutput: TDepthColorShader.PFragmentAttributes);
 begin
-  inherited;
-  AAttributeBuffer.R := 255-255*AVertex.Z/AVertex.W;
+  AVertex := Constants.Projection.Transform(AVertex);
+  AVOutput.R := 255*(1-AVertex.Z/Constants.ZDistance);
 end;
 
 end.

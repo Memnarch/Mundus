@@ -23,7 +23,8 @@ type
     FAttributes: TArray<Single>;
     FAttributesPerVertex: Integer;
     FShader: TShaderClass;
-    FValues: TValueBuffers;
+    FValues: TValueBuffer;
+    FConstantValues: TValueBuffer;
     procedure SetShader(const Value: TShaderClass);
     function GetAttributes(Index: Integer): PSingle;
   public
@@ -37,7 +38,8 @@ type
     property VertexCount: Integer read FVertexCount;
     property TriangleCount: Integer read FTriangleCount;
     property Shader: TShaderClass read FShader write SetShader;
-    property Values: TValueBuffers read FValues;
+    property Values: TValueBuffer read FValues;
+    property ConstantValues: TValueBuffer read FConstantValues;
     property AttributesPerVertex: Integer read FAttributesPerVertex;
   end;
 
@@ -81,7 +83,7 @@ begin
   end;
   FVertices[FVertexCount] := AVertex;
   if Assigned(AAttributes) then
-    CopyMemory(Attributes[FVertexCount], AAttributes, FShader.GetAttributeBufferSize);
+    CopyMemory(Attributes[FVertexCount], AAttributes, FShader.GetFragmentAttributeSize);
   Result := FVertexCount;
   Inc(FVertexCount);
 end;
@@ -101,14 +103,13 @@ procedure TDrawCall.Reset;
 begin
   FTriangleCount := 0;
   FVertexCount := 0;
-  FValues.Reset;
 end;
 
 procedure TDrawCall.SetShader(const Value: TShaderClass);
 begin
   FShader := Value;
   if Assigned(FShader) then
-    FAttributesPerVertex := FShader.GetAttributeBufferSize div SizeOf(Single)
+    FAttributesPerVertex := FShader.GetFragmentAttributeSize div SizeOf(Single)
   else
     FAttributesPerVertex := 0;
 end;

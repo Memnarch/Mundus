@@ -27,21 +27,35 @@ type
   TShader = class(TObject)
   public
     constructor Create(); virtual;
-    procedure VertexShader(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: Pointer); virtual; abstract;
-    procedure BindBuffer(const ABuffer: PValueBuffers); virtual;
+    procedure SetConstants(AData: Pointer); virtual;
+    procedure VertexShader(var AVertex: TFloat4; const AVInput: Pointer; const AVOutput: Pointer); virtual; abstract;
+    class function GetBufferDescriptor: TValueBufferDescriptor; virtual; abstract;
+    class function GetConstantBufferDescriptor: TValueBufferDescriptor; virtual; abstract;
     class function GetRasterizer: TRasterizer; virtual; abstract;
-    class function GetAttributeBufferSize: Integer; virtual; abstract;
-    class function GetAttributeCount: Integer;
+    class function GetFragmentAttributeSize: Integer; virtual; abstract;
+    class function GetFragmentAttributeCount: Integer;
   end;
 
-  TShader<T: record> = class(TShader)
+  TShader<TPSType, TVSType, TConstants: record> = class(TShader)
   public type
-    PAttributeType = ^T;
+    TFragmentAttributes = TPSType;
+    PFragmentAttributes = ^TPSType;
+    TVertexAttributes = TVSType;
+    PVertexAttributes = ^TVertexAttributes;
+    TConstantAttributes = TConstants;
+    PConstantAttributes = ^TConstantAttributes;
+  private
+    FConstants: TConstants;
+  protected
+    property Constants: TConstants read FConstants;
   public
-    class function GetAttributeBufferSize: Integer; override;
-    procedure VertexShader(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: Pointer); override;
-    procedure Vertex(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: PAttributeType); virtual;
-    procedure Fragment(const APixel: PRGB32; const PSInput: PAttributeType); virtual; abstract;
+    class function GetFragmentAttributeSize: Integer; override;
+    class function GetBufferDescriptor: TValueBufferDescriptor; override;
+    class function GetConstantBufferDescriptor: TValueBufferDescriptor; override;
+    procedure SetConstants(AData: Pointer); override;
+    procedure VertexShader(var AVertex: TFloat4; const AVInput: Pointer; const AVOutput: Pointer); override;
+    procedure Vertex(var AVertex: TFloat4; const AVInput: PVertexAttributes; const AVOutput: PFragmentAttributes); virtual; abstract;
+    procedure Fragment(const APixel: PRGB32; const PSInput: PFragmentAttributes); virtual; abstract;
   end;
 
   TShaderClass = class of TShader;
@@ -62,36 +76,47 @@ end;
 
 { TShader }
 
-procedure TShader.BindBuffer(const ABuffer: PValueBuffers);
-begin
-
-end;
-
 constructor TShader.Create();
 begin
   inherited;
 end;
 
-class function TShader.GetAttributeCount: Integer;
+class function TShader.GetFragmentAttributeCount: Integer;
 begin
-  Result := GetAttributeBufferSize div SizeOf(Single);
+  Result := GetFragmentAttributeSize div SizeOf(Single);
+end;
+
+procedure TShader.SetConstants(AData: Pointer);
+begin
+
+end;
+
+class function TShader<TPSType, TVSType, TConstants>.GetBufferDescriptor: TValueBufferDescriptor;
+begin
+  Result := TValueBufferDescriptor.Create<TVSType>;
+end;
+
+class function TShader<TPSType, TVSType, TConstants>.GetConstantBufferDescriptor: TValueBufferDescriptor;
+begin
+  Result := TValueBufferDescriptor.Create<TConstants>;
 end;
 
 { TSHader<T> }
 
-class function TShader<T>.GetAttributeBufferSize: Integer;
+class function TShader<TPSType, TVSType, TConstants>.GetFragmentAttributeSize: Integer;
 begin
-  Result := SizeOf(T);
+  Result := SizeOf(TPSType);
 end;
 
-procedure TShader<T>.Vertex(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: PAttributeType);
+procedure TShader<TPSType, TVSType, TConstants>.SetConstants(AData: Pointer);
 begin
-  AVertex := AProjection.Transform(AVertex);
+  inherited;
+  FConstants := PConstantAttributes(AData)^;
 end;
 
-procedure TShader<T>.VertexShader(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: Pointer);
+procedure TShader<TPSType, TVSType, TConstants>.VertexShader(var AVertex: TFloat4; const AVInput: Pointer; const AVOutput: Pointer);
 begin
-  Vertex(AWorld, AProjection, AVertex, AVInput, AAttributeBuffer);
+  Vertex(AVertex, PVertexAttributes(AVInput), PFragmentAttributes(AVOutput));
 end;
 
 end.

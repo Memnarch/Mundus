@@ -7,21 +7,23 @@ uses
   Classes,
   Mundus.Types,
   Mundus.Shader,
+  Mundus.Shader.Color,
   Mundus.Math,
   Mundus.ValueBuffer;
 
 type
-  TGradientPSInput = TFloat4;
-  PGradientPSInput = ^TGradientPSInput;
+  TGradientVSInput = record
+    Color: TFloat4;
+  end;
 
-  TVertexGradientShader = class sealed(TShader<TGradientPSInput>)
-  private
-    FColors: ^TFloat4;
+  TGradientConstants = record
+    Projection: TMatrix4x4;
+    World: TMatrix4x4;
+  end;
+
+  TVertexGradientShader = class sealed(TColorShader<TGradientVSInput, TGradientConstants>)
   public
-    constructor Create; override;
-    procedure BindBuffer(const ABuffer: PValueBuffers); override;
-    procedure Vertex(const AWorld, AProjection: TMatrix4x4; var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: TShader<TGradientPSInput>.PAttributeType); override; final;
-    procedure Fragment(const APixel: PRGB32; const PSInput: TShader<TGradientPSInput>.PAttributeType); override; final;
+    procedure Vertex(var AVertex: TFloat4; const AVInput: TVertexGradientShader.PVertexAttributes; const AVOutput: TVertexGradientShader.PFragmentAttributes); override; final;
     class function GetRasterizer: TRasterizer; override;
   end;
 
@@ -32,44 +34,11 @@ uses
   Mundus.Rasterizer.Types,
   Mundus.Rasterizer.Helper;
 
-const
-  CDenormalizer: TFloat4 = (B: 255; G: 255; R: 255; A: 255);
-
-
 { TSolidColorSHader }
 
-procedure TVertexGradientShader.BindBuffer(const ABuffer: PValueBuffers);
-begin
-  inherited;
-  FColors := @ABuffer.Float4Array[ABuffer.Float4Array.GetBinding('Color0')][0];
-end;
-
-constructor TVertexGradientShader.Create;
-begin
-  inherited;
-
-end;
-
-procedure TVertexGradientShader.Fragment(const APixel: PRGB32; const PSInput: TShader<TGradientPSInput>.PAttributeType);
-asm
-  //load input
-  movups xmm2, [PSInput]
-  //load denormalizer
-  movups xmm1, [CDenormalizer];
-  //denormalize PSInput
-  mulps xmm2, xmm1
-  //convert Single to DWord
-  cvttps2dq xmm2, xmm2
-  //Pack DWord to Word
-  packusdw xmm2, xmm2
-  //Pack Word to Byte
-  packuswb xmm2, xmm2
-  //write final color values
-  PEXTRD [APixel], xmm2, 0
-end;
 
 type
-  TAttributes = TGradientPSInput;
+  TAttributes = TColorShaderPSInput;
   Shader = TVertexGradientShader;
 
 const
@@ -84,19 +53,18 @@ begin
   Result := @RasterizeTriangle;
 end;
 
-procedure TVertexGradientShader.Vertex(const AWorld, AProjection: TMatrix4x4;
-  var AVertex: TFloat4; const AVInput: TVertexShaderInput; const AAttributeBuffer: TVertexGradientShader.PAttributeType);
+procedure TVertexGradientShader.Vertex(var AVertex: TFloat4; const AVInput: TVertexGradientShader.PVertexAttributes; const AVOutput: TVertexGradientShader.PFragmentAttributes);
 var
   LDist, LIntensity: Single;
-  LVec, LColors: TFloat4;
+  LVec, LColor: TFloat4;
 begin
-  LVec := AWorld.Transform(AVertex);
+  LVec := Constants.World.Transform(AVertex);
   LDist := LVec.Length;
   LIntensity := Max(130-LDist, 0) / 50;
   inherited;
-  LColors := FColors[AVInput.VertexID];
-  LColors.Mul(LIntensity);
-  AAttributeBuffer^ := LColors;
+  LColor := AVInput.Color;
+  LColor.Mul(LIntensity);
+  AVOutput.Color := LColor;
 end;
 
 end.

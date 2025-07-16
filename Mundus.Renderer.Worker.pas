@@ -87,7 +87,7 @@ var
   LTriangle: PTriangle;
   i, k: Integer;
   LVertexA, LVertexB, LVertexC: TFloat4;
-  LShader: TShader;
+  LShader: TShaderCacheEntry;
   LRasterizer: TRasterizer;
   LRenderTarget: Pointer;
   LFirstDepth, LFirstLowDepth: System.PSingle;
@@ -106,7 +106,7 @@ begin
       begin
         LCall := FDrawCalls[i];
         LShader := FShaderCache.GetShader(LCall.Shader);
-        LShader.BindBuffer(@LCall.Values);
+        LShader.Instance.SetConstants(@LCall.ConstantValues.Data[0]);
         LRasterizer := LCall.Shader.GetRasterizer();
         for k := 0 to Pred(LCall.TriangleCount) do
         begin
@@ -131,7 +131,7 @@ begin
             LCall.Attributes[LTriangle.VertexA],
             LCall.Attributes[LTriangle.VertexB],
             LCall.Attributes[LTriangle.VertexC],
-            LShader,
+            LShader.Instance,
             LRenderTarget,
             LFirstDepth,
             LFirstLowDepth,
