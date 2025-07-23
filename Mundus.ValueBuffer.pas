@@ -41,19 +41,16 @@ type
     FDescriptor: TValueBufferDescriptor;
     FRecordCount: Integer;
     FData: TArray<Byte>;
-    procedure InternalBindValues(const AName: string; AData: Pointer; ADataSize, ADataCount: Integer);
-    procedure InternalBindValue(const AName: string; AData: Pointer; ADataSize: Integer);
   public
     procedure Initialize(const ADescriptor: TValueBufferDescriptor; const ARecordCount: Integer);
+    procedure BindArray<T: record>(const AName: string; const AValues: TArray<T>); overload;
+    procedure BindArray(const AName: string; const AValues: TArray<Single>); overload;
     procedure BindArray(const AName: string; const AValues: TArray<TFloat2>); overload;
     procedure BindArray(const AName: string; const AValues: TArray<TFloat3>); overload;
     procedure BindArray(const AName: string; const AValues: TArray<TFloat4>); overload;
-    procedure Bind(const AName: string; const AValue: Single); overload;
-    procedure Bind(const AName: string; const AValue: TFloat2); overload;
-    procedure Bind(const AName: string; const AValue: TFloat3); overload;
-    procedure Bind(const AName: string; const AValue: TFloat4); overload;
-    procedure Bind(const AName: string; const AValue: TTexture); overload;
-    procedure Bind(const AName: string; const AValue: TMatrix4x4); overload;
+    procedure BindArray(const AName: string; const AValues: TArray<TMatrix4x4>); overload;
+    procedure Bind<T: record>(const AName: string; const AValue: T); overload;
+    procedure Bind(const AName: string; const AValue: TObject); overload;
     property Data: TArray<Byte> read FData;
     property Descriptor: TValueBufferDescriptor read FDescriptor;
   end;
@@ -122,49 +119,82 @@ end;
 
 { TValueBuffer }
 
-procedure TValueBuffer.Bind(const AName: string; const AValue: TTexture);
+procedure TValueBuffer.Bind(const AName: string; const AValue: TObject);
+var
+  LTarget: ^TObject;
+  i: Integer;
+  LField: PFieldInfo;
 begin
-  InternalBindValue(AName, @AValue, SizeOf(AValue));
+  if FDescriptor.TryGetField(AName, LField) then
+  begin
+    LTarget := @FData[LField.Offset];
+    for i := 0 to Pred(FRecordCount) do
+    begin
+      LTarget^ := AValue;
+      Inc(PByte(LTarget), FDescriptor.FRecordSize);
+    end;
+  end;
 end;
 
-procedure TValueBuffer.Bind(const AName: string; const AValue: TFloat4);
+procedure TValueBuffer.Bind<T>(const AName: string; const AValue: T);
+var
+  LTarget: ^T;
+  i: Integer;
+  LField: PFieldInfo;
 begin
-  InternalBindValue(AName, @AValue, SizeOf(AValue));
-end;
-
-procedure TValueBuffer.Bind(const AName: string; const AValue: TFloat3);
-begin
-  InternalBindValue(AName, @AValue, SizeOf(AValue));
-end;
-
-procedure TValueBuffer.Bind(const AName: string; const AValue: TFloat2);
-begin
-  InternalBindValue(AName, @AValue, SizeOf(AValue));
-end;
-
-procedure TValueBuffer.Bind(const AName: string; const AValue: TMatrix4x4);
-begin
-  InternalBindValue(AName, @AValue, SizeOf(AValue));
-end;
-
-procedure TValueBuffer.Bind(const AName: string; const AValue: Single);
-begin
-  InternalBindValue(AName, @AValue, SizeOf(AValue));
-end;
-
-procedure TValueBuffer.BindArray(const AName: string; const AValues: TArray<TFloat4>);
-begin
-  InternalBindValues(AName, @AValues[0], SizeOf(TFloat4), Length(AValues));
-end;
-
-procedure TValueBuffer.BindArray(const AName: string; const AValues: TArray<TFloat3>);
-begin
-  InternalBindValues(AName, @AValues[0], SizeOf(TFloat3), Length(AValues));
+  if FDescriptor.TryGetField(AName, LField) then
+  begin
+    LTarget := @FData[LField.Offset];
+    for i := 0 to Pred(FRecordCount) do
+    begin
+      LTarget^ := AValue;
+      Inc(PByte(LTarget), FDescriptor.FRecordSize);
+    end;
+  end;
 end;
 
 procedure TValueBuffer.BindArray(const AName: string; const AValues: TArray<TFloat2>);
 begin
-  InternalBindValues(AName, @AValues[0], SizeOf(TFloat2), Length(AValues));
+  BindArray<TFloat2>(AName, AValues);
+end;
+
+procedure TValueBuffer.BindArray(const AName: string; const AValues: TArray<TFloat3>);
+begin
+  BindArray<TFloat3>(AName, AValues);
+end;
+
+procedure TValueBuffer.BindArray(const AName: string; const AValues: TArray<TFloat4>);
+begin
+  BindArray<TFloat4>(AName, AValues);
+end;
+
+procedure TValueBuffer.BindArray(const AName: string; const AValues: TArray<TMatrix4x4>);
+begin
+  BindArray<TMatrix4x4>(AName, AValues);
+end;
+
+procedure TValueBuffer.BindArray(const AName: string; const AValues: TArray<Single>);
+begin
+  BindArray<Single>(AName, AValues);
+end;
+
+procedure TValueBuffer.BindArray<T>(const AName: string; const AValues: TArray<T>);
+var
+  LTarget, LSource: ^T;
+  i: Integer;
+  LField: PFieldInfo;
+begin
+  if FDescriptor.TryGetField(AName, LField) then
+  begin
+    LTarget := @FData[LField.Offset];
+    LSource := @AValues[0];
+    for i := 0 to Pred(FRecordCount) do
+    begin
+      LTarget^ := LSource^;
+      Inc(PByte(LTarget), FDescriptor.FRecordSize);
+      Inc(LSource);
+    end;
+  end;
 end;
 
 procedure TValueBuffer.Initialize(const ADescriptor: TValueBufferDescriptor; const ARecordCount: Integer);
@@ -176,46 +206,6 @@ begin
   LSize := FDescriptor.FRecordSize * ARecordCount;
   if Length(FData) < LSize then
     SetLength(FData, LSize);
-end;
-
-procedure TValueBuffer.InternalBindValue(const AName: string; AData: Pointer; ADataSize: Integer);
-var
-  LField: PFieldInfo;
-  LTarget: PByte;
-  LSource: PByte;
-  i: Integer;
-begin
-  if FDescriptor.TryGetField(AName, LField) then
-  begin
-    LTarget := @FData[LField.Offset];
-    LSource := AData;
-    for i := 0 to Pred(FRecordCount) do
-    begin
-      CopyMemory(LTarget, LSource, ADataSize);
-      Inc(LTarget, FDescriptor.FRecordSize);
-      Inc(LSource, ADataSize);
-    end;
-  end;
-end;
-
-procedure TValueBuffer.InternalBindValues(const AName: string; AData: Pointer; ADataSize, ADataCount: Integer);
-var
-  LField: PFieldInfo;
-  LTarget: PByte;
-  LSource: PByte;
-  i: Integer;
-begin
-  if FDescriptor.TryGetField(AName, LField) then
-  begin
-    LTarget := @FData[LField.Offset];
-    LSource := AData;
-    for i := 0 to Min(FRecordCount, ADataCount) - 1 do
-    begin
-      CopyMemory(LTarget, LSource, ADataSize);
-      Inc(LTarget, FDescriptor.FRecordSize);
-      Inc(LSource, ADataSize);
-    end;
-  end;
 end;
 
 end.
