@@ -91,6 +91,7 @@ var
   LRasterizer: TRasterizer;
   LRenderTarget: Pointer;
   LFirstDepth, LFirstLowDepth: System.PSingle;
+  LMinY, LMaxY: Integer;
 begin
   NameThreadForDebugging('RenderWorker');
   while not Terminated do
@@ -102,6 +103,8 @@ begin
       LRenderTarget := FFrameBuffer.FirstPixel;
       LFirstDepth := FFrameBuffer.DepthBuffer;
       LFirstLowDepth := FFrameBuffer.LowDepthBuffer;
+      LMinY := FBlockOffset * CQuadSize;
+      LMaxY := FBlockEnd * CQuadSize;
       for i := 0 to Pred(FDrawCalls.Count) do
       begin
         LCall := FDrawCalls[i];
@@ -124,6 +127,12 @@ begin
 
           LVertexC.Element[0] := (1-LVertexC.Element[0]) * FHalfResolutionX;
           LVertexC.Element[1] := (1-LVertexC.Element[1]) * FHalfResolutionY;
+
+          //check if triangle overlaps with workers render area. Skip if not intersecting
+          if ((LVertexA.Y > LMaxY) and (LVertexB.Y > LMaxY) and (LVertexC.Y > LMaxY))
+            or ((LVertexA.Y < LMinY) and (LVertexB.Y < LMinY) and (LVertexC.Y < LMinY))
+          then
+            Continue;
 
           LRasterizer(
             FMaxResolutionX, FMaxResolutionY,
