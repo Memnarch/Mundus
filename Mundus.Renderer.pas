@@ -39,7 +39,6 @@ type
     FRenderFences: TArray<THandle>;
     FCurrentBuffer: Boolean;
     FWorkerFPS: Integer;
-    FCamera: TCamera;
     FOnInitValueBuffer: TInitBufferEvent;
     FShaderCache: TShaderCache;
     procedure TransformMesh(AMesh: TMesh; ATargetCall: PDrawCall);
@@ -63,7 +62,6 @@ type
     property OnAfterFrame: TRenderEvent read FOnAfterFrame write FOnAfterFrame;
     property ResolutionX: Integer read FResolutionX;
     property ResolutionY: Integer read FResolutionY;
-    property Camera: TCamera read FCamera;
     property ReenderWorkers: Integer read GetRenderWorkers;
     property OnInitValueBuffer: TInitBufferEvent read FOnInitValueBuffer write FOnInitValueBuffer;
   end;
@@ -120,7 +118,6 @@ begin
   FBackBuffer[False] := TFrameBuffer.Create();
   FDrawCalls[True] := TDrawCalls.Create();
   FDrawCalls[False] := TDrawCalls.Create();
-  FCamera := TCamera.Create();
   SetResolution(512, 512);
   FMeshList := TObjectList<TMesh>.Create(False);
   FShaderCache := TShaderCache.Create();
@@ -141,7 +138,6 @@ begin
   FDrawCalls[True].Free;
   FDrawCalls[False].Free;
   FTimer.Free;
-  FCamera.Free;
   FShaderCache.Free;
   inherited;
 end;
