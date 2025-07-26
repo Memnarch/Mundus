@@ -6,6 +6,7 @@ uses
   Mundus.Math;
 
 function BuildTransformMatrix(const APosition, ARotation: TFloat3): TMatrix4x4;
+function RGBToBGR(const AValue: TFloat3): TFloat3;
 
 implementation
 
@@ -26,6 +27,13 @@ begin
 
   LRotation.SetAsRotationZMatrix(DegToRad(ARotation.Z));
   Result.MultiplyMatrix4D(LRotation);
+end;
+
+function RGBToBGR(const AValue: TFloat3): TFloat3;
+begin
+  Result.X := AValue.Z;
+  Result.Y := AValue.Y;
+  Result.Z := AValue.X;
 end;
 
 end.
