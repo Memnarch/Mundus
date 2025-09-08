@@ -34,11 +34,12 @@ asm
     movss [eax], xmm0
   {$ENDIF}
   {$I InterpolateAttributes.inc}
-  //AAttributes.ShaderInstance.Fragment(PRGB32(LX._Padding), @AAttributes.AttributesDenormalized);
+  {$IF declared(FragmentShader)}
   lea ecx, [eax + TBlockAttributes.AttributesDenormalized]
-  mov eax, [eax + TBlockAttributes.ShaderInstance]
+  mov eax, [LConstantValues]
   mov edx, [LX._Padding]
-  call Shader.Fragment
+  call FragmentShader
+  {$ENDIF}
   @ZFail:
   @BlockMissed:
 

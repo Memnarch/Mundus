@@ -12,7 +12,6 @@ uses
   Mundus.Math,
   Mundus.Types,
   Mundus.Diagnostics.StopWatch,
-  Mundus.ShaderCache,
   Mundus.FrameBuffer;
 
 type
@@ -31,7 +30,6 @@ type
     FHalfResolutionY: Integer;
     FWatch: TStopWatch;
     FFrameBuffer: TFrameBuffer;
-    FShaderCache: TShaderCache;
     FBlockEnd: Integer;
     procedure SetResolutionX(const Value: Integer);
     procedure SetResolutionY(const Value: Integer);
@@ -69,7 +67,6 @@ begin
   FDone := TEvent.Create(nil, False, True, '');
   FStart := TEvent.Create(nil, False, False, '');
   FWatch := TStopWatch.Create();
-  FShaderCache := TShaderCache.Create();
 end;
 
 destructor TRenderWorker.Destroy;
@@ -78,7 +75,6 @@ begin
   FStart.Free;
   FDone.Free;
   FWatch.Free;
-  FShaderCache.Free;
 end;
 
 procedure TRenderWorker.Execute;
@@ -87,7 +83,6 @@ var
   LTriangle: PTriangle;
   i, k: Integer;
   LVertexA, LVertexB, LVertexC: TFloat4;
-  LShader: TShaderCacheEntry;
   LRasterizer: TRasterizer;
   LRenderTarget: Pointer;
   LFirstDepth, LFirstLowDepth: System.PSingle;
@@ -108,9 +103,7 @@ begin
       for i := 0 to Pred(FDrawCalls.Count) do
       begin
         LCall := FDrawCalls[i];
-        LShader := FShaderCache.GetShader(LCall.Shader);
-        LShader.Instance.SetConstants(@LCall.ConstantValues.Data[0]);
-        LRasterizer := LCall.Shader.GetRasterizer();
+        LRasterizer := LCall.Shader.Rasterizer;
         for k := 0 to Pred(LCall.TriangleCount) do
         begin
           LTriangle := @LCall.Triangles[k];
@@ -140,7 +133,7 @@ begin
             LCall.Attributes[LTriangle.VertexA],
             LCall.Attributes[LTriangle.VertexB],
             LCall.Attributes[LTriangle.VertexC],
-            LShader.Instance,
+            @LCall.ConstantValues.Data[0],
             LRenderTarget,
             LFirstDepth,
             LFirstLowDepth,

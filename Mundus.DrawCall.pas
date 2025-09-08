@@ -21,12 +21,12 @@ type
     FVertexCount: Integer;
     FTriangleCount: Integer;
     FAttributes: TArray<Single>;
-    FAttributesPerVertex: Integer;
-    FShader: TShaderClass;
+    FShader: PShaderInfo;
     FValues: TValueBuffer;
     FConstantValues: TValueBuffer;
-    procedure SetShader(const Value: TShaderClass);
+    FAttributesPerVertex: Integer;
     function GetAttributes(Index: Integer): PSingle;
+    procedure SetShader(const Value: PShaderInfo);
   public
     function AddVertex(const AVertex: TFloat4; AAttributes: PSingle = nil): Integer;
     procedure AddTriangle(const ATriangle: PTriangle);
@@ -37,7 +37,7 @@ type
     property Triangles: TArray<TTriangle> read FTriangles;
     property VertexCount: Integer read FVertexCount;
     property TriangleCount: Integer read FTriangleCount;
-    property Shader: TShaderClass read FShader write SetShader;
+    property Shader: PShaderInfo read FShader write SetShader;
     property Values: TValueBuffer read FValues;
     property ConstantValues: TValueBuffer read FConstantValues;
     property AttributesPerVertex: Integer read FAttributesPerVertex;
@@ -83,7 +83,7 @@ begin
   end;
   FVertices[FVertexCount] := AVertex;
   if Assigned(AAttributes) then
-    CopyMemory(Attributes[FVertexCount], AAttributes, FShader.GetFragmentAttributeSize);
+    CopyMemory(Attributes[FVertexCount], AAttributes, FShader.FragmentAttributeSize);
   Result := FVertexCount;
   Inc(FVertexCount);
 end;
@@ -105,11 +105,11 @@ begin
   FVertexCount := 0;
 end;
 
-procedure TDrawCall.SetShader(const Value: TShaderClass);
+procedure TDrawCall.SetShader(const Value: PShaderInfo);
 begin
   FShader := Value;
   if Assigned(FShader) then
-    FAttributesPerVertex := FShader.GetFragmentAttributeSize div SizeOf(Single)
+    FAttributesPerVertex := FShader.FragmentAttributeSize div SizeOf(Single)
   else
     FAttributesPerVertex := 0;
 end;

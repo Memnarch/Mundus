@@ -2,22 +2,28 @@ unit Mundus.Shader.Texture;
 
 interface
 
+const
+  CTextureShader = 'TextureShader';
+
+implementation
+
 uses
-  Classes,
-  Types,
-  SysUtils,
-  Graphics,
+  Math,
   Mundus.Shader,
   Mundus.Math,
   Mundus.Types,
   Mundus.Texture,
-  Mundus.ValueBuffer;
+  Mundus.Math.Interpolation,
+  Mundus.Rasterizer.Types,
+  Mundus.Rasterizer.Helper;
 
 type
   TTextureConstantInput = record
     Projection: TMatrix4x4;
     Diffuse: TTexture;
   end;
+
+  PTextureConstantInput = ^TTextureConstantInput;
 
   TTextureVSInput = record
     UV: TUV;
@@ -28,49 +34,30 @@ type
     Padding: TFloat2;
   end;
 
-  TTextureShader = class sealed(TShader<TTexturePSInput, TTextureVSInput, TTextureConstantInput>)
-  public
-    procedure Vertex(var AVertex: TFloat4; const AVInput: TTextureShader.PVertexAttributes; const AVOutput: TTextureShader.PFragmentAttributes); override; final;
-    procedure Fragment(const APixel: PRGB32; const PSInput: TTextureShader.PFragmentAttributes); override; final;
-    class function GetRasterizer: TRasterizer; override; final;
-  end;
+  PTexturePSInput = ^TTexturePSInput;
 
-implementation
+procedure VertexShader(var AVertex: TFloat4; const [Ref] Constants: TTextureConstantInput; const [ref] AVSInput: TTextureVSInput; var AVSOutput: TTexturePSInput);
+begin
+  AVertex := Constants.Projection.Transform(AVertex);
+  AVSOutput.UV.U := AVSInput.UV.U * Constants.Diffuse.MaxX;
+  AVSOutput.UV.V := AVSInput.UV.V * Constants.Diffuse.MaxY;
+end;
 
-uses
-  Math,
-  Mundus.Math.Interpolation,
-  Mundus.Rasterizer.Types,
-  Mundus.Rasterizer.Helper;
-
-{ TTextureShader }
-{$PointerMath ON}
-
-procedure TTextureShader.Fragment(const APixel: PRGB32; const PSInput: TTextureShader.PFragmentAttributes);
+procedure FragmentShader(const Constants: PTextureConstantInput; const APixel: PRGB32; const PSInput: PTexturePSInput);
 begin
   Constants.Diffuse.SampleDot(PSInput.UV, APixel);
 end;
 
 type
   TAttributes = TTexturePSInput;
-  Shader = TTextureShader;
 
 const
   DepthTest = dtWrite;
 
 {$i Rasterizer.inc}
 
-class function TTextureShader.GetRasterizer: TRasterizer;
-begin
-  Result := @RasterizeTriangle;
-end;
-
-procedure TTextureShader.Vertex(var AVertex: TFloat4; const AVInput: TTextureShader.PVertexAttributes; const AVOutput: TTextureShader.PFragmentAttributes);
-begin
-  AVertex := Constants.Projection.Transform(AVertex);
-  AVOutput.UV.U := AVInput.UV.U * Constants.Diffuse.MaxX;
-  AVOutput.UV.V := AVInput.UV.V * Constants.Diffuse.MaxY;
-end;
+initialization
+  TShaders.Register<TTextureConstantInput, TTextureVSInput, TTexturePSInput>(CTextureShader, VertexShader, RasterizeTriangle);
 
 end.
 

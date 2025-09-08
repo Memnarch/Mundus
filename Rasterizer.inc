@@ -12,7 +12,7 @@ type
     AttributesDenormalized: TAttributes; //only used in HalfBlock
     X, Y: Integer;
     ZValues: TFloat3;
-    ShaderInstance: Shader;
+    Constants: Pointer;
     FirstPixel: PRGB32;
     LineLength: NativeInt;
     FirstDepth: PSingle
@@ -80,7 +80,9 @@ begin
       {$ENDIF}
       end;
       {$i DenormalizeFactors.inc}
-      AAttributes.ShaderInstance.Fragment(LPixelX, @LAttributesDenormalized);
+      {$IF DECLARED(FragmentShader)}
+      FragmentShader(AAttributes.Constants, LPixelX, @LAttributesDenormalized);
+      {$ENDIF}
       ZFail:
       {$i StepFactorsX.inc}
 
@@ -184,7 +186,7 @@ var
   i, k: Integer;
   LDenormalizedZ: Single;
   LZValues: TFloat3;
-  LShader: Shader;
+  LConstantValues: Pointer;
 const
   CSizeOfSingle = SizeOf(Single);
 begin
@@ -195,7 +197,7 @@ begin
   BlockXEnd := BlockXStart + (CQuadSize - 1);
   BlockYStart := AAttributes.Y;
   BlockYEnd := BlockYStart + (CQuadSize - 1);
-  LShader := AAttributes.ShaderInstance;
+  LConstantValues := AAttributes.Constants;
 
   LZValues := AAttributes.ZValues;
   //abuse padding fields to store Pixel-Pointer and increment it along with our X/Y position
@@ -305,7 +307,7 @@ procedure RasterizeTriangle(
       AMaxResolutionX, AMaxResolutionY: Integer;
       const AVerctorA, AvectorB, AvectorC: TFloat4;
       const AAttributesA, AAttributesB, AAttributesC: Pointer;
-      AShader: Shader;
+      const AConstantValues: Pointer;
       APixelBuffer: PRGB32Array;
       ADepthBuffer: PSingle;
       ALowDepthBuffer: PSingle;
@@ -337,7 +339,7 @@ begin
   //calculate attribute factors
   Factorize(AVerctorA, AvectorB, AvectorC, AAttributesA, AAttributesB, AAttributesC, @LBlock.StepA, @LBlock.StepB, @LBlock.StepD, LBlock.ZValues, SizeOf(TAttributes));
   LBlock.LineLength := AMaxResolutionX+1;
-  LBlock.ShaderInstance := AShader;
+  LBlock.Constants := AConstantValues;
   // 28.4 fixed-point coordinates
     X1 := Round(16*AVerctorA.Element[0]);
     X2 := Round(16*AVectorB.Element[0]);

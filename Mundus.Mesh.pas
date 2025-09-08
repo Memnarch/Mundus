@@ -22,7 +22,7 @@ type
 
   TMesh = class
   private
-    FShader: TShaderClass;
+    FShader: PShaderInfo;
     FMaterial: TMaterial;
     FNormals: TArray<TVector>;
     FTextures: TArray<TTextureReference>;
@@ -44,7 +44,7 @@ type
     property UVs: TArray<TArray<TUV>> read FUVs;
     property Position: TFloat3 read FPosition write FPosition;
     property Rotation: TFloat3 read FRotation write Frotation;
-    property Shader: TShaderClass read FShader write FShader;
+    property Shader: PShaderInfo read FShader write FShader;
     property Material: TMaterial read FMaterial write FMaterial;
     property Textures: TArray<TTextureReference> read FTextures;
   end;

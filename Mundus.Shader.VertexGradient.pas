@@ -2,14 +2,20 @@ unit Mundus.Shader.VertexGradient;
 
 interface
 
+const
+  CVertexGradientShader = 'VertexGradientShader';
+
+implementation
+
 uses
-  Types,
-  Classes,
+  Math,
   Mundus.Types,
   Mundus.Shader,
   Mundus.Shader.Color,
   Mundus.Math,
-  Mundus.ValueBuffer;
+  Mundus.Rasterizer.Types,
+  Mundus.Rasterizer.Helper;
+
 
 type
   TGradientVSInput = record
@@ -21,25 +27,8 @@ type
     World: TMatrix4x4;
   end;
 
-  TVertexGradientShader = class sealed(TColorShader<TGradientVSInput, TGradientConstants>)
-  public
-    procedure Vertex(var AVertex: TFloat4; const AVInput: TVertexGradientShader.PVertexAttributes; const AVOutput: TVertexGradientShader.PFragmentAttributes); override; final;
-    class function GetRasterizer: TRasterizer; override;
-  end;
-
-implementation
-
-uses
-  Math,
-  Mundus.Rasterizer.Types,
-  Mundus.Rasterizer.Helper;
-
-{ TSolidColorSHader }
-
-
 type
   TAttributes = TColorShaderPSInput;
-  Shader = TVertexGradientShader;
 
 const
   DepthTest = dtNone;
@@ -48,12 +37,8 @@ const
 
 {$PointerMath On}
 
-class function TVertexGradientShader.GetRasterizer: TRasterizer;
-begin
-  Result := @RasterizeTriangle;
-end;
 
-procedure TVertexGradientShader.Vertex(var AVertex: TFloat4; const AVInput: TVertexGradientShader.PVertexAttributes; const AVOutput: TVertexGradientShader.PFragmentAttributes);
+procedure VertexShader(var AVertex: TFloat4; const [Ref] Constants: TGradientConstants; const [ref] AVSInput: TGradientVSInput; var AVSOutput: TColorShaderPSInput);
 var
   LDist, LIntensity: Single;
   LVec, LColor: TFloat4;
@@ -61,10 +46,13 @@ begin
   LVec := Constants.World.Transform(AVertex);
   LDist := LVec.Length;
   LIntensity := Max(130-LDist, 0) / 50;
-  inherited;
-  LColor := AVInput.Color;
+  AVertex := Constants.Projection.Transform(AVertex);
+  LColor := AVSInput.Color;
   LColor.Mul(LIntensity);
-  AVOutput.Color := LColor;
+  AVSOutput.Color := LColor;
 end;
+
+initialization
+  TShaders.Register<TGradientConstants, TGradientVSInput, TColorShaderPSInput>(CVertexGradientShader, VertexShader, RasterizeTriangle);
 
 end.

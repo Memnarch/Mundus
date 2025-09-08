@@ -18,7 +18,6 @@ uses
   Mundus.Renderer.Worker,
   Mundus.Camera,
   Mundus.ValueBuffer,
-  Mundus.ShaderCache,
   Mundus.FrameBuffer;
 
 type
@@ -40,7 +39,6 @@ type
     FCurrentBuffer: Boolean;
     FWorkerFPS: Integer;
     FOnInitValueBuffer: TInitBufferEvent;
-    FShaderCache: TShaderCache;
     procedure TransformMesh(AMesh: TMesh; ATargetCall: PDrawCall);
     procedure DoAfterFrame(ACanvas: TCanvas);
     function GenerateDrawCalls: TDrawCalls;
@@ -120,7 +118,6 @@ begin
   FDrawCalls[False] := TDrawCalls.Create();
   SetResolution(512, 512);
   FMeshList := TObjectList<TMesh>.Create(False);
-  FShaderCache := TShaderCache.Create();
 
   FTimer := TStopWatch.Create(False);
 
@@ -138,7 +135,6 @@ begin
   FDrawCalls[True].Free;
   FDrawCalls[False].Free;
   FTimer.Free;
-  FShaderCache.Free;
   inherited;
 end;
 
@@ -269,7 +265,6 @@ var
   i, k: Integer;
   LVertex: TFloat4;
   LTriangle: PTriangle;
-  LShader: TShaderCacheEntry;
   LBuffer: TVertexAttributeBuffer;
   LBufferSize: Integer;
   LVInput: PByte;
@@ -277,14 +272,12 @@ var
   LClippedTriangle: TTriangle;
   LNormal, LA, LB, LC: TFloat4;
 begin
-  LBufferSize := AMesh.Shader.GetFragmentAttributeSize;
+  LBufferSize := AMesh.Shader.FragmentAttributeSize;
   SetLength(LBuffer, LBufferSize);
-  LShader := FShaderCache.GetShader(AMesh.Shader);
-  ATargetCall.ConstantValues.Initialize(LShader.ConstantBufferDescriptor, 1);
-  ATargetCall.Values.Initialize(LShader.VertexBufferDescriptor, Length(AMesh.Vertices));
+  ATargetCall.ConstantValues.Initialize(AMesh.Shader.ConstantBufferDescriptor, 1);
+  ATargetCall.Values.Initialize(AMesh.Shader.VertexBufferDescriptor, Length(AMesh.Vertices));
   if Assigned(FOnInitValueBuffer) then
     FOnInitValueBuffer(AMesh, @ATargetCall.ConstantValues, @ATargetCall.Values);
-  LShader.Instance.SetConstants(@ATargetCall.ConstantValues.Data[0]);
 
   //transform all vertices
   LVInput := @ATargetCall.Values.Data[0];
@@ -294,7 +287,7 @@ begin
     LVertex.Element[1] := AMesh.Vertices[i].Y;
     LVertex.Element[2] := AMesh.Vertices[i].Z;
     LVertex.Element[3] := 1;
-    LShader.Instance.VertexShader(LVertex, LVInput, LBuffer);
+    ATargetCall.Shader.VertexShader(LVertex, @ATargetCall.ConstantValues.Data[0], LVInput, @LBuffer[0]);
     ATargetCall.AddVertex(LVertex, @LBuffer[0]);
     Inc(LVInput, ATargetCall.Values.Descriptor.RecordSize);
   end;

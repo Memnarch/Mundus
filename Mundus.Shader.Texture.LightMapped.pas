@@ -2,12 +2,19 @@ unit Mundus.Shader.Texture.LightMapped;
 
 interface
 
+const
+  CLightMappedTextureShader = 'LightMappedTextureShader';
+
+implementation
+
 uses
+  System.Math,
   Mundus.Types,
   Mundus.Math,
   Mundus.Texture,
-  Mundus.ValueBuffer,
-  Mundus.Shader;
+  Mundus.Shader,
+  Mundus.Rasterizer.Types,
+  Mundus.Rasterizer.Helper;
 
 type
   TTextureConstantInput = record
@@ -15,6 +22,8 @@ type
     Diffuse: TTexture;
     LightMap: TTexture;
   end;
+
+  PTextureConstantInput = ^TTextureConstantInput;
 
   TTextureVSInput = record
     UV: TUV;
@@ -26,23 +35,18 @@ type
     UV2: TUV;
   end;
 
-  TLightMappedTextureShader = class(TShader<TTexturePSInput, TTextureVSInput, TTextureConstantInput>)
-  public
-    procedure Vertex(var AVertex: TFloat4; const AVInput: TLightMappedTextureShader.PVertexAttributes; const AVOutput: TLightMappedTextureShader.PFragmentAttributes); override; final;
-    procedure Fragment(const APixel: PRGB32; const PSInput: TLightMappedTextureShader.PFragmentAttributes); override; final;
-    class function GetRasterizer: TRasterizer; override; final;
-  end;
+  PTexturePSInput = ^TTexturePSInput;
 
-implementation
+procedure VertexShader(var AVertex: TFloat4; const [Ref] Constants: TTextureConstantInput; const [ref] AVInput: TTextureVSInput; var AVOutput: TTexturePSInput);
+begin
+  AVertex := Constants.Projection.Transform(AVertex);
+  AVOutput.UV.U := AVInput.UV.U * Constants.Diffuse.MaxX;
+  AVOutput.UV.V := AVInput.UV.V * Constants.Diffuse.MaxY;
+  AVOutput.UV2.U := AVInput.UV2.U * Constants.LightMap.MaxX;
+  AVOutput.UV2.V := AVInput.UV2.V * Constants.LightMap.MaxY;
+end;
 
-uses
-  System.Math,
-  Mundus.Rasterizer.Types,
-  Mundus.Rasterizer.Helper;
-
-{ TLightMappedTextureSHader }
-
-procedure TLightMappedTextureShader.Fragment(const APixel: PRGB32; const PSInput: TLightMappedTextureShader.PFragmentAttributes);
+procedure FragmentShader(const Constants: PTextureConstantInput; const APixel: PRGB32; const PSInput: PTexturePSInput);
 var
   LDiffuse, LLight: TRGB32;
 begin
@@ -55,25 +59,13 @@ end;
 
 type
   TAttributes = TTexturePSInput;
-  Shader = TLightMappedTextureShader;
 
 const
   DepthTest = dtWrite;
 
 {$i Rasterizer.inc}
 
-class function TLightMappedTextureShader.GetRasterizer: TRasterizer;
-begin
-  Result := @RasterizeTriangle;
-end;
-
-procedure TLightMappedTextureShader.Vertex(var AVertex: TFloat4; const AVInput: TLightMappedTextureShader.PVertexAttributes; const AVOutput: TLightMappedTextureShader.PFragmentAttributes);
-begin
-  AVertex := Constants.Projection.Transform(AVertex);
-  AVOutput.UV.U := AVInput.UV.U * Constants.Diffuse.MaxX;
-  AVOutput.UV.V := AVInput.UV.V * Constants.Diffuse.MaxY;
-  AVOutput.UV2.U := AVInput.UV2.U * Constants.LightMap.MaxX;
-  AVOutput.UV2.V := AVInput.UV2.V * Constants.LightMap.MaxY;
-end;
+initialization
+  TSHaders.Register<TTextureConstantInput, TTextureVSInput, TTexturePSInput>(CLightMappedTextureShader, VertexShader, RasterizeTriangle);
 
 end.

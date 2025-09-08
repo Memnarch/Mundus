@@ -5,8 +5,7 @@ interface
 uses
   Mundus.Shader,
   Mundus.Types,
-  Mundus.Math,
-  Mundus.ValueBuffer;
+  Mundus.Math;
 
 type
   TColorShaderPSInput = packed record
@@ -19,26 +18,22 @@ type
 
   PColorShaderPSInput = ^TColorShaderPSInput;
 
-  TColorShader<TVSInput, TConstants: record> = class(TShader<TColorShaderPSInput, TVSInput, TConstants>)
-  public
-    procedure Fragment(const APixel: PRGB32; const PSInput: TColorShader<TVSInput, TConstants>.PFragmentAttributes); override;
-  end;
-
-  TColorShader<TVSInput: record> = class(TColorShader<TVSInput, TColorShaderConstantInput>)
-  public
-    procedure Vertex(var AVertex: TFloat4; const AVInput: TColorShader<TVSInput>.PVertexAttributes; const AVOutput: TColorShader<TVSInput>.PFragmentAttributes); override;
-  end;
-
-procedure DoColorFragment(const APixel: PRGB32; const PSInput: PColorShaderPSInput);
+procedure VertexShader(const [Ref] Constants: TColorShaderConstantInput; var AVertex: TFloat4; const [ref] AVSInput: TNoAttributes; var AVSOutput: TColorShaderPSInput);
+procedure FragmentShader(const Constants: Pointer; const APixel: PRGB32; const PSInput: PColorShaderPSInput);
 
 implementation
 
 { TColorShader }
 
+procedure VertexShader(const [Ref] Constants: TColorShaderConstantInput; var AVertex: TFloat4; const [ref] AVSInput: TNoAttributes; var AVSOutput: TColorShaderPSInput);
+begin
+  AVertex := Constants.Projection.Transform(AVertex);
+end;
+
 const
   CDenormalizer: TFloat4 = (B: 255; G: 255; R: 255; A: 255);
 
-procedure DoColorFragment(const APixel: PRGB32; const PSInput: PColorShaderPSInput);
+procedure FragmentShader(const Constants: Pointer; const APixel: PRGB32; const PSInput: PColorShaderPSInput);
 asm
   //load input
   movups xmm2, [PSInput]
@@ -54,21 +49,6 @@ asm
   packuswb xmm2, xmm2
   //write final color values
   PEXTRD [APixel], xmm2, 0
-end;
-
-procedure TColorShader<TVSInput, TConstants>.Fragment(const APixel: PRGB32; const PSInput: TColorShader<TVSInput, TConstants>.PFragmentAttributes);
-begin
-  DoColorFragment(APixel, PColorShaderPSInput(PSInput));
-end;
-
-{ TColorShader<TVSInput> }
-
-procedure TColorShader<TVSInput>.Vertex(var AVertex: TFloat4;
-  const AVInput: TColorShader<TVSInput>.PVertexAttributes;
-  const AVOutput: TColorShader<TVSInput>.PFragmentAttributes);
-begin
-  inherited;
-  AVertex := Constants.Projection.Transform(AVertex);
 end;
 
 end.

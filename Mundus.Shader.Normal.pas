@@ -2,51 +2,45 @@ unit Mundus.Shader.Normal;
 
 interface
 
-uses
-  Mundus.Types,
-  Mundus.Math,
-  Mundus.Shader,
-  Mundus.Shader.Color,
-  Mundus.ValueBuffer;
-
-type
-  TVSInput = record
-    Normal: TFloat3;
-  end;
-
-  TNormalShader = class(TColorShader<TVSInput>)
-  public
-    procedure Vertex(var AVertex: TFloat4; const AVInput: TNormalShader.PVertexAttributes; const AVOutput: TNormalShader.PFragmentAttributes); override; final;
-    class function GetRasterizer: TRasterizer; override;
-  end;
+const
+  CNormalShader = 'NormalShader';
 
 implementation
 
 uses
   System.Math,
+  Mundus.Types,
+  Mundus.Math,
+  Mundus.Shader,
+  Mundus.Shader.Color,
+  Mundus.ValueBuffer,
   Mundus.Rasterizer.Types,
   Mundus.Rasterizer.Helper;
 
-{ TNormalShader }
+type
+  TConstantInput = record
+    Projection: TMatrix4x4;
+  end;
 
-procedure TNormalShader.Vertex(var AVertex: TFloat4; const AVInput: TNormalShader.PVertexAttributes; const AVOutput: TNormalShader.PFragmentAttributes);
+  TVSInput = record
+    Normal: TFloat3;
+  end;
+
+procedure VertexShader(var AVertex: TFloat4; const [Ref] Constants: TConstantInput; const [ref] AVSInput: TVSInput; var AVSOutput: TColorShaderPSInput);
 begin
-  inherited;
-  AVOutput.Color.XYZ := AVInput.Normal;
+  AVertex := Constants.Projection.Transform(AVertex);
+  AVSOutput.Color.XYZ := AVSInput.Normal;
 end;
 
 type
   TAttributes = TColorShaderPSInput;
-  Shader = TNormalShader;
 
 const
   DepthTest = dtWrite;
 
 {$I Rasterizer.inc}
 
-class function TNormalShader.GetRasterizer: TRasterizer;
-begin
-  Result := @RasterizeTriangle;
-end;
+initialization
+  TShaders.Register<TConstantInput, TVSInput, TColorShaderPSInput>(CNormalShader, VertexShader, RasterizeTriangle);
 
 end.
