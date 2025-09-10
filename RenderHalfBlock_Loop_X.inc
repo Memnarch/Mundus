@@ -24,7 +24,7 @@ asm
 
   //if (DepthTest = dtNone) or (LDenormalizedZ <= LDepthX^) then
   {$IF DepthTest <> dtNone}
-    mov eax, [LDepthX]
+    mov eax, [LDepth]
     movss xmm1, [eax]
     ucomiss xmm1, xmm0
     jb @ZFail
@@ -45,6 +45,6 @@ asm
 
   psubd xmm7, xmm4
   {$IF DepthTest <> dtNone}
-  add [LDepthX], CSizeOfSingle
+  add [LDepth], CSizeOfSingle
   {$ENDIF}
 end;

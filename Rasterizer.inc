@@ -28,8 +28,8 @@ var
   {$if SizeOf(TAttributes) > 16}
   LFactorX, LFactorY: TAttributes;
   {$endif}
-  LPixelX, LPixelY: PRGB32;
-  LDepthY, LDepthX: PSingle;
+  LPixel: PRGB32;
+  LDepth: PSingle;
   LX, LY: Single;
   LStepD: TAttributes;
   LZValues: TFloat3;
@@ -47,9 +47,9 @@ begin
     movss [LDenormalizeZY], xmm0
   end;
 
-  LPixelY := AAttributes.FirstPixel;
+  LPixel := AAttributes.FirstPixel;
   if DepthTest <> dtNone then
-    LDepthY := AAttributes.FirstDepth;
+    LDepth := AAttributes.FirstDepth;
   for i := AAttributes.Y to AAttributes.Y + (CQuadSize - 1) do
   begin
     {$i InitFactorsX.Inc}
@@ -61,15 +61,12 @@ begin
       movss [LDenormalizeZX], xmm0
     end;
 
-    LPixelX := LPixelY;
-    if DepthTest <> dtNone then
-      LDepthX := LDepthY;
     for k := AAttributes.X to AAttributes.X + (CQuadSize - 1) do
     begin
       //if (DepthTest = dtNone) or (LDenormalizedZ <= LDepthX^) then
       asm
       {$IF DepthTest <> dtNone}
-        mov eax, [LDepthX]
+        mov eax, [LDepth]
         movss xmm1, [eax]
         ucomiss xmm1, xmm0
         jb ZFail
@@ -81,7 +78,7 @@ begin
       end;
       {$i DenormalizeFactors.inc}
       {$IF DECLARED(FragmentShader)}
-      FragmentShader(AAttributes.Constants, LPixelX, @LAttributesDenormalized);
+      FragmentShader(AAttributes.Constants, LPixel, @LAttributesDenormalized);
       {$ENDIF}
       ZFail:
       {$i StepFactorsX.inc}
@@ -93,8 +90,8 @@ begin
       end;
 
       if DepthTest <> dtNone then
-        Inc(LDepthX);
-      Inc(LPixelX);
+        Inc(LDepth);
+      Inc(LPixel);
     end;
     {$i StepFactorsY.inc}
 
@@ -107,10 +104,6 @@ begin
     {$ELSE}
     LDenormalizeZY := LDenormalizeZY + LZValues.Y;
     {$ENDIF}
-
-    if DepthTest <> dtNone then
-      Inc(LDepthY, AAttributes.LineLength);
-    Inc(LPixelY, AAttributes.LineLength);
   end;
 end;
 {$ELSE}
@@ -180,7 +173,7 @@ procedure RenderHalfBlock(
       AFixedDeltas: PHalfSpaceDeltas;
       const AAttributes: PBlockAttributes);
 var
-  LDepthX, LDepthY: PSingle;
+  LDepth: PSingle;
   BlockXStart, BlockYStart, BlockXEnd, BlockYEnd: Integer;
   LX: TTrianglePosition;
   i, k: Integer;
@@ -191,7 +184,7 @@ const
   CSizeOfSingle = SizeOf(Single);
 begin
   if DepthTest <> dtNone then
-    LDepthY := AAttributes.FirstDepth;
+    LDepth := AAttributes.FirstDepth;
 
   BlockXStart := AAttributes.X;
   BlockXEnd := BlockXStart + (CQuadSize - 1);
@@ -201,7 +194,7 @@ begin
 
   LZValues := AAttributes.ZValues;
   //abuse padding fields to store Pixel-Pointer and increment it along with our X/Y position
-  AFixedDeltas._XPadding := AAttributes.LineLength*SizeOf(TRGB32);
+  AFixedDeltas._XPadding := SizeOf(TRGB32) * CQuadsize;
   AFixedDeltas._YPadding := -SizeOf(TRGB32);
   APosY._Padding := Integer(AAttributes.FirstPixel);
   //LX, LY, DeltaX, DeltaY will be kept in sse registers
@@ -430,10 +423,10 @@ begin
         begin
           LWasSolid := True;
           //calculate first pixel of block
-          LBlock.FirstPixel := @APixelBuffer[LBlock.Y*LBlock.LineLength + LBlock.X];
+          LBlock.FirstPixel := @APixelBuffer[LBlock.Y*LBlock.LineLength + LBlock.X*CQuadsize];
           if DepthTest <> dtNone then
           begin
-            LBlock.FirstDepth := @ADepthBuffer[LBlock.Y*LBlock.LineLength + LBlock.X];
+            LBlock.FirstDepth := @ADepthBuffer[LBlock.Y*LBlock.LineLength + LBlock.X*CQuadsize];
             LFirstLowDepth := @ALowDepthBuffer[(LBlock.Y div CQuadSize) * LLowDepthLineLength + (LBlock.X div 8)];
             if LFirstLowDepth^ < LMinDepth then
             begin

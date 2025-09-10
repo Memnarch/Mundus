@@ -13,6 +13,7 @@ type
   TFrameBuffer = class
   private
     FData: TBytes;
+    FUnpackedData: TArray<TRGB32>;
     FWidth: Integer;
     FHeight: Integer;
     FPixelLineLength: NativeInt;
@@ -23,6 +24,8 @@ type
     FDepthBufferSize: NativeInt;
     FLowDepthBufferSize: NativeInt;
     FInfo: TBitmapInfo;
+  protected
+    function Unpack: PRGB32; virtual;
   public
     constructor Create;
     procedure Resize(AWidth, AHeight: Integer);
@@ -70,7 +73,8 @@ end;
 
 procedure TFrameBuffer.Draw(ACanvas: TCanvas; const Rect: TRect);
 begin
-  SetDIBitsToDevice(ACanvas.Handle, Rect.Left, Rect.Top, Rect.Width, Rect.Height, 0, 0, 0, FHeight, @FData[0], FInfo, DIB_RGB_COLORS);
+  SetDIBitsToDevice(ACanvas.Handle, Rect.Left, Rect.Top, Rect.Width, Rect.Height, 0, 0, 0, FHeight, Unpack(), FInfo, DIB_RGB_COLORS);
+end;
 end;
 
 procedure TFrameBuffer.Resize(AWidth, AHeight: Integer);
@@ -87,6 +91,40 @@ begin
   FHeight := AHeight;
   FInfo.bmiHeader.biWidth := FWidth;
   FInfo.bmiHeader.biHeight := -FHeight;
+  SetLength(FUnpackedData, FWidth * FHeight);
+end;
+
+function TFrameBuffer.Unpack: PRGB32;
+var
+  i, k, LX, LY, LTilesX, LTilesY: Integer;
+  LSource, LTileStart, LTarget: PRGB32;
+begin
+  if not Assigned(FUnpackedData) then Exit(nil);
+  Result := @FUnpackedData[0];
+
+  LSource := FFirstPixel;
+  LTilesX := FWidth div CQuadSize;
+  LTilesY := FHeight div CQuadSize;
+  for k := 0 to Pred(LTilesY) do
+  begin
+    for i := 0 to Pred(LTilesX) do
+    begin
+      LTileStart := Result;
+      Inc(LTileStart, (k*FWidth*CQuadSize + i*CQuadSize));
+      for LY := 0 to Pred(CQuadSize) do
+      begin
+        LTarget := LTileStart;
+        for LX := 0 to Pred(CQuadSize) do
+        begin
+          LTarget^ := LSource^;
+          Inc(LTarget);
+          Inc(LSource);
+        end;
+        Inc(LTileStart, FWidth);
+      end;
+    end;
+  end;
+end;
 end;
 
 end.
