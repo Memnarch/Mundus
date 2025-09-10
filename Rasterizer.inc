@@ -175,10 +175,9 @@ procedure RenderHalfBlock(
 var
   LDepth: PSingle;
   BlockXStart, BlockYStart, BlockXEnd, BlockYEnd: Integer;
-  LX: TTrianglePosition;
   i, k: Integer;
   LDenormalizedZ: Single;
-  LZValues: TFloat3;
+  LZValues: TFloat4;
   LConstantValues: Pointer;
 const
   CSizeOfSingle = SizeOf(Single);
@@ -192,7 +191,7 @@ begin
   BlockYEnd := BlockYStart + (CQuadSize - 1);
   LConstantValues := AAttributes.Constants;
 
-  LZValues := AAttributes.ZValues;
+  LZValues.XYZ := AAttributes.ZValues;
   //abuse padding fields to store Pixel-Pointer and increment it along with our X/Y position
   AFixedDeltas._XPadding := SizeOf(TRGB32) * CQuadsize;
   AFixedDeltas._YPadding := -SizeOf(TRGB32);

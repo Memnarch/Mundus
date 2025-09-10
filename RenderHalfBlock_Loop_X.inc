@@ -12,14 +12,17 @@ asm
   pmovmskb eax, xmm2 //create bitmask with bit for every negative byte
   cmp eax, 0 //ehck if yn bit is set and jump to Blockmissed if any is
   jnz @BlockMissed
-  movdqu [LX], xmm7 //load to LX-Variable to access _padding
 
   //LDenormalizedZ := ((LZValues.Y*i + LZValues.Z) + LZValues.X * k);
   CVTSI2SS xmm0, i
-  mulss xmm0, [LZValues.Y]
-  addss xmm0, [LZValues.Z]
+  movups xmm2, LZValues
+  movaps xmm3, xmm2
+  shufps xmm3, xmm3, 1 + 2 shl 2
+  mulss xmm0, xmm3
+  shufps xmm3, xmm3, 1
+  addss xmm0, xmm3
   CVTSI2SS xmm1, k
-  mulss xmm1, [LZValues.X]
+  mulss xmm1, xmm2
   addss xmm0, xmm1
 
   //if (DepthTest = dtNone) or (LDenormalizedZ <= LDepthX^) then
@@ -37,7 +40,8 @@ asm
   {$IF declared(FragmentShader)}
   lea ecx, [eax + TBlockAttributes.AttributesDenormalized]
   mov eax, [LConstantValues]
-  mov edx, [LX._Padding]
+  //edx = TTrianglePosition._Padding
+  extractps edx, xmm7, 3
   call FragmentShader
   {$ENDIF}
   @ZFail:
