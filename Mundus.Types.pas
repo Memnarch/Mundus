@@ -8,6 +8,10 @@ uses
 type
   TDepthTest = (dtNone, dtRead, dtWrite);
 
+  TFragment = TFloat4;
+
+  PFragment = ^TFragment;
+
   TRGB32 = packed record
     B, G, R, A: Byte;
   end;
@@ -26,7 +30,7 @@ type
     const AVerctorA, AvectorB, AvectorC: TFloat4;
     const AAttributesA, AAttributesB, AAttributesC: Pointer;
     const AConstantValues: Pointer;
-    APixelBuffer: PRGB32Array;
+    APixelBuffer: PFragment;
     ADepthBuffer: PSingle;
     ALowDepthBuffer: PSingle;
     ABlockOffset, ABlockStep, ABlockEnd: Integer);

@@ -13,7 +13,7 @@ type
     X, Y: Integer;
     ZValues: TFloat3;
     Constants: Pointer;
-    FirstPixel: PRGB32;
+    FirstPixel: PFragment;
     LineLength: NativeInt;
     FirstDepth: PSingle
   end;
@@ -28,7 +28,7 @@ var
   {$if SizeOf(TAttributes) > 16}
   LFactorX, LFactorY: TAttributes;
   {$endif}
-  LPixel: PRGB32;
+  LPixel: PFragment;
   LDepth: PSingle;
   LX, LY: Single;
   LStepD: TAttributes;
@@ -78,7 +78,7 @@ begin
       end;
       {$i DenormalizeFactors.inc}
       {$IF DECLARED(FragmentShader)}
-      FragmentShader(AAttributes.Constants, LPixel, @LAttributesDenormalized);
+      FragmentShader(AAttributes.Constants, PRGB32(LPixel), @LAttributesDenormalized);
       {$ENDIF}
       ZFail:
       {$i StepFactorsX.inc}
@@ -112,7 +112,7 @@ var
   LDenormalizeZY, LDenormalizeZX: Single;
   i, k: Integer;
   LAttributesX, LAttributesY, LAttributesDenormalized: TAttributes;
-  LPixelX, LPixelY: PRGB32;
+  LPixelX, LPixelY: PFragment;
   LDepthY, LDepthX: PSingle;
 begin
   InitFactors(@AAttributes.StepB, AAttributes.Y, @LAttributesY, @AAttributes.StepD, SizeOf(TAttributes));
@@ -193,8 +193,8 @@ begin
 
   LZValues.XYZ := AAttributes.ZValues;
   //abuse padding fields to store Pixel-Pointer and increment it along with our X/Y position
-  AFixedDeltas._XPadding := SizeOf(TRGB32) * CQuadsize;
-  AFixedDeltas._YPadding := -SizeOf(TRGB32);
+  AFixedDeltas._XPadding := SizeOf(TFragment) * CQuadsize;
+  AFixedDeltas._YPadding := -SizeOf(TFragment);
   APosY._Padding := Integer(AAttributes.FirstPixel);
   //LX, LY, DeltaX, DeltaY will be kept in sse registers
 
@@ -233,7 +233,7 @@ procedure RenderHalfBlock(
       AFixedDeltas: PHalfSpaceDeltas;
       const AAttributes: PBlockAttributes);
 var
-  LPixelX, LPixelY: PRGB32;
+  LPixelX, LPixelY: PFragment;
   LDepthX, LDepthY: PSingle;
   BlockXEnd, BlockYEnd: Integer;
   LX, LY: TTrianglePosition;
@@ -300,7 +300,7 @@ procedure RasterizeTriangle(
       const AVerctorA, AvectorB, AvectorC: TFloat4;
       const AAttributesA, AAttributesB, AAttributesC: Pointer;
       const AConstantValues: Pointer;
-      APixelBuffer: PRGB32Array;
+      APixelBuffer: PFragment;
       ADepthBuffer: PSingle;
       ALowDepthBuffer: PSingle;
       ABlockOffset, ABlockStep, ABlockEnd: Integer);
