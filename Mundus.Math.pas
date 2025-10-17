@@ -2,95 +2,94 @@ unit Mundus.Math;
 
 interface
 
-uses
-  Types, Classes, SysUtils, Math;
-
 type
-  TInt4 = record
-    X, Y, Z, W: Integer;
-    procedure Add(const ARight: TInt4);
-    procedure Sub(const ARight: TInt4);
-    procedure Mul(const ARight: TInt4);
-  end;
-
-  TFloatArray = TArray<Single>;
-
   TFloat2 = record
     constructor Create(AX, AY: Single);
+    class operator Add(const ALeft, ARight: TFloat2): TFloat2; static;
+    class operator Subtract(const ALeft, ARight: TFloat2): TFloat2; static;
+    class operator Multiply(const ALeft, ARight: TFloat2): TFloat2; static;
+    class operator Multiply(const ALeft: TFloat2; AValue: Single): TFloat2; static;
+    class operator Divide(const ALeft, ARight: TFloat2): TFloat2; static;
+    class operator Divide(const ALeft: TFloat2; AValue: Single): TFloat2; static;
+    function Length: Single;
     case byte of
       0: (X, Y: Single);
       1: (U, V: Single);
-      2: (Element: array[0..1] of Single);
+      2: (Elements: array[0..1] of Single);
   end;
 
   TFloat3 = record
-    X, Y, Z: Single;
-    procedure Add(const ARight: TFloat3);
-    procedure Sub(const ARight: TFloat3);
-    procedure Mul(const AFactor: Single); overload;
-    procedure Mul(const ARight: TFloat3); overload;
-    procedure CalculateSurfaceNormal(const AVecA, AVecB, AVecC: TFloat3);
+    class operator Add(const ALeft, ARight: TFloat3): TFloat3; static;
+    class operator Subtract(const ALeft, ARight: TFloat3): TFloat3; static;
+    class operator Multiply(const ALeft, ARight: TFloat3): TFloat3; static;
+    class operator Multiply(const ALeft: TFloat3; AValue: Single): TFloat3; static;
+    class operator Divide(const ALeft, ARight: TFloat3): TFloat3; static;
+    class operator Divide(const ALeft: TFloat3; AValue: Single): TFloat3; static;
+    function Length: Single;
+    case byte of
+    0: (X, Y, Z: Single);
+    1: (XY: TFloat2);
+    2: (UV: TFloat2);
+    3: (B, G, R: Single);
+    4: (Elements: array[0..2] of Single);
   end;
 
   TFloat4 = packed record
-    procedure Add(const ARight: TFloat4);
-    procedure Sub(const ARight: TFloat4);
-    procedure Mul(const AFactor: Single); overload;
-    procedure Mul(const ARight: TFloat4); overload;
-    procedure Dot(const ARight: TFloat4); overload;
-    procedure Cross(const ARight: TFloat4); overload;
-    procedure CalculateSurfaceNormal(const AVecA, AVecB, AVecC: TFloat4);
-    procedure Normalize;
-    procedure NormalizeKeepW;
+    class operator Add(const ALeft, ARight: TFloat4): TFloat4; static;
+    class operator Subtract(const ALeft, ARight: TFloat4): TFloat4; static;
+    class operator Multiply(const ALeft, ARight: TFloat4): TFloat4; static;
+    class operator Multiply(const ALeft: TFloat4; AValue: Single): TFloat4; static;
+    class operator Divide(const ALeft, ARight: TFloat4): TFloat4; static;
+    class operator Divide(const ALeft: TFloat4; AValue: Single): TFloat4; static;
     function Length: Single;
     case byte of
       0: (X, Y, Z, W: Single);
       1: (XY, ZW: TFloat2);
-      2: (Element: array[0..3] of Single);
-      3: (B, G, R, A: Single);
+      2: (XYZ: TFloat3);
+      3: (Element2: array[0..3] of Single);
+      4: (B, G, R, A: Single);
+      5: (BGR: TFloat3);
   end;
-
-  PFloat4 = ^TFloat4;
-
-  TMatrix4D = record
-    Values: array[0..3] of TFloat4;
-  end;
-
-  PVector4D = ^TFloat4;
 
   TMatrix4x4 = record
-  private
-    FMatrix: array[0..3] of array[0..3] of Single;
-    function GetMatrixElement(IndexX, IndexY: Integer): Single;
-    procedure SetMatrixElement(IndexX, IndexY: Integer; const Value: Single);
   public
-    procedure SetAsNullMatrix4D();
-    procedure SetAsNullMatrix3D();
-    procedure SetAsIdentMatrix4D();
-    procedure SetAsScaleMatrix(AX, AY, AZ: Double);
-    procedure SetAsMoveMatrix(AX, AY, AZ: Double);
-    procedure SetAsRotationMatrix(EulaX, EulaY, EulaZ: Double);
-    procedure SetAsRotationXMatrix(AAlpha: Double);
-    procedure SetAsRotationYMatrix(AAlpha: Double);
-    procedure SetAsRotationZMatrix(AAlpha: Double);
-    procedure SetAsPerspectiveProjectionMatrix(ZNear, ZFar, FOV, AspectRation: Double);
-    procedure Clear();
-    procedure AddMatrix4D(AMatrix: TMatrix4x4);
-    procedure AddMatrix3D(AMatrix: TMatrix4x4);
-    procedure SubtractMatrix4D(AMatrix: TMatrix4x4);
-    procedure SubtractMatrix3D(AMatrix:TMatrix4x4);
-    procedure MultiplyMatrix4DWithFloat(AValue: Double);
-    procedure MultiplyMatrix3DWithFloat(AValue: Double);
-    procedure MultiplyMatrix4D(AMatrix: TMatrix4x4);
-    function Transform(const AVector: TFloat4): TFloat4;
+    class function CreateNullMatrix: TMatrix4x4; static;
+    class function CreateIdentityMatrix: TMatrix4x4; static;
+    class function CreatePerspectiveProjectionMatrix(ZNear, ZFar, FOV, AspectRatio: Single): TMatrix4x4; static;
+    class function CreateScaleMatrix(X, Y, Z: Single): TMatrix4x4; static;
+    class function CreateTranslationMatrix(X, Y, Z: Single): TMatrix4x4; static;
+    class function CreateRotationXMatrix(DegAlpha: Single): TMatrix4x4; static;
+    class function CreateRotationYMatrix(DegAlpha: Single): TMatrix4x4; static;
+    class function CreateRotationZMatrix(DegAlpha: Single): TMatrix4x4; static;
+    class operator Multiply(const ALeft, ARight: TMatrix4x4): TMatrix4x4; static;
+    class operator Multiply(const ALeft: TMatrix4x4; const ARight: TFloat4): TFloat4; static;
     function Inverse: TMatrix4x4;
-    property Matrix[IndexX, IndexY: Integer]: Single read GetMatrixElement write SetMatrixElement;
+  private
+    case byte of
+      0: (FItems: array[0..3, 0..3] of Single);
+      1: (FRows: array[0..3] of TFloat4);
   end;
 
+function Float2(X, Y: Single): TFloat2;
 function Float3(X, Y, Z: Single): TFloat3;
 function Float4(X, Y, Z, W: Single): TFloat4;
 
+function Dot(const A, B: TFloat2): Single; overload;
+function Dot(const A, B: TFloat3): Single; overload;
+function Dot(const A, B: TFloat4): Single; overload;
+
+function Cross(const A, B: TFloat3): TFloat3; overload;
+
 implementation
+
+uses
+  System.Math;
+
+function Float2(X, Y: Single): TFloat2;
+begin
+  Result.X := X;
+  Result.Y := Y;
+end;
 
 function Float3(X, Y, Z: Single): TFloat3;
 begin
@@ -107,51 +106,39 @@ begin
   Result.W := W;
 end;
 
+function Dot(const A, B: TFloat2): Single; overload;
+begin
+  Result :=
+      A.X * B.X
+    + A.Y + B.Y;
+end;
+
+function Dot(const A, B: TFloat3): Single; overload;
+begin
+  Result :=
+      A.X * B.X
+    + A.Y * B.Y
+    + A.Z * B.Z;
+end;
+
+function Dot(const A, B: TFloat4): Single; overload;
+begin
+  Result :=
+      A.X * B.X
+    + A.Y * B.Y
+    + A.Z * B.Z
+    + A.W * B.W;
+end;
+
+function Cross(const A, B: TFloat3): TFloat3; overload;
+begin
+  Result.X := A.Y * B.Z - A.Z - B.Y;
+  Result.Y := A.Z * B.X - A.X * B.Z;
+  Result.Z := A.X * B.Y - A.Y * B.X;
+end;
+
 { TMatrix4x4 }
 
-procedure TMatrix4x4.AddMatrix3D(AMatrix: TMatrix4x4);
-var
-  i, k: Integer;
-begin
-  for i := 0 to 3 do
-  begin
-    for k := 0 to 2 do
-    begin
-      FMatrix[i, k] := FMatrix[i, k] + AMatrix.FMatrix[i, k];
-    end;
-  end;
-end;
-
-procedure TMatrix4x4.AddMatrix4D(AMatrix: TMatrix4x4);
-var
-  i, k: Integer;
-begin
-  for i := 0 to 3 do
-  begin
-    for k := 0 to 3 do
-    begin
-      FMatrix[i, k] := FMatrix[i, k] + AMatrix.FMatrix[i, k];
-    end;
-  end;
-end;
-
-procedure TMatrix4x4.Clear;
-var
-  i, k: Integer;
-begin
-  for i := 0 to 3 do
-  begin
-    for k := 0 to 3 do
-    begin
-      FMatrix[i, k] := 0;
-    end;
-  end;
-end;
-
-function TMatrix4x4.GetMatrixElement(IndexX, IndexY: Integer): Single;
-begin
-  Result := FMatrix[IndexX, IndexY];
-end;
 
 //Presented by the lovely folks of Stackoverflow
 //https://stackoverflow.com/a/44446912
@@ -202,6 +189,99 @@ return new Matrix4x4() {
 }//;
 
 {$endregion}
+class function TMatrix4x4.CreateIdentityMatrix: TMatrix4x4;
+begin
+  Result := Default(TMatrix4x4);
+  Result.FItems[0, 0] := 1;
+  Result.FItems[1, 1] := 1;
+  Result.FItems[2, 2] := 1;
+  Result.FItems[3, 3] := 1;
+end;
+
+class function TMatrix4x4.CreateNullMatrix: TMatrix4x4;
+begin
+  Result := Default(TMatrix4x4);
+end;
+
+class function TMatrix4x4.CreatePerspectiveProjectionMatrix(ZNear, ZFar, FOV, AspectRatio: Single): TMatrix4x4;
+var
+  LFOVCoTan: Single;
+begin
+  Result := Default(TMatrix4x4);
+  LFOVCoTan := Cotan( DegToRad(FOV) / 2);
+  Result.FItems[0, 0] := LFOVCoTan / AspectRatio;// 2*ZNear/AspectRation;
+  Result.FItems[1, 1] := LFOVCoTan;
+  Result.FItems[2, 2] := ZFar / (ZFar - ZNear);
+  Result.FItems[3, 2] := -((ZFar * ZNear) / (ZFar - ZNear));
+  Result.FItems[2, 3] := 1;
+end;
+
+class function TMatrix4x4.CreateRotationXMatrix(DegAlpha: Single): TMatrix4x4;
+var
+  LC, LS: Double;
+begin
+  Result := Default(TMatrix4x4);
+  Result.FItems[3, 3] := 1;
+  LC := cos(DegToRad(DegAlpha));
+  LS := sin(DegToRad(DegAlpha));
+  Result.FItems[0][0] := 1;
+  Result.FItems[1][1] := LC;
+  Result.FItems[2][2] := LC;
+  Result.FItems[1][2] := LS;
+  Result.FItems[2][1] := -LS;
+end;
+
+class function TMatrix4x4.CreateRotationYMatrix(DegAlpha: Single): TMatrix4x4;
+var
+  LC, LS: Double;
+begin
+  Result := Default(TMatrix4x4);
+  Result.FItems[3, 3] := 1;
+  LC := cos(DegToRad(DegAlpha));
+  LS := sin(DegToRad(DegAlpha));
+  Result.FItems[1][1] := 1;
+  Result.FItems[0][0] := LC;
+  Result.FItems[2][2] := LC;
+  Result.FItems[0][2] := -LS;
+  Result.FItems[2][0] := LS;
+end;
+
+class function TMatrix4x4.CreateRotationZMatrix(DegAlpha: Single): TMatrix4x4;
+var
+  LC, LS: Double;
+begin
+  Result := Default(TMatrix4x4);
+  Result.FItems[3, 3] := 1;
+  LC := cos(DegToRad(DegAlpha));
+  LS := sin(DegToRad(DegAlpha));
+  Result.FItems[2][2] := 1;
+  Result.FItems[0][0] := LC;
+  Result.FItems[1][1] := LC;
+  Result.FItems[0][1] := LS;
+  Result.FItems[1][0] := -LS;
+end;
+
+class function TMatrix4x4.CreateScaleMatrix(X, Y, Z: Single): TMatrix4x4;
+begin
+  Result := Default(TMatrix4x4);
+  Result.FItems[0, 0] := X;
+  Result.FItems[1, 1] := Y;
+  Result.FItems[2, 2] := Z;
+  Result.FItems[3, 3] := 1;
+end;
+
+class function TMatrix4x4.CreateTranslationMatrix(X, Y, Z: Single): TMatrix4x4;
+begin
+  Result := Default(TMatrix4x4);
+  Result.FItems[0, 0] := 1;
+  Result.FItems[1, 1] := 1;
+  Result.FItems[2, 2] := 1;
+  Result.FItems[3, 3] := 1;
+  Result.FItems[3, 0] := X;
+  Result.FItems[3, 1] := Y;
+  Result.FItems[3, 2] := Z;
+end;
+
 function TMatrix4x4.Inverse: TMatrix4x4;
 var
   A2323,
@@ -224,515 +304,234 @@ var
   A0112,
   det: Single;
 begin
-  A2323 := FMatrix[2,2] * FMatrix[3,3] - FMatrix[2,3] * FMatrix[3,2];
-  A1323 := FMatrix[2,1] * FMatrix[3,3] - FMatrix[2,3] * FMatrix[3,1];
-  A1223 := FMatrix[2,1] * FMatrix[3,2] - FMatrix[2,2] * FMatrix[3,1];
-  A0323 := FMatrix[2,0] * FMatrix[3,3] - FMatrix[2,3] * FMatrix[3,0] ;
-  A0223 := FMatrix[2,0] * FMatrix[3,2] - FMatrix[2,2] * FMatrix[3,0] ;
-  A0123 := FMatrix[2,0] * FMatrix[3,1] - FMatrix[2,1] * FMatrix[3,0] ;
-  A2313 := FMatrix[1,2] * FMatrix[3,3] - FMatrix[1,3] * FMatrix[3,2] ;
-  A1313 := FMatrix[1,1] * FMatrix[3,3] - FMatrix[1,3] * FMatrix[3,1] ;
-  A1213 := FMatrix[1,1] * FMatrix[3,2] - FMatrix[1,2] * FMatrix[3,1] ;
-  A2312 := FMatrix[1,2] * FMatrix[2,3] - FMatrix[1,3] * FMatrix[2,2] ;
-  A1312 := FMatrix[1,1] * FMatrix[2,3] - FMatrix[1,3] * FMatrix[2,1] ;
-  A1212 := FMatrix[1,1] * FMatrix[2,2] - FMatrix[1,2] * FMatrix[2,1] ;
-  A0313 := FMatrix[1,0] * FMatrix[3,3] - FMatrix[1,3] * FMatrix[3,0] ;
-  A0213 := FMatrix[1,0] * FMatrix[3,2] - FMatrix[1,2] * FMatrix[3,0] ;
-  A0312 := FMatrix[1,0] * FMatrix[2,3] - FMatrix[1,3] * FMatrix[2,0] ;
-  A0212 := FMatrix[1,0] * FMatrix[2,2] - FMatrix[1,2] * FMatrix[2,0] ;
-  A0113 := FMatrix[1,0] * FMatrix[3,1] - FMatrix[1,1] * FMatrix[3,0] ;
-  A0112 := FMatrix[1,0] * FMatrix[2,1] - FMatrix[1,1] * FMatrix[2,0] ;
+  A2323 := FItems[2,2] * FItems[3,3] - FItems[2,3] * FItems[3,2];
+  A1323 := FItems[2,1] * FItems[3,3] - FItems[2,3] * FItems[3,1];
+  A1223 := FItems[2,1] * FItems[3,2] - FItems[2,2] * FItems[3,1];
+  A0323 := FItems[2,0] * FItems[3,3] - FItems[2,3] * FItems[3,0] ;
+  A0223 := FItems[2,0] * FItems[3,2] - FItems[2,2] * FItems[3,0] ;
+  A0123 := FItems[2,0] * FItems[3,1] - FItems[2,1] * FItems[3,0] ;
+  A2313 := FItems[1,2] * FItems[3,3] - FItems[1,3] * FItems[3,2] ;
+  A1313 := FItems[1,1] * FItems[3,3] - FItems[1,3] * FItems[3,1] ;
+  A1213 := FItems[1,1] * FItems[3,2] - FItems[1,2] * FItems[3,1] ;
+  A2312 := FItems[1,2] * FItems[2,3] - FItems[1,3] * FItems[2,2] ;
+  A1312 := FItems[1,1] * FItems[2,3] - FItems[1,3] * FItems[2,1] ;
+  A1212 := FItems[1,1] * FItems[2,2] - FItems[1,2] * FItems[2,1] ;
+  A0313 := FItems[1,0] * FItems[3,3] - FItems[1,3] * FItems[3,0] ;
+  A0213 := FItems[1,0] * FItems[3,2] - FItems[1,2] * FItems[3,0] ;
+  A0312 := FItems[1,0] * FItems[2,3] - FItems[1,3] * FItems[2,0] ;
+  A0212 := FItems[1,0] * FItems[2,2] - FItems[1,2] * FItems[2,0] ;
+  A0113 := FItems[1,0] * FItems[3,1] - FItems[1,1] * FItems[3,0] ;
+  A0112 := FItems[1,0] * FItems[2,1] - FItems[1,1] * FItems[2,0] ;
 
-  det := FMatrix[0,0] * ( FMatrix[1,1] * A2323 - FMatrix[1,2] * A1323 + FMatrix[1,3] * A1223 )
-    - FMatrix[0,1] * ( FMatrix[1,0] * A2323 - FMatrix[1,2] * A0323 + FMatrix[1,3] * A0223 )
-    + FMatrix[0,2] * ( FMatrix[1,0] * A1323 - FMatrix[1,1] * A0323 + FMatrix[1,3] * A0123 )
-    - FMatrix[0,3] * ( FMatrix[1,0] * A1223 - FMatrix[1,1] * A0223 + FMatrix[1,2] * A0123 ) ;
+  det := FItems[0,0] * ( FItems[1,1] * A2323 - FItems[1,2] * A1323 + FItems[1,3] * A1223 )
+    - FItems[0,1] * ( FItems[1,0] * A2323 - FItems[1,2] * A0323 + FItems[1,3] * A0223 )
+    + FItems[0,2] * ( FItems[1,0] * A1323 - FItems[1,1] * A0323 + FItems[1,3] * A0123 )
+    - FItems[0,3] * ( FItems[1,0] * A1223 - FItems[1,1] * A0223 + FItems[1,2] * A0123 ) ;
   det := 1 / det;
 
-  Result.FMatrix[0,0] := det *   ( FMatrix[1,1] * A2323 - FMatrix[1,2] * A1323 + FMatrix[1,3] * A1223 );
-  Result.FMatrix[0,1] := det * - ( FMatrix[0,1] * A2323 - FMatrix[0,2] * A1323 + FMatrix[0,3] * A1223 );
-  Result.FMatrix[0,2] := det *   ( FMatrix[0,1] * A2313 - FMatrix[0,2] * A1313 + FMatrix[0,3] * A1213 );
-  Result.FMatrix[0,3] := det * - ( FMatrix[0,1] * A2312 - FMatrix[0,2] * A1312 + FMatrix[0,3] * A1212 );
-  Result.FMatrix[1,0] := det * - ( FMatrix[1,0] * A2323 - FMatrix[1,2] * A0323 + FMatrix[1,3] * A0223 );
-  Result.FMatrix[1,1] := det *   ( FMatrix[0,0] * A2323 - FMatrix[0,2] * A0323 + FMatrix[0,3] * A0223 );
-  Result.FMatrix[1,2] := det * - ( FMatrix[0,0] * A2313 - FMatrix[0,2] * A0313 + FMatrix[0,3] * A0213 );
-  Result.FMatrix[1,3] := det *   ( FMatrix[0,0] * A2312 - FMatrix[0,2] * A0312 + FMatrix[0,3] * A0212 );
-  Result.FMatrix[2,0] := det *   ( FMatrix[1,0] * A1323 - FMatrix[1,1] * A0323 + FMatrix[1,3] * A0123 );
-  Result.FMatrix[2,1] := det * - ( FMatrix[0,0] * A1323 - FMatrix[0,1] * A0323 + FMatrix[0,3] * A0123 );
-  Result.FMatrix[2,2] := det *   ( FMatrix[0,0] * A1313 - FMatrix[0,1] * A0313 + FMatrix[0,3] * A0113 );
-  Result.FMatrix[2,3] := det * - ( FMatrix[0,0] * A1312 - FMatrix[0,1] * A0312 + FMatrix[0,3] * A0112 );
-  Result.FMatrix[3,0] := det * - ( FMatrix[1,0] * A1223 - FMatrix[1,1] * A0223 + FMatrix[1,2] * A0123 );
-  Result.FMatrix[3,1] := det *   ( FMatrix[0,0] * A1223 - FMatrix[0,1] * A0223 + FMatrix[0,2] * A0123 );
-  Result.FMatrix[3,2] := det * - ( FMatrix[0,0] * A1213 - FMatrix[0,1] * A0213 + FMatrix[0,2] * A0113 );
-  Result.FMatrix[3,3] := det *   ( FMatrix[0,0] * A1212 - FMatrix[0,1] * A0212 + FMatrix[0,2] * A0112 );
-end;
-
-procedure TMatrix4x4.MultiplyMatrix3DWithFloat(AValue: Double);
-var
-  i, k: Integer;
-begin
-  for i := 0 to 3 do
-  begin
-    for k := 0 to 2 do
-    begin
-      FMatrix[i, k] := FMatrix[i, k] * AValue;
-    end;
-  end;
-end;
-
-procedure TMatrix4x4.MultiplyMatrix4D(AMatrix: TMatrix4x4);
-var
-  i, k, m: Integer;
-  LMatrix: TMatrix4x4;
-begin
-  for i := 0 to 3 do
-  begin
-    for k := 0 to 3 do
-    begin
-      LMatrix.FMatrix[i, k] := 0;
-      for m := 0 to 3 do
-      begin
-        LMatrix.FMatrix[i, k] := LMatrix.FMatrix[i, k] +  Self.FMatrix[m, k] * AMatrix.FMatrix[i, m];
-      end;
-    end;
-  end;
-
-  Self := LMatrix;
-end;
-
-procedure TMatrix4x4.MultiplyMatrix4DWithFloat(AValue: Double);
-var
-  i, k: Integer;
-begin
-  for i := 0 to 3 do
-  begin
-    for k := 0 to 3 do
-    begin
-      FMatrix[i, k] := FMatrix[i, k] * AValue;
-    end;
-  end;
-end;
-
-
-procedure TMatrix4x4.SetAsIdentMatrix4D;
-var
-  i, k: Integer;
-begin
-  for i := 0 to 3 do
-  begin
-    for k := 0 to 3 do
-    begin
-      if i = k then
-      begin
-        FMatrix[i, k] := 1;
-      end
-      else
-      begin
-        FMatrix[i, k] := 0;
-      end;
-    end;
-  end;
-end;
-
-procedure TMatrix4x4.SetAsMoveMatrix(AX, AY, AZ: Double);
-begin
-  Clear();
-  FMatrix[0, 0] := 1;
-  FMatrix[1, 1] := 1;
-  FMatrix[2, 2] := 1;
-  FMatrix[3, 3] := 1;
-  FMatrix[3, 0] := AX;
-  FMatrix[3, 1] := AY;
-  FMatrix[3, 2] := AZ;
-end;
-
-procedure TMatrix4x4.SetAsNullMatrix3D;
-begin
-  Clear();
-  FMatrix[3, 3] := 1;
-end;
-
-procedure TMatrix4x4.SetAsNullMatrix4D;
-begin
-  Clear();
-end;
-
-procedure TMatrix4x4.SetAsPerspectiveProjectionMatrix(ZNear, ZFar, FOV, AspectRation: Double);
-begin
-  Clear();
-  FMatrix[0, 0] := Cotan(FOV/2)/AspectRation;// 2*ZNear/AspectRation;
-  FMatrix[1, 1] := Cotan(FOV/2);
-  FMatrix[2, 2] := ZFar / (ZFar - ZNear);
-  FMatrix[3, 2] := -((ZFar*ZNear) / (ZFar - ZNear));
-  FMatrix[2, 3] := 1;
-end;
-
-procedure TMatrix4x4.SetAsRotationMatrix(EulaX, EulaY, EulaZ: Double);
-var
-  LTemp: TMatrix4x4;
-begin
-  SetAsIdentMatrix4D;
-  LTemp.SetAsRotationXMatrix(EulaX);
-  Self.MultiplyMatrix4D(LTemp);
-  LTemp.SetAsRotationYMatrix(EulaY);
-  Self.MultiplyMatrix4D(LTemp);
-  LTemp.SetAsRotationZMatrix(EulaZ);
-  Self.MultiplyMatrix4D(LTemp);
-end;
-
-procedure TMatrix4x4.SetAsRotationXMatrix(AAlpha: Double);
-var
-  LC, LS: Double;
-begin
-  Clear();
-  FMatrix[3, 3] := 1;
-  LC := cos(AAlpha);
-  LS := sin(AAlpha);
-  FMatrix[0][0] := 1;
-  FMatrix[1][1] := LC;
-  FMatrix[2][2] := LC;
-  FMatrix[1][2] := LS;
-  FMatrix[2][1] := -LS;
-end;
-
-procedure TMatrix4x4.SetAsRotationYMatrix(AAlpha: Double);
-var
-  LC, LS: Double;
-begin
-  Clear();
-  FMatrix[3, 3] := 1;
-  LC := cos(AAlpha);
-  LS := sin(AAlpha);
-  FMatrix[1][1] := 1;
-  FMatrix[0][0] := LC;
-  FMatrix[2][2] := LC;
-  FMatrix[0][2] := -LS;
-  FMatrix[2][0] := LS;
-end;
-
-procedure TMatrix4x4.SetAsRotationZMatrix(AAlpha: Double);
-var
-  LC, LS: Double;
-begin
-  Clear();
-  FMatrix[3, 3] := 1;
-  LC := cos(AAlpha);
-  LS := sin(AAlpha);
-  FMatrix[2][2] := 1;
-  FMatrix[0][0] := LC;
-  FMatrix[1][1] := LC;
-  FMatrix[0][1] := LS;
-  FMatrix[1][0] := -LS;
-end;
-
-procedure TMatrix4x4.SetAsScaleMatrix(AX, AY, AZ: Double);
-begin
-  Clear;
-  FMatrix[0, 0] := AX;
-  FMatrix[1, 1] := AY;
-  FMatrix[2, 2] := AZ;
-  FMatrix[3, 3] := 1;
-end;
-
-procedure TMatrix4x4.SetMatrixElement(IndexX, IndexY: Integer;
-  const Value: Single);
-begin
-  FMatrix[IndexX, IndexY] := Value;
-end;
-
-procedure TMatrix4x4.SubtractMatrix3D(AMatrix: TMatrix4x4);
-var
-  i, k: Integer;
-begin
-  for i := 0 to 3 do
-  begin
-    for k := 0 to 2 do
-    begin
-      FMatrix[i, k] := FMatrix[i, k] + AMatrix.FMatrix[i, k];
-    end;
-  end;
-end;
-
-procedure TMatrix4x4.SubtractMatrix4D(AMatrix: TMatrix4x4);
-var
-  i, k: Integer;
-begin
-  for i := 0 to 3 do
-  begin
-    for k := 0 to 3 do
-    begin
-      FMatrix[i, k] := FMatrix[i, k] + AMatrix.FMatrix[i, k];
-    end;
-  end;
-end;
-
-function TMatrix4x4.Transform(const AVector: TFloat4): TFloat4;
-var
-  i, k: Integer;
-begin
-  for i := 0 to 3 do
-  begin
-    Result.Element[i] := 0;
-    for k := 0 to 3 do
-    begin
-      Result.Element[i] := Result.Element[i] + FMatrix[k, i] * AVector.Element[k];
-    end;
-  end;
-end;
-
-{ TFloat4 }
-
-procedure TFloat4.Add(const ARight: TFloat4);
-asm
-  movups xmm0, [Self]
-  movups xmm1, [ARight]
-  addps xmm0, xmm1
-  movups [Self], xmm0
-end;
-//begin
-//  X := X + ARight.X;
-//  Y := Y + ARight.Y;
-//  Z := Z + ARight.Z;
-//  W := W + ARight.W;
-//end;
-
-procedure TFloat4.Mul(const AFactor: Single);
-asm
-  //load factor into lowest part of xmm1
-  movss xmm0, [AFactor]
-//  //set all parts of xmm1 to the value in the lowest part of xmm1
-  shufps xmm0, xmm0, 0
-  movups xmm1, [Self]
-  mulps xmm0, xmm1
-  movups [Self], xmm0
-end;
-
-procedure TFloat4.CalculateSurfaceNormal(const AVecA, AVecB, AVecC: TFloat4);
-var
-  LVecU, LVecV: TFloat4;
-begin
-  LVecU := AVecB;
-  LVecU.Sub(AVecA);
-
-  LVecV := AVecC;
-  LVecV.Sub(AVecA);
-
-  LVecU.Cross(LVecV);
-  Self := LVecU;
-//  X := (LVecU.Y*LVecV.Z) - (LVecU.Z*LVecV.Y);
-//  Y := (LVecU.Z*LVecV.X) - (LVecU.X*LVecV.Z);
-//  Z := (LVecU.X*LVecV.Y) - (LVecU.Y*LVecV.X);
-end;
-
-procedure TFloat4.Cross(const ARight: TFloat4);
-asm
-  movups xmm0, [Self]
-  movups xmm1, [ARight]
-  //vshufps xmm3, xmm1, xmm1, 201
-  movaps xmm3, xmm1
-  shufps xmm3, xmm3, 201
-
-  //vshufps xmm2, xmm0, xmm0
-  movaps xmm2, xmm0
-  shufps xmm2, xmm0, 201
-  mulps xmm0, xmm3
-  mulps xmm1, xmm2
-  subps xmm0, xmm1
-  shufps xmm0, xmm0, 201
-  movups [Self], xmm0
-end;
-
-procedure TFloat4.Dot(const ARight: TFloat4);
-asm
-  movups xmm0, [Self]
-  movups xmm1, [ARight]
-  dpps xmm0, xmm1, $FF
-  movups [Self], xmm0
-end;
-
-function TFloat4.Length: Single;
-begin
-  Result := Sqrt(X*X+Y*Y+Z*Z);
-end;
-
-procedure TFloat4.Mul(const ARight: TFloat4);
-asm
-  movups xmm0, [Self]
-  movups xmm1, [ARight]
-  mulps xmm0, xmm1
-  movups [Self], xmm0
-end;
-
-procedure TFloat4.Normalize;
-asm
-  movups xmm0, [Self]
-  movaps xmm1, xmm0
-  //move highest (w) into all elements
-  shufps xmm1, xmm1, $FF//0//$FF
-  divps xmm0, xmm1
-  movups [Self], xmm0
-end;
-
-procedure TFloat4.NormalizeKeepW;
-var
-  LW: Single;
-begin
-  LW := W;
-  Normalize;
-  W := LW;
-end;
-
-procedure TFloat4.Sub(const ARight: TFloat4);
-asm
-  movups xmm0, [Self]
-  movups xmm1, [ARight]
-  subps xmm0, xmm1
-  movups [Self], xmm0
-end;
-//begin
-//  X := X - ARight.X;
-//  Y := Y - ARight.Y;
-//  Z := Z - ARight.Z;
-//  W := W - ARight.W;
-//end;
-
-{ TFloat3 }
-
-procedure TFloat3.Add(const ARight: TFloat3);
-asm
-  //load xy
-  movq xmm0, [Self]
-  //load z
-  insertps xmm0, [Self.z], 3 shl 4
-  //load xy
-  movq xmm1, [ARight]
-  //load z
-  insertps xmm1, [ARight.Z], 3 shl 4
-  addps xmm0, xmm1
-  //extract z
-  extractps [Self.Z], xmm0, 3 shl 0
-  //extract xy
-  movq [Self], xmm0
-//begin
-//  X := X + ARight.X;
-//  Y := Y + ARight.Y;
-//  Z := Z + ARight.Z;
-end;
-
-procedure TFloat3.Mul(const AFactor: Single);
-{$IFDEF CPUX86}
-asm
-  //load xy
-  movq xmm0, [Self]
-  //load z
-  insertps xmm0, [Self.z], 3 shl 4
-
-  //load factor into lowest part of xmm1
-  movss xmm1, [AFactor]
-  //set all parts of xmm1 to the value in the lowest part of xmm1
-  shufps xmm1, xmm1, 0
-
-  mulps xmm0, xmm1
-  //extract z
-  extractps [Self.Z], xmm0, 3 shl 0
-  //extract xy
-  movq [Self], xmm0
-end;
-{$ELSE}
-begin
-  X := X * AFactor;
-  Y := Y * AFactor;
-  Z := Z * AFactor;
-end;
-{$ENDIF}
-
-procedure TFloat3.CalculateSurfaceNormal(const AVecA, AVecB, AVecC: TFloat3);
-var
-  LVecU, LVecV: TFloat3;
-begin
-  LVecU := AVecB;
-  LVecU.Sub(AVecA);
-
-  LVecV := AVecC;
-  LVecV.Sub(AVecA);
-  X := (LVecU.Y*LVecV.Z) - (LVecU.Z*LVecV.Y);
-  Y := (LVecU.Z*LVecV.X) - (LVecU.X*LVecV.Z);
-  Z := (LVecU.X*LVecV.Y) - (LVecU.Y*LVecV.X);
-end;
-
-procedure TFloat3.Mul(const ARight: TFloat3);
-asm
-  //load xy
-  movq xmm0, [Self]
-  //load z
-  insertps xmm0, [Self.z], 3 shl 4
-
-  //load xy
-  movq xmm1, [ARight]
-  //load z
-  insertps xmm1, [ARight.z], 3 shl 4
-
-  mulps xmm0, xmm1
-  //extract z
-  extractps [Self.Z], xmm0, 3 shl 0
-  //extract xy
-  movq [Self], xmm0
-end;
-
-procedure TFloat3.Sub(const ARight: TFloat3);
-asm
-  //load xy
-  movq xmm0, [Self]
-  //load z
-  insertps xmm0, [Self.z], 3 shl 4
-  //load xy
-  movq xmm1, [ARight]
-  //load z
-  insertps xmm1, [ARight.Z], 3 shl 4
-
-  subps xmm0, xmm1
-  //extract z
-  extractps [Self.Z], xmm0, 3 shl 0
-  //extract xy
-  movq [Self], xmm0
-//begin
-//  X := X - ARight.X;
-//  Y := Y - ARight.Y;
-//  Z := Z - ARight.Z;
-end;
-
-{ TInt4 }
-
-procedure TInt4.Add(const ARight: TInt4);
-asm
-  movdqu xmm0, [Self]
-  movdqu xmm1, [ARight]
-  PADDD xmm0, xmm1
-  movdqu [Self], xmm0
-end;
-
-procedure TInt4.Mul(const ARight: TInt4);
-asm
-  movdqu xmm0, [Self]
-  movdqu xmm1, [ARight]
-  PMULLD xmm0, xmm1
-  movdqu [Self], xmm0
-end;
-
-procedure TInt4.Sub(const ARight: TInt4);
-asm
-  movdqu xmm0, [Self]
-  movdqu xmm1, [ARight]
-  PSUBD xmm0, xmm1
-  movdqu [Self], xmm0
+  Result.FItems[0,0] := det *   ( FItems[1,1] * A2323 - FItems[1,2] * A1323 + FItems[1,3] * A1223 );
+  Result.FItems[0,1] := det * - ( FItems[0,1] * A2323 - FItems[0,2] * A1323 + FItems[0,3] * A1223 );
+  Result.FItems[0,2] := det *   ( FItems[0,1] * A2313 - FItems[0,2] * A1313 + FItems[0,3] * A1213 );
+  Result.FItems[0,3] := det * - ( FItems[0,1] * A2312 - FItems[0,2] * A1312 + FItems[0,3] * A1212 );
+  Result.FItems[1,0] := det * - ( FItems[1,0] * A2323 - FItems[1,2] * A0323 + FItems[1,3] * A0223 );
+  Result.FItems[1,1] := det *   ( FItems[0,0] * A2323 - FItems[0,2] * A0323 + FItems[0,3] * A0223 );
+  Result.FItems[1,2] := det * - ( FItems[0,0] * A2313 - FItems[0,2] * A0313 + FItems[0,3] * A0213 );
+  Result.FItems[1,3] := det *   ( FItems[0,0] * A2312 - FItems[0,2] * A0312 + FItems[0,3] * A0212 );
+  Result.FItems[2,0] := det *   ( FItems[1,0] * A1323 - FItems[1,1] * A0323 + FItems[1,3] * A0123 );
+  Result.FItems[2,1] := det * - ( FItems[0,0] * A1323 - FItems[0,1] * A0323 + FItems[0,3] * A0123 );
+  Result.FItems[2,2] := det *   ( FItems[0,0] * A1313 - FItems[0,1] * A0313 + FItems[0,3] * A0113 );
+  Result.FItems[2,3] := det * - ( FItems[0,0] * A1312 - FItems[0,1] * A0312 + FItems[0,3] * A0112 );
+  Result.FItems[3,0] := det * - ( FItems[1,0] * A1223 - FItems[1,1] * A0223 + FItems[1,2] * A0123 );
+  Result.FItems[3,1] := det *   ( FItems[0,0] * A1223 - FItems[0,1] * A0223 + FItems[0,2] * A0123 );
+  Result.FItems[3,2] := det * - ( FItems[0,0] * A1213 - FItems[0,1] * A0213 + FItems[0,2] * A0113 );
+  Result.FItems[3,3] := det *   ( FItems[0,0] * A1212 - FItems[0,1] * A0212 + FItems[0,2] * A0112 );
 end;
 
 { TFloat2 }
+
+class operator TFloat2.Add(const ALeft, ARight: TFloat2): TFloat2;
+begin
+  Result.X := ALeft.X + ARight.X;
+  Result.Y := ALeft.Y + ARight.Y;
+end;
 
 constructor TFloat2.Create(AX, AY: Single);
 begin
   X := AX;
   Y := AY;
+end;
+
+class operator TFloat2.Divide(const ALeft, ARight: TFloat2): TFloat2;
+begin
+  Result.X := ALeft.X / ARight.X;
+  Result.Y := ALeft.Y / ARight.Y;
+end;
+
+class operator TFloat2.Divide(const ALeft: TFloat2; AValue: Single): TFloat2;
+begin
+  Result.X := ALeft.X / AValue;
+  Result.Y := ALeft.Y / AValue;
+end;
+
+function TFloat2.Length: Single;
+begin
+  Result := Sqrt(X*X + Y*Y);
+end;
+
+class operator TFloat2.Multiply(const ALeft, ARight: TFloat2): TFloat2;
+begin
+  Result.X := ALeft.X * ARight.X;
+  Result.Y := ALeft.Y * ARight.Y;
+end;
+
+class operator TFloat2.Multiply(const ALeft: TFloat2; AValue: Single): TFloat2;
+begin
+  Result.X := ALeft.X * AValue;
+  Result.Y := ALeft.Y * AValue;
+end;
+
+class operator TFloat2.Subtract(const ALeft, ARight: TFloat2): TFloat2;
+begin
+  Result.X := ALeft.X - ARight.X;
+  Result.Y := ALeft.Y - ARight.Y;
+end;
+
+{ TFloat3 }
+
+class operator TFloat3.Add(const ALeft, ARight: TFloat3): TFloat3;
+begin
+  Result.X := ALeft.X + ARight.X;
+  Result.Y := ALeft.Y + ARight.Y;
+  Result.Z := ALeft.Z + ARight.Z;
+end;
+
+class operator TFloat3.Divide(const ALeft: TFloat3; AValue: Single): TFloat3;
+begin
+  Result.X := ALeft.X / AValue;
+  Result.Y := ALeft.Y / AValue;
+  Result.Z := ALeft.Z / AValue;
+end;
+
+class operator TFloat3.Divide(const ALeft, ARight: TFloat3): TFloat3;
+begin
+  Result.X := ALeft.X / ARight.X;
+  Result.Y := ALeft.Y / ARight.Y;
+  Result.Z := ALeft.Z / ARight.Z;
+end;
+
+function TFloat3.Length: Single;
+begin
+  Result := Sqrt(X*X + Y*Y + Z*Z);
+end;
+
+class operator TFloat3.Multiply(const ALeft, ARight: TFloat3): TFloat3;
+begin
+  Result.X := ALeft.X * ARight.X;
+  Result.Y := ALeft.Y * ARight.Y;
+  Result.Z := ALeft.Z * ARight.Z;
+end;
+
+class operator TFloat3.Multiply(const ALeft: TFloat3; AValue: Single): TFloat3;
+begin
+  Result.X := ALeft.X * AValue;
+  Result.Y := ALeft.Y * AValue;
+  Result.Z := ALeft.Z * AValue;
+end;
+
+class operator TFloat3.Subtract(const ALeft, ARight: TFloat3): TFloat3;
+begin
+  Result.X := ALeft.X - ARight.X;
+  Result.Y := ALeft.Y - ARight.Y;
+  Result.Z := ALeft.Z - ARight.Z;
+end;
+
+{ TFloat4 }
+
+class operator TFloat4.Add(const ALeft, ARight: TFloat4): TFloat4;
+begin
+  Result.X := ALeft.X + ARight.X;
+  Result.Y := ALeft.Y + ARight.Y;
+  Result.Z := ALeft.Z + ARight.Z;
+  Result.W := ALeft.W + ARight.W;
+end;
+
+class operator TFloat4.Divide(const ALeft: TFloat4; AValue: Single): TFloat4;
+begin
+  Result.X := ALeft.X / AValue;
+  Result.Y := ALeft.Y / AValue;
+  Result.Z := ALeft.Z / AValue;
+  Result.W := ALeft.W / AValue;
+end;
+
+class operator TFloat4.Divide(const ALeft, ARight: TFloat4): TFloat4;
+begin
+  Result.X := ALeft.X / ARight.X;
+  Result.Y := ALeft.Y / ARight.Y;
+  Result.Z := ALeft.Z / ARight.Z;
+  Result.W := ALeft.W / ARight.W;
+end;
+
+function TFloat4.Length: Single;
+begin
+  Result := Sqrt(X*X + Y*Y + Z*Z + W*W);
+end;
+
+class operator TFloat4.Multiply(const ALeft, ARight: TFloat4): TFloat4;
+begin
+  Result.X := ALeft.X * ARight.X;
+  Result.Y := ALeft.Y * ARight.Y;
+  Result.Z := ALeft.Z * ARight.Z;
+  Result.W := ALeft.W * ARight.W;
+end;
+
+class operator TFloat4.Multiply(const ALeft: TFloat4; AValue: Single): TFloat4;
+begin
+  Result.X := ALeft.X * AValue;
+  Result.Y := ALeft.Y * AValue;
+  Result.Z := ALeft.Z * AValue;
+  Result.W := ALeft.W * AValue;
+end;
+
+
+class operator TFloat4.Subtract(const ALeft, ARight: TFloat4): TFloat4;
+begin
+  Result.X := ALeft.X - ARight.X;
+  Result.Y := ALeft.Y - ARight.Y;
+  Result.Z := ALeft.Z - ARight.Z;
+  Result.W := ALeft.W - ARight.W;
+end;
+
+class operator TMatrix4x4.Multiply(const ALeft, ARight: TMatrix4x4): TMatrix4x4;
+var
+  i: Integer;
+  LResult: array[0..3] of TFloat4;
+begin
+  for i := 0 to 3 do
+  begin
+    LResult[0] := ARight.FRows[0] * ALeft.FItems[i, 0];
+    LResult[1] := ARight.FRows[1] * ALeft.FItems[i, 1];
+    LResult[2] := ARight.FRows[2] * ALeft.FItems[i, 2];
+    LResult[3] := ARight.FRows[3] * ALeft.FItems[i, 3];
+    Result.FItems[i, 0] := LResult[0].Element2[0] + LResult[1].Element2[0] + LResult[2].Element2[0] + LResult[3].Element2[0];
+    Result.FItems[i, 1] := LResult[0].Element2[1] + LResult[1].Element2[1] + LResult[2].Element2[1] + LResult[3].Element2[1];
+    Result.FItems[i, 2] := LResult[0].Element2[2] + LResult[1].Element2[2] + LResult[2].Element2[2] + LResult[3].Element2[2];
+    Result.FItems[i, 3] := LResult[0].Element2[3] + LResult[1].Element2[3] + LResult[2].Element2[3] + LResult[3].Element2[3];
+  end;
+end;
+
+class operator TMatrix4x4.Multiply(const ALeft: TMatrix4x4; const ARight: TFloat4): TFloat4;
+var
+  i: Integer;
+begin
+  //https://stackoverflow.com/questions/24593939/matrix-multiplication-with-vector-in-glsl
+  for i := 0 to 3 do
+  begin
+    Result.Element2[i] :=
+        ALeft.FItems[0, i] * ARight.Element2[i]
+      + ALeft.FItems[1, i] * ARight.Element2[i]
+      + ALeft.FItems[2, i] * ARight.Element2[i]
+      + ALeft.FItems[3, i] * ARight.Element2[i];
+  end;
 end;
 
 end.
