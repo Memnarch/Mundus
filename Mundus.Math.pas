@@ -46,7 +46,7 @@ type
       0: (X, Y, Z, W: Single);
       1: (XY, ZW: TFloat2);
       2: (XYZ: TFloat3);
-      3: (Element2: array[0..3] of Single);
+      3: (Elements: array[0..3] of Single);
       4: (B, G, R, A: Single);
       5: (BGR: TFloat3);
   end;
@@ -139,56 +139,6 @@ end;
 
 { TMatrix4x4 }
 
-
-//Presented by the lovely folks of Stackoverflow
-//https://stackoverflow.com/a/44446912
-{$Region CCode}
-{
-var A2323 = m.m22 * m.m33 - m.m23 * m.m32 ;
-var A1323 = m.m21 * m.m33 - m.m23 * m.m31 ;
-var A1223 = m.m21 * m.m32 - m.m22 * m.m31 ;
-var A0323 = m.m20 * m.m33 - m.m23 * m.m30 ;
-var A0223 = m.m20 * m.m32 - m.m22 * m.m30 ;
-var A0123 = m.m20 * m.m31 - m.m21 * m.m30 ;
-var A2313 = m.m12 * m.m33 - m.m13 * m.m32 ;
-var A1313 = m.m11 * m.m33 - m.m13 * m.m31 ;
-var A1213 = m.m11 * m.m32 - m.m12 * m.m31 ;
-var A2312 = m.m12 * m.m23 - m.m13 * m.m22 ;
-var A1312 = m.m11 * m.m23 - m.m13 * m.m21 ;
-var A1212 = m.m11 * m.m22 - m.m12 * m.m21 ;
-var A0313 = m.m10 * m.m33 - m.m13 * m.m30 ;
-var A0213 = m.m10 * m.m32 - m.m12 * m.m30 ;
-var A0312 = m.m10 * m.m23 - m.m13 * m.m20 ;
-var A0212 = m.m10 * m.m22 - m.m12 * m.m20 ;
-var A0113 = m.m10 * m.m31 - m.m11 * m.m30 ;
-var A0112 = m.m10 * m.m21 - m.m11 * m.m20 ;
-
-var det = m.m00 * ( m.m11 * A2323 - m.m12 * A1323 + m.m13 * A1223 )
-    - m.m01 * ( m.m10 * A2323 - m.m12 * A0323 + m.m13 * A0223 )
-    + m.m02 * ( m.m10 * A1323 - m.m11 * A0323 + m.m13 * A0123 )
-    - m.m03 * ( m.m10 * A1223 - m.m11 * A0223 + m.m12 * A0123 ) ;
-det = 1 / det;
-
-return new Matrix4x4() {
-   m00 = det *   ( m.m11 * A2323 - m.m12 * A1323 + m.m13 * A1223 ),
-   m01 = det * - ( m.m01 * A2323 - m.m02 * A1323 + m.m03 * A1223 ),
-   m02 = det *   ( m.m01 * A2313 - m.m02 * A1313 + m.m03 * A1213 ),
-   m03 = det * - ( m.m01 * A2312 - m.m02 * A1312 + m.m03 * A1212 ),
-   m10 = det * - ( m.m10 * A2323 - m.m12 * A0323 + m.m13 * A0223 ),
-   m11 = det *   ( m.m00 * A2323 - m.m02 * A0323 + m.m03 * A0223 ),
-   m12 = det * - ( m.m00 * A2313 - m.m02 * A0313 + m.m03 * A0213 ),
-   m13 = det *   ( m.m00 * A2312 - m.m02 * A0312 + m.m03 * A0212 ),
-   m20 = det *   ( m.m10 * A1323 - m.m11 * A0323 + m.m13 * A0123 ),
-   m21 = det * - ( m.m00 * A1323 - m.m01 * A0323 + m.m03 * A0123 ),
-   m22 = det *   ( m.m00 * A1313 - m.m01 * A0313 + m.m03 * A0113 ),
-   m23 = det * - ( m.m00 * A1312 - m.m01 * A0312 + m.m03 * A0112 ),
-   m30 = det * - ( m.m10 * A1223 - m.m11 * A0223 + m.m12 * A0123 ),
-   m31 = det *   ( m.m00 * A1223 - m.m01 * A0223 + m.m02 * A0123 ),
-   m32 = det * - ( m.m00 * A1213 - m.m01 * A0213 + m.m02 * A0113 ),
-   m33 = det *   ( m.m00 * A1212 - m.m01 * A0212 + m.m02 * A0112 ),
-}//;
-
-{$endregion}
 class function TMatrix4x4.CreateIdentityMatrix: TMatrix4x4;
 begin
   Result := Default(TMatrix4x4);
@@ -282,6 +232,56 @@ begin
   Result.FItems[3, 2] := Z;
 end;
 
+
+//Presented by the lovely folks of Stackoverflow
+//https://stackoverflow.com/a/44446912
+{$Region CCode}
+{
+var A2323 = m.m22 * m.m33 - m.m23 * m.m32 ;
+var A1323 = m.m21 * m.m33 - m.m23 * m.m31 ;
+var A1223 = m.m21 * m.m32 - m.m22 * m.m31 ;
+var A0323 = m.m20 * m.m33 - m.m23 * m.m30 ;
+var A0223 = m.m20 * m.m32 - m.m22 * m.m30 ;
+var A0123 = m.m20 * m.m31 - m.m21 * m.m30 ;
+var A2313 = m.m12 * m.m33 - m.m13 * m.m32 ;
+var A1313 = m.m11 * m.m33 - m.m13 * m.m31 ;
+var A1213 = m.m11 * m.m32 - m.m12 * m.m31 ;
+var A2312 = m.m12 * m.m23 - m.m13 * m.m22 ;
+var A1312 = m.m11 * m.m23 - m.m13 * m.m21 ;
+var A1212 = m.m11 * m.m22 - m.m12 * m.m21 ;
+var A0313 = m.m10 * m.m33 - m.m13 * m.m30 ;
+var A0213 = m.m10 * m.m32 - m.m12 * m.m30 ;
+var A0312 = m.m10 * m.m23 - m.m13 * m.m20 ;
+var A0212 = m.m10 * m.m22 - m.m12 * m.m20 ;
+var A0113 = m.m10 * m.m31 - m.m11 * m.m30 ;
+var A0112 = m.m10 * m.m21 - m.m11 * m.m20 ;
+
+var det = m.m00 * ( m.m11 * A2323 - m.m12 * A1323 + m.m13 * A1223 )
+    - m.m01 * ( m.m10 * A2323 - m.m12 * A0323 + m.m13 * A0223 )
+    + m.m02 * ( m.m10 * A1323 - m.m11 * A0323 + m.m13 * A0123 )
+    - m.m03 * ( m.m10 * A1223 - m.m11 * A0223 + m.m12 * A0123 ) ;
+det = 1 / det;
+
+return new Matrix4x4() {
+   m00 = det *   ( m.m11 * A2323 - m.m12 * A1323 + m.m13 * A1223 ),
+   m01 = det * - ( m.m01 * A2323 - m.m02 * A1323 + m.m03 * A1223 ),
+   m02 = det *   ( m.m01 * A2313 - m.m02 * A1313 + m.m03 * A1213 ),
+   m03 = det * - ( m.m01 * A2312 - m.m02 * A1312 + m.m03 * A1212 ),
+   m10 = det * - ( m.m10 * A2323 - m.m12 * A0323 + m.m13 * A0223 ),
+   m11 = det *   ( m.m00 * A2323 - m.m02 * A0323 + m.m03 * A0223 ),
+   m12 = det * - ( m.m00 * A2313 - m.m02 * A0313 + m.m03 * A0213 ),
+   m13 = det *   ( m.m00 * A2312 - m.m02 * A0312 + m.m03 * A0212 ),
+   m20 = det *   ( m.m10 * A1323 - m.m11 * A0323 + m.m13 * A0123 ),
+   m21 = det * - ( m.m00 * A1323 - m.m01 * A0323 + m.m03 * A0123 ),
+   m22 = det *   ( m.m00 * A1313 - m.m01 * A0313 + m.m03 * A0113 ),
+   m23 = det * - ( m.m00 * A1312 - m.m01 * A0312 + m.m03 * A0112 ),
+   m30 = det * - ( m.m10 * A1223 - m.m11 * A0223 + m.m12 * A0123 ),
+   m31 = det *   ( m.m00 * A1223 - m.m01 * A0223 + m.m02 * A0123 ),
+   m32 = det * - ( m.m00 * A1213 - m.m01 * A0213 + m.m02 * A0113 ),
+   m33 = det *   ( m.m00 * A1212 - m.m01 * A0212 + m.m02 * A0112 ),
+}//;
+
+{$endregion}
 function TMatrix4x4.Inverse: TMatrix4x4;
 var
   A2323,
@@ -504,18 +504,14 @@ end;
 class operator TMatrix4x4.Multiply(const ALeft, ARight: TMatrix4x4): TMatrix4x4;
 var
   i: Integer;
-  LResult: array[0..3] of TFloat4;
 begin
   for i := 0 to 3 do
   begin
-    LResult[0] := ARight.FRows[0] * ALeft.FItems[i, 0];
-    LResult[1] := ARight.FRows[1] * ALeft.FItems[i, 1];
-    LResult[2] := ARight.FRows[2] * ALeft.FItems[i, 2];
-    LResult[3] := ARight.FRows[3] * ALeft.FItems[i, 3];
-    Result.FItems[i, 0] := LResult[0].Element2[0] + LResult[1].Element2[0] + LResult[2].Element2[0] + LResult[3].Element2[0];
-    Result.FItems[i, 1] := LResult[0].Element2[1] + LResult[1].Element2[1] + LResult[2].Element2[1] + LResult[3].Element2[1];
-    Result.FItems[i, 2] := LResult[0].Element2[2] + LResult[1].Element2[2] + LResult[2].Element2[2] + LResult[3].Element2[2];
-    Result.FItems[i, 3] := LResult[0].Element2[3] + LResult[1].Element2[3] + LResult[2].Element2[3] + LResult[3].Element2[3];
+    Result.FRows[i] :=
+                          ALeft.FRows[0] * ARight.FItems[i, 0]
+                        + ALeft.FRows[1] * ARight.FItems[i, 1]
+                        + ALeft.FRows[2] * ARight.FItems[i, 2]
+                        + ALeft.FRows[3] * ARight.FItems[i, 3]
   end;
 end;
 
@@ -524,14 +520,11 @@ var
   i: Integer;
 begin
   //https://stackoverflow.com/questions/24593939/matrix-multiplication-with-vector-in-glsl
-  for i := 0 to 3 do
-  begin
-    Result.Element2[i] :=
-        ALeft.FItems[0, i] * ARight.Element2[i]
-      + ALeft.FItems[1, i] * ARight.Element2[i]
-      + ALeft.FItems[2, i] * ARight.Element2[i]
-      + ALeft.FItems[3, i] * ARight.Element2[i];
-  end;
+  //https://blog.mecheye.net/2024/10/the-ultimate-guide-to-matrix-multiplication-and-ordering/
+  Result :=   ALeft.FRows[0] * ARight.X
+            + ALeft.FRows[1] * ARight.Y
+            + ALeft.FRows[2] * ARight.Z
+            + ALeft.FRows[3] * ARight.W
 end;
 
 end.
