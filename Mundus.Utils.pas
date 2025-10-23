@@ -14,19 +14,11 @@ uses
   System.Math;
 
 function BuildTransformMatrix(const APosition, ARotation: TFloat3): TMatrix4x4;
-var
-  LRotation: TMatrix4x4;
 begin
-  Result.SetAsMoveMatrix(APosition.X, APosition.Y, APosition.Z);
-
-  LRotation.SetAsRotationXMatrix(DegToRad(ARotation.X));
-  Result.MultiplyMatrix4D(LRotation);
-
-  LRotation.SetAsRotationYMatrix(DegToRad(ARotation.Y));
-  Result.MultiplyMatrix4D(LRotation);
-
-  LRotation.SetAsRotationZMatrix(DegToRad(ARotation.Z));
-  Result.MultiplyMatrix4D(LRotation);
+  Result := TMatrix4x4.CreateTranslationMatrix(APosition.X, APosition.Y, APosition.Z)
+            * TMatrix4x4.CreateRotationXMatrix(ARotation.X)
+            * TMatrix4x4.CreateRotationYMatrix(ARotation.Y)
+            * TMatrix4x4.CreateRotationZMatrix(ARotation.Z);
 end;
 
 function RGBToBGR(const AValue: TFloat3): TFloat3;

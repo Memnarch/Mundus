@@ -112,14 +112,14 @@ begin
           LVertexC := LCall.Vertices[LTriangle.VertexC];
 
           //denormalize vectors to screenpos
-          LVertexA.Element[0] := (1-LVertexA.Element[0]) * FHalfResolutionX;//half screen size
-          LVertexA.Element[1] := (1-LVertexA.Element[1]) * FHalfResolutionY;
+          LVertexA.Elements[0] := (1-LVertexA.Elements[0]) * FHalfResolutionX;//half screen size
+          LVertexA.Elements[1] := (1-LVertexA.Elements[1]) * FHalfResolutionY;
 
-          LVertexB.Element[0] := (1-LVertexB.Element[0]) * FHalfResolutionX;
-          LVertexB.Element[1] := (1-LVertexB.Element[1]) * FHalfResolutionY;
+          LVertexB.Elements[0] := (1-LVertexB.Elements[0]) * FHalfResolutionX;
+          LVertexB.Elements[1] := (1-LVertexB.Elements[1]) * FHalfResolutionY;
 
-          LVertexC.Element[0] := (1-LVertexC.Element[0]) * FHalfResolutionX;
-          LVertexC.Element[1] := (1-LVertexC.Element[1]) * FHalfResolutionY;
+          LVertexC.Elements[0] := (1-LVertexC.Elements[0]) * FHalfResolutionX;
+          LVertexC.Elements[1] := (1-LVertexC.Elements[1]) * FHalfResolutionY;
 
           //check if triangle overlaps with workers render area. Skip if not intersecting
           if ((LVertexA.Y > LMaxY) and (LVertexB.Y > LMaxY) and (LVertexC.Y > LMaxY))

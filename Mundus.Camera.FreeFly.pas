@@ -22,12 +22,9 @@ uses
 { TFreeFlyCamera }
 
 function TFreeFlyCamera.GetRotationMatrix: TMatrix4x4;
-var
-  LRotationX: TMatrix4x4;
 begin
-  LRotationX.SetAsRotationXMatrix(DegToRad(Rotation.X));
-  Result.SetAsRotationYMatrix(DegToRad(Rotation.Y));
-  Result.MultiplyMatrix4D(LRotationX.Inverse);
+  Result :=   TMatrix4x4.CreateRotationYMatrix(Rotation.Y)
+            * TMatrix4x4.CreateRotationXMatrix(Rotation.X).Inverse;
 end;
 
 end.

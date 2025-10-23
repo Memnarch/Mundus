@@ -3,7 +3,7 @@ unit Mundus.Math;
 interface
 
 type
-  TFloat2 = record
+  TFloat2 = packed record
     constructor Create(AX, AY: Single);
     class operator Add(const ALeft, ARight: TFloat2): TFloat2; static;
     class operator Subtract(const ALeft, ARight: TFloat2): TFloat2; static;
@@ -12,13 +12,16 @@ type
     class operator Divide(const ALeft, ARight: TFloat2): TFloat2; static;
     class operator Divide(const ALeft: TFloat2; AValue: Single): TFloat2; static;
     function Length: Single;
+    function Normalized: TFloat2;
     case byte of
       0: (X, Y: Single);
       1: (U, V: Single);
       2: (Elements: array[0..1] of Single);
   end;
 
-  TFloat3 = record
+  PFloat2 = ^TFloat2;
+
+  TFloat3 = packed record
     class operator Add(const ALeft, ARight: TFloat3): TFloat3; static;
     class operator Subtract(const ALeft, ARight: TFloat3): TFloat3; static;
     class operator Multiply(const ALeft, ARight: TFloat3): TFloat3; static;
@@ -26,6 +29,7 @@ type
     class operator Divide(const ALeft, ARight: TFloat3): TFloat3; static;
     class operator Divide(const ALeft: TFloat3; AValue: Single): TFloat3; static;
     function Length: Single;
+    function Normalized: TFloat3;
     case byte of
     0: (X, Y, Z: Single);
     1: (XY: TFloat2);
@@ -33,6 +37,8 @@ type
     3: (B, G, R: Single);
     4: (Elements: array[0..2] of Single);
   end;
+
+  PFloat3 = ^TFloat3;
 
   TFloat4 = packed record
     class operator Add(const ALeft, ARight: TFloat4): TFloat4; static;
@@ -42,6 +48,7 @@ type
     class operator Divide(const ALeft, ARight: TFloat4): TFloat4; static;
     class operator Divide(const ALeft: TFloat4; AValue: Single): TFloat4; static;
     function Length: Single;
+    function Normalized: TFloat4;
     case byte of
       0: (X, Y, Z, W: Single);
       1: (XY, ZW: TFloat2);
@@ -50,6 +57,8 @@ type
       4: (B, G, R, A: Single);
       5: (BGR: TFloat3);
   end;
+
+  PFloat4 = ^TFloat4;
 
   TMatrix4x4 = record
   public
@@ -61,6 +70,7 @@ type
     class function CreateRotationXMatrix(DegAlpha: Single): TMatrix4x4; static;
     class function CreateRotationYMatrix(DegAlpha: Single): TMatrix4x4; static;
     class function CreateRotationZMatrix(DegAlpha: Single): TMatrix4x4; static;
+    class function CreateRotationMatrix(XDegAlpha, YDegAlpha, ZDegAlpha: Single): TMatrix4x4; static;
     class operator Multiply(const ALeft, ARight: TMatrix4x4): TMatrix4x4; static;
     class operator Multiply(const ALeft: TMatrix4x4; const ARight: TFloat4): TFloat4; static;
     function Inverse: TMatrix4x4;
@@ -79,6 +89,8 @@ function Dot(const A, B: TFloat3): Single; overload;
 function Dot(const A, B: TFloat4): Single; overload;
 
 function Cross(const A, B: TFloat3): TFloat3; overload;
+
+function CalculateSurfaceNormal(const A, B, C: TFloat3): TFloat3;
 
 implementation
 
@@ -137,6 +149,15 @@ begin
   Result.Z := A.X * B.Y - A.Y * B.X;
 end;
 
+function CalculateSurfaceNormal(const A, B, C: TFloat3): TFloat3;
+var
+  LU, LV: TFloat3;
+begin
+  LU := B - A;
+  LV := C - A;
+  Result := Cross(LU, LV);
+end;
+
 { TMatrix4x4 }
 
 class function TMatrix4x4.CreateIdentityMatrix: TMatrix4x4;
@@ -164,6 +185,13 @@ begin
   Result.FItems[2, 2] := ZFar / (ZFar - ZNear);
   Result.FItems[3, 2] := -((ZFar * ZNear) / (ZFar - ZNear));
   Result.FItems[2, 3] := 1;
+end;
+
+class function TMatrix4x4.CreateRotationMatrix(XDegAlpha, YDegAlpha, ZDegAlpha: Single): TMatrix4x4;
+begin
+  Result :=   TMatrix4x4.CreateRotationXMatrix(XDegAlpha)
+            * TMatrix4x4.CreateRotationYMatrix(YDegAlpha)
+            * TMatrix4x4.CreateRotationZMatrix(ZDegAlpha);
 end;
 
 class function TMatrix4x4.CreateRotationXMatrix(DegAlpha: Single): TMatrix4x4;
@@ -390,6 +418,17 @@ begin
   Result.Y := ALeft.Y * AValue;
 end;
 
+function TFloat2.Normalized: TFloat2;
+var
+  LLength: Single;
+begin
+  LLength := Length;
+  if LLength <> 0 then
+    Result := Self / LLength
+  else
+    Result := Self;
+end;
+
 class operator TFloat2.Subtract(const ALeft, ARight: TFloat2): TFloat2;
 begin
   Result.X := ALeft.X - ARight.X;
@@ -436,6 +475,17 @@ begin
   Result.X := ALeft.X * AValue;
   Result.Y := ALeft.Y * AValue;
   Result.Z := ALeft.Z * AValue;
+end;
+
+function TFloat3.Normalized: TFloat3;
+var
+  LLength: Single;
+begin
+  LLength := Length;
+  if LLength <> 0 then
+    Result := Self / LLength
+  else
+    Result := Self;
 end;
 
 class operator TFloat3.Subtract(const ALeft, ARight: TFloat3): TFloat3;
@@ -492,6 +542,17 @@ begin
   Result.W := ALeft.W * AValue;
 end;
 
+
+function TFloat4.Normalized: TFloat4;
+var
+  LLength: Single;
+begin
+  LLength := Length;
+  if LLength <> 0 then
+    Result := Self / LLength
+  else
+    Result := Self;
+end;
 
 class operator TFloat4.Subtract(const ALeft, ARight: TFloat4): TFloat4;
 begin

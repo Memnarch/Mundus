@@ -24,7 +24,7 @@ type
 
 procedure VertexShader(var AVertex: TFloat4; const [Ref] Constants: TDepthConstants; const [ref] AVSInput: TNoAttributes; var AVOutput: TColorShaderPSInput);
 begin
-  AVertex := Constants.Projection.Transform(AVertex);
+  AVertex := Constants.Projection * AVertex;
   AVOutput.Color.R := 255*(1-AVertex.Z/Constants.ZDistance);
 end;
 

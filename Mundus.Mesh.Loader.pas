@@ -47,11 +47,7 @@ begin
       for LMesh in Result.Meshes do
       begin
         for i := 0 to High(LMesh.Vertices) do
-        begin
-          LVector := LMesh.Vertices[i];
-          LVector.Mul(AUnitConversion);
-          LMesh.Vertices[i] := LVector;
-        end;
+          LMesh.Vertices[i] := LMesh.Vertices[i] * AUnitConversion;
       end;
       Exit;
     end;

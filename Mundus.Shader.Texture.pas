@@ -38,7 +38,7 @@ type
 
 procedure VertexShader(var AVertex: TFloat4; const [Ref] Constants: TTextureConstantInput; const [ref] AVSInput: TTextureVSInput; var AVSOutput: TTexturePSInput);
 begin
-  AVertex := Constants.Projection.Transform(AVertex);
+  AVertex := Constants.Projection * AVertex;
   AVSOutput.UV.U := AVSInput.UV.U * Constants.Diffuse.MaxX;
   AVSOutput.UV.V := AVSInput.UV.V * Constants.Diffuse.MaxY;
 end;

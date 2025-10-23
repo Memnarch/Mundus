@@ -27,7 +27,7 @@ implementation
 
 procedure VertexShader(const [Ref] Constants: TColorShaderConstantInput; var AVertex: TFloat4; const [ref] AVSInput: TNoAttributes; var AVSOutput: TColorShaderPSInput);
 begin
-  AVertex := Constants.Projection.Transform(AVertex);
+  AVertex := Constants.Projection * AVertex;
 end;
 
 const

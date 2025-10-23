@@ -333,17 +333,17 @@ begin
   LBlock.LineLength := AMaxResolutionX+1;
   LBlock.Constants := AConstantValues;
   // 28.4 fixed-point coordinates
-    X1 := Round(16*AVerctorA.Element[0]);
-    X2 := Round(16*AVectorB.Element[0]);
-    X3 := Round(16*AvectorC.Element[0]);
+    X1 := Round(16*AVerctorA.Elements[0]);
+    X2 := Round(16*AVectorB.Elements[0]);
+    X3 := Round(16*AvectorC.Elements[0]);
 
-    Y1 := Round(16*AVerctorA.Element[1]);
-    Y2 := Round(16*AVectorB.Element[1]);
-    Y3 := Round(16*AvectorC.Element[1]);
+    Y1 := Round(16*AVerctorA.Elements[1]);
+    Y2 := Round(16*AVectorB.Elements[1]);
+    Y3 := Round(16*AvectorC.Elements[1]);
 
-//    Z1 := Round(AVerctorA.Element[2]);
-//    Z2 := Round(AVectorB.Element[2]);
-//    Z3 := Round(AvectorC.Element[2]);
+//    Z1 := Round(AVerctorA.Elements[2]);
+//    Z2 := Round(AVectorB.Elements[2]);
+//    Z3 := Round(AvectorC.Elements[2]);
 
     // Deltas
     LDeltas.X12 := X1 - X2;

@@ -270,7 +270,7 @@ var
   LVInput: PByte;
   LClipContext: TClipContext;
   LClippedTriangle: TTriangle;
-  LNormal, LA, LB, LC: TFloat4;
+  LA, LB, LC: TFloat4;LNormal: TFloat3;
 begin
   LBufferSize := AMesh.Shader.FragmentAttributeSize;
   SetLength(LBuffer, LBufferSize);
@@ -283,10 +283,8 @@ begin
   LVInput := @ATargetCall.Values.Data[0];
   for i := 0 to High(AMesh.Vertices) do
   begin
-    LVertex.Element[0] := AMesh.Vertices[i].X;
-    LVertex.Element[1] := AMesh.Vertices[i].Y;
-    LVertex.Element[2] := AMesh.Vertices[i].Z;
-    LVertex.Element[3] := 1;
+    LVertex.XYZ := AMesh.Vertices[i];
+    LVertex.W := 1;
     ATargetCall.Shader.VertexShader(LVertex, @ATargetCall.ConstantValues.Data[0], LVInput, @LBuffer[0]);
     ATargetCall.AddVertex(LVertex, @LBuffer[0]);
     Inc(LVInput, ATargetCall.Values.Descriptor.RecordSize);
@@ -305,12 +303,12 @@ begin
       LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[1];
       LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[2];
       LA := ATargetCall.Vertices[LClippedTriangle.VertexA];
-      LA.NormalizeKeepW;
+      LA.XYZ := LA.XYZ / LA.W;
       LB := ATargetCall.Vertices[LClippedTriangle.VertexB];
-      LB.NormalizeKeepW;
+      LB.XYZ := LB.XYZ / LB.W;
       LC := ATargetCall.Vertices[LClippedTriangle.VertexC];
-      LC.NormalizeKeepW;
-      LNormal.CalculateSurfaceNormal(LA, LB, LC);
+      LC.XYZ := LC.XYZ / LC.W;
+      LNormal := CalculateSurfaceNormal(LA.XYZ, LB.XYZ, LC.XYZ);
       //Backface culling
       if LNormal.Z < 0 then
       begin
@@ -327,7 +325,7 @@ begin
   end;
 
   for i := 0 to High(ATargetCall.Vertices) do
-    ATargetCall.Vertices[i].NormalizeKeepW;
+    ATargetCall.Vertices[i].XYZ := ATargetCall.Vertices[i].XYZ / ATargetCall.Vertices[i].W;
 end;
 
 procedure TMundusRenderer.UpdateBufferResolution(ABuffer: Boolean; AWidth, AHeight: Integer);

@@ -44,25 +44,26 @@ uses
 constructor TCamera.Create;
 begin
   inherited;
-  FFOV := 0.7;
+  FFOV := 40;
   FZNear := 1;
   FZFar := 10000;
+  FRotationMatrix := TMatrix4x4.CreateIdentityMatrix();
 end;
 
 function TCamera.GetProjectionMatrix: TMatrix4x4;
 begin
-  Result.SetAsPerspectiveProjectionMatrix(FZNear, FZFar, FFOV, FAspectRatio);
+  Result := TMatrix4x4.CreatePerspectiveProjectionMatrix(FZNear, FZFar, FFOV, FAspectRatio);
 end;
 
 function TCamera.GetRotationMatrix: TMatrix4x4;
 begin
-  Result.SetAsRotationMatrix(DegToRad(FRotation.X), DegToRad(FRotation.Y), DegToRad(FRotation.Z));
+  Result := TMatrix4x4.CreateRotationMatrix(FRotation.X, FRotation.Y, FRotation.Z);
 end;
 
 function TCamera.GetViewMatrix: TMatrix4x4;
 begin
-  Result.SetAsMoveMatrix(FPosition.X, FPosition.Y, FPosition.Z);
-  Result.MultiplyMatrix4D(RotationMatrix);
+  Result :=   TMatrix4x4.CreateTranslationMatrix(FPosition.X, FPosition.Y, FPosition.Z)
+            * RotationMatrix;
   Result := Result.Inverse;
 end;
 

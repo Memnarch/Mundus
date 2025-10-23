@@ -41,15 +41,13 @@ const
 procedure VertexShader(var AVertex: TFloat4; const [Ref] Constants: TGradientConstants; const [ref] AVSInput: TGradientVSInput; var AVSOutput: TColorShaderPSInput);
 var
   LDist, LIntensity: Single;
-  LVec, LColor: TFloat4;
+  LVec: TFloat4;
 begin
-  LVec := Constants.World.Transform(AVertex);
+  LVec := Constants.World * AVertex;
   LDist := LVec.Length;
   LIntensity := Max(130-LDist, 0) / 50;
-  AVertex := Constants.Projection.Transform(AVertex);
-  LColor := AVSInput.Color;
-  LColor.Mul(LIntensity);
-  AVSOutput.Color := LColor;
+  AVertex := Constants.Projection * AVertex;
+  AVSOutput.Color := AVSInput.Color * LIntensity;
 end;
 
 initialization

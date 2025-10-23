@@ -112,8 +112,7 @@ begin
   else
     LStepCZ := 1;
 
-  AVecZ := CalculateFactors(AVectorA.XY, AVectorB.XY, AVectorC.XY, LAW, LBW, LCW);
-  AVecZ.Mul(LStepCZ);
+  AVecZ := CalculateFactors(AVectorA.XY, AVectorB.XY, AVectorC.XY, LAW, LBW, LCW) * LStepCZ;
 
   LAttributeA := @AAttributeA[0];
   LAttributeB := @AAttributeB[0];
