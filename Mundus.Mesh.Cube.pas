@@ -13,7 +13,7 @@ type
   private
 
   public
-    constructor Create(); reintroduce;
+    constructor Create(const ASizeX, ASizeY, ASizeZ: Single); reintroduce;
   end;
 
 implementation
@@ -23,20 +23,25 @@ uses
 
 { TCube }
 
-constructor TCube.Create;
+constructor TCube.Create(const ASizeX, ASizeY, ASizeZ: Single);
 var
   LVertices: array[0..7] of TVector;
   LUV: TArray<TUV>;
+  LMin, LMax, LNormal: TVector;
+  i: Integer;
+  LLength: Single;
 begin
   inherited Create();
-  LVertices[0] := Vector(-32, -32, -32);
-  LVertices[1] := Vector(-32, 32, -32);
-  LVertices[2] := Vector(32, 32, -32);
-  LVertices[3] := Vector(32, -32, -32);
-  LVertices[4] := Vector(-32, -32, 32);
-  LVertices[5] := Vector(-32, 32, 32);
-  LVertices[6] := Vector(32, 32, 32);
-  LVertices[7] := Vector(32, -32, 32);
+  LMin := Vector(-ASizeX / 2, -ASizeY / 2, -ASizeZ / 2);
+  LMax := Vector(ASizeX / 2, ASizeY / 2, ASizeZ / 2);
+  LVertices[0] := LMin;
+  LVertices[1] := Vector(LMin.X, LMax.Y, LMin.Z);
+  LVertices[2] := Vector(LMax.X, LMax.Y, LMin.Z);
+  LVertices[3] := Vector(LMax.X, LMin.Y, LMin.Z);
+  LVertices[4] := Vector(LMin.X, LMin.Y, LMax.Z);
+  LVertices[5] := Vector(LMin.X, LMax.Y, LMax.Z);
+  LVertices[6] := LMax;
+  LVertices[7] := Vector(LMax.X, LMin.Y, LMax.Z);
   //add vertices, simply one vertex per triangle corner to simplify uv mapping
   AddVertice(LVertices[0]);
   AddVertice(LVertices[1]);
@@ -74,6 +79,11 @@ begin
   AddVertice(LVertices[7]);
   AddVertice(LVertices[4]);
   AddVertice(LVertices[3]);
+
+  for i := 0 to High(Vertices) do
+  begin
+    AddNormal(Vertices[i].Normalized);
+  end;
 // add uv
   //UV cooridnates
   SetLength(FUVs, 1);
@@ -148,7 +158,6 @@ begin
   //BottomSide
   AddTriangle(Triangle(30, 31, 32));
   AddTriangle(Triangle(33, 34, 35));
-  FPosition.Z := 200;
 end;
 
 end.

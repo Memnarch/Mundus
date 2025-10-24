@@ -19,7 +19,7 @@ implementation
 
 constructor TPlane.Create(AWidth, AHeight, ATesselation: Integer);
 var
-  LCellWidth, LCellHeight, LX, LY, LVerticesPerLine, LTotalVertices: Integer;
+  LCellWidth, LCellHeight, LX, LY, LVerticesPerLine: Integer;
   i, k: Integer;
   LVector: TVector;
   LVertexA, LVertexB, LVertexC: Integer;
@@ -28,7 +28,6 @@ begin
   LCellWidth := AWidth div ATesselation;
   LCellHeight := AHeight div ATesselation;
   LVerticesPerLine := ATesselation + 1;
-  LTotalVertices := LVerticesPerLine * LVerticesPerLine;
   LY := -(AHeight div 2);
   for i := 0 to ATesselation do
   begin
@@ -40,6 +39,7 @@ begin
       LVector.Z := 0;
       AddVertice(LVector);
       AddUV(UV(k mod 2, i mod 2));
+      AddNormal(Vector(0, 0, 1));
       Inc(LX, LCellWidth);
     end;
     Inc(LY, LCellHeight);
