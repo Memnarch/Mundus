@@ -124,20 +124,36 @@ begin
 end;
 
 class procedure TFBXMeshLoader.AddNormals(AMeshByMaterial: TArray<TMesh>; const AMaterialLayer: TMaterialLayer; const ANormalLayer: TNormalLayer; const APolygonByPolygonVertex: TArray<Int32>);
+
+  function GetTargetMesh(AIndex: Integer): TMesh;
+  begin
+    case AMaterialLayer.MappingType of
+      mtAllSame: Result := AMeshByMaterial[AMaterialLayer.Materials[0]];
+      mtByPolygon: Result := AMeshByMaterial[AMaterialLayer.Materials[APolygonByPolygonVertex[AIndex]]];
+    else
+      raise EFBX.Create('Unexpected mapping type');
+    end;
+  end;
+
 var
   LTarget: TMesh;
   i: Integer;
 begin
-  for i := 0 to High(ANormalLayer.Normals) do
+  if Assigned(ANormalLayer.Indices) then
   begin
-    case AMaterialLayer.MappingType of
-      mtAllSame: LTarget := AMeshByMaterial[AMaterialLayer.Materials[0]];
-      mtByPolygon: LTarget := AMeshByMaterial[AMaterialLayer.Materials[APolygonByPolygonVertex[i]]];
-    else
-      raise EFBX.Create('Unexpected mapping type');
+    for i := 0 to High(ANormalLayer.Indices) do
+    begin
+      LTarget := GetTargetMesh(i);
+      LTarget.AddNormal(ANormalLayer.Normals[ANormalLayer.Indices[i]]);
     end;
-
-    LTarget.AddNormal(ANormalLayer.Normals[i]);
+  end
+  else
+  begin
+    for i := 0 to High(ANormalLayer.Normals) do
+    begin
+      LTarget := GetTargetMesh(i);
+      LTarget.AddNormal(ANormalLayer.Normals[i]);
+    end;
   end;
 end;
 
@@ -363,11 +379,12 @@ begin
   Result := Default(TNormalLayer);
   for LChild in ANode.Childs do
   begin
-    case IndexText(LChild.Name, ['MappingInformationType', 'ReferenceInformationType', 'Normals', 'NormalsW']) of
+    case IndexText(LChild.Name, ['MappingInformationType', 'ReferenceInformationType', 'Normals', 'NormalsW', 'NormalsIndex']) of
       0: Result.MappingType := StrToMappingType(LChild.Properties[0].Data.AsString);
       1: Result.ReferenceType := StrToReferenceType(LChild.Properties[0].Data.AsString);
       2: LNormals := LChild.Properties[0].Data.AsType<TArray<Double>>;
       3: LNormalsW := LChild.Properties[0].Data.AsType<TArray<Double>>;
+      4: Result.Indices := LChild.Properties[0].Data.AsType<TArray<Integer>>;
     end;
   end;
 

@@ -95,6 +95,7 @@ type
     MappingType: TMappingType;
     ReferenceType: TReferenceType;
     Normals: TArray<TVector>;
+    Indices: TArray<Integer>;
   end;
 
   TGeometry = record
