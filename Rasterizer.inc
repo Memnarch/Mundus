@@ -163,9 +163,8 @@ procedure RenderHalfBlock(
       const AAttributes: PBlockAttributes);
 var
   LDepth: PSingle;
-  BlockXStart, BlockYStart, BlockXEnd, BlockYEnd: Integer;
+  BlockXStart, BlockYStart, BlockYEnd: Integer;
   i, k: Integer;
-  LDenormalizedZ: Single;
   LZValues: TFloat4;
   LConstantValues: Pointer;
 const
@@ -175,7 +174,6 @@ begin
     LDepth := AAttributes.FirstDepth;
 
   BlockXStart := AAttributes.X;
-  BlockXEnd := BlockXStart + (CQuadSize - 1);
   BlockYStart := AAttributes.Y;
   BlockYEnd := BlockYStart + (CQuadSize - 1);
   LConstantValues := AAttributes.Constants;
@@ -199,22 +197,6 @@ begin
   begin
     {$i RenderHalfBlock_Loop_Y.inc}
   end;
-//  i := BlockYStart;
-//  {$i RenderHalfBlock_Loop_Y.inc}
-//  Inc(i);
-//  {$i RenderHalfBlock_Loop_Y.inc}
-//  Inc(i);
-//  {$i RenderHalfBlock_Loop_Y.inc}
-//  Inc(i);
-//  {$i RenderHalfBlock_Loop_Y.inc}
-//  Inc(i);
-//  {$i RenderHalfBlock_Loop_Y.inc}
-//  Inc(i);
-//  {$i RenderHalfBlock_Loop_Y.inc}
-//  Inc(i);
-//  {$i RenderHalfBlock_Loop_Y.inc}
-//  Inc(i);
-//  {$i RenderHalfBlock_Loop_Y.inc}
 end;
 {$ELSE}
 procedure RenderHalfBlock(
@@ -283,16 +265,13 @@ procedure RasterizeTriangle(
       ABlockOffset, ABlockStep, ABlockEnd: Integer);
 var
   Y1, Y2, Y3, X1, X2, X3: Integer;
-  MinX, MinY, MAxX, MAxY, BlockXEnd, BlockYEnd: Integer;
-  i, k: Integer;
-  LAttributesX, LAttributesY, LAttributesDenormalized: TAttributes;
-  LDenormalizedZ: Single;
+  MinX, MinY, MAxX, MAxY: Integer;
   LStepsPerQuad: NativeInt;
   LConstants: THalfEdgeConstants;
   LDeltas, LFixedDeltas: THalfSpaceDeltas;
   LBlockCorners: TBlockCorners;
   LBlockState: TBlockState;
-  LX, LY: TTrianglePosition;
+  LY: TTrianglePosition;
   LBlockMemory: array[0..SizeOf(TBlockAttributes)+15] of Byte;
   LBlock: PBlockAttributes;
   LMinDepth, LMaxDepth: Single;

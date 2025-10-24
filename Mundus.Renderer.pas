@@ -87,7 +87,6 @@ begin
   LRows := ABufferHeight div CQuadSize;
   LRowsPerWorker := LRows div FWorkers.Count;
   LMissingRows := LRows mod FWorkers.Count;
-  LOffset := 0;
   LBlockEnd := 0;
   for i := 0 to Pred(FWorkers.Count) do
   begin

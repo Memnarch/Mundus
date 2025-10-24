@@ -27,9 +27,8 @@ constructor TCube.Create(const ASizeX, ASizeY, ASizeZ: Single);
 var
   LVertices: array[0..7] of TVector;
   LUV: TArray<TUV>;
-  LMin, LMax, LNormal: TVector;
+  LMin, LMax: TVector;
   i: Integer;
-  LLength: Single;
 begin
   inherited Create();
   LMin := Vector(-ASizeX / 2, -ASizeY / 2, -ASizeZ / 2);

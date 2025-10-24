@@ -577,8 +577,6 @@ begin
 end;
 
 class operator TMatrix4x4.Multiply(const ALeft: TMatrix4x4; const ARight: TFloat4): TFloat4;
-var
-  i: Integer;
 begin
   //https://stackoverflow.com/questions/24593939/matrix-multiplication-with-vector-in-glsl
   //https://blog.mecheye.net/2024/10/the-ultimate-guide-to-matrix-multiplication-and-ordering/

@@ -37,7 +37,6 @@ class function TMeshLoaders.LoadFromFile(const AFileName: string; AUnitConversio
 var
   LLoader: TMeshLoaderClass;
   i: Integer;
-  LVector: TVector;
   LMesh: TMesh;
 begin
   for LLoader in FLoaders do
