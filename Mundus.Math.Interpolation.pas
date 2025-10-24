@@ -13,6 +13,9 @@ procedure CalculateFactors4(const A, B, C: TFloat2; AW, BW, CW, OutScale: PSingl
 
 implementation
 
+{$i Mundus.Defines.inc}
+{$POINTERMATH ON}
+
 //formulas
 //  FStepA := y1 * (r2 - r3) + y2 * (r3 - r1) + y3 * (r1 - r2);
 //  FStepB := r1 * (x2 - x3) + r2 * (x3 - x1) + r3 * (x1 - x2);
@@ -40,6 +43,7 @@ begin
 end;
 
 procedure CalculateFactors4(const A, B, C: TFloat2; AW, BW, CW, OutScale: PSingle; ValA, ValB, ValC, TargetStepA, TargetStepB, TargetStepD: PFloat4);
+{$IFDEF ASM86}
 asm
   //A = EAX
   //B = EDX
@@ -185,9 +189,38 @@ asm
   //epilog
   pop ebx
 end;
+{$ELSE}
+var
+  LA, LB, LC: TFloat4;
+  LResult: TFloat3;
+begin
+  LA := ValA^ * AW^;
+  LB := ValB^ * BW^;
+  LC := ValC^ * CW^;
+  LResult := CalculateFactors(A, B, C, LA.Elements[0], LB.Elements[0], LC.Elements[0]) * OutScale^;
+  TargetStepA.Elements[0] := LResult.X;
+  TargetStepB.Elements[0] := LResult.Y;
+  TargetStepD.Elements[0] := LResult.Z;
+
+  LResult := CalculateFactors(A, B, C, LA.Elements[1], LB.Elements[1], LC.Elements[1]) * OutScale^;
+  TargetStepA.Elements[1] := LResult.X;
+  TargetStepB.Elements[1] := LResult.Y;
+  TargetStepD.Elements[1] := LResult.Z;
+
+  LResult := CalculateFactors(A, B, C, LA.Elements[2], LB.Elements[2], LC.Elements[2]) * OutScale^;
+  TargetStepA.Elements[2] := LResult.X;
+  TargetStepB.Elements[2] := LResult.Y;
+  TargetStepD.Elements[2] := LResult.Z;
+
+  LResult := CalculateFactors(A, B, C, LA.Elements[3], LB.Elements[3], LC.Elements[3]) * OutScale^;
+  TargetStepA.Elements[3] := LResult.X;
+  TargetStepB.Elements[3] := LResult.Y;
+  TargetStepD.Elements[3] := LResult.Z;
+end;
+{$ENDIF}
 
 function CalculateFactorC(const A, B, C: TFloat2): Single;
-{$IFDEF CPUX86}
+{$IFDEF ASM86}
 asm
   movss xmm0, [eax + TFloat2.Y]
   movss xmm1, [edx + TFloat2.Y]

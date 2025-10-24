@@ -47,7 +47,7 @@ uses
   PngImage,
   SysUtils;
 
-{$EXCESSPRECISION OFF}
+{$i Mundus.Defines.inc}
 
 { TTexture }
 
@@ -185,9 +185,8 @@ begin
   LLowRight.R := LPixel.R;
   LLowRight.A := LPixel.A;
   //linear interpolate between lower left and lower right
-  LLowLeft.Mul(1-LFracX);
-  LLowRight.Mul(LFracX);
-  LLowLeft.Add(LLowRight);
+  LLowRight := LLowRight * LFracX;
+  LLowLeft := LLowLeft * (1 - LFracX) + LLowRight;
 
   //interpolate high left/right
   //high left pixel
@@ -203,14 +202,12 @@ begin
   LHighRight.R := LPixel.R;
   LHighRight.A := LPixel.A;
   //linear interpolate between high left and high right
-  LHighLeft.Mul(1-LFracX);
-  LHighRight.Mul(LFracX);
-  LHighLeft.Add(LHighRight);
+  LHighRight := LHighRight * LFracX;
+  LHighLeft := LHighLeft * (1 - LFracX) + LHighRight;
 
 //  //interpolate between low and high results
-  LLowLeft.Mul(1-LFracY);
-  LHighLeft.Mul(LFracY);
-  LLowLeft.Add(LHighLeft);
+  LHighLeft := LHighLeft * LFracY;
+  LLowLeft := LLowLeft * (1 - LFracY) + LHighLeft;
   //output
   ATarget.B := Trunc(LLowLeft.B);
   ATarget.G := Trunc(LLowLeft.G);
@@ -219,7 +216,7 @@ begin
 end;
 
 procedure TTexture.SampleDot(const AUV: TUV; const ATarget: PRGB32);
-{$IFDEF CPUX86}
+{$IFDEF ASM86}
 asm
   //eax = Self
   //edx = AUV
@@ -257,6 +254,7 @@ asm
   pop ebx
 end;
 {$ELSE}
+{$IFDEF ASM64}
 asm
   //rcx = Self
   //rdx = AUV
@@ -286,9 +284,11 @@ asm
   //copy pixelvalues to Target
   mov dword ptr [ATarget], edx
 end;
-//begin
-//  ATarget^ := FFirst[(Trunc(AUV.V) and FHeightMask) * FLineLengthInPixel + (Trunc(AUV.U) and FWidthMask)];
-//end;
+{$ELSE}
+begin
+  ATarget^ := FFirst[(Round(AUV.V) and FHeightMask) * FLineLengthInPixel + (Round(AUV.U) and FWidthMask)];
+end;
+{$ENDIF}
 {$ENDIF}
 
 end.

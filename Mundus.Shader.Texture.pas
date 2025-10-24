@@ -2,20 +2,13 @@ unit Mundus.Shader.Texture;
 
 interface
 
+uses
+  Mundus.Texture,
+  Mundus.Math,
+  Mundus.Types;
+
 const
   CTextureShader = 'TextureShader';
-
-implementation
-
-uses
-  Math,
-  Mundus.Shader,
-  Mundus.Math,
-  Mundus.Types,
-  Mundus.Texture,
-  Mundus.Math.Interpolation,
-  Mundus.Rasterizer.Types,
-  Mundus.Rasterizer.Helper;
 
 type
   TTextureConstantInput = record
@@ -35,6 +28,17 @@ type
   end;
 
   PTexturePSInput = ^TTexturePSInput;
+
+procedure VertexShader(var AVertex: TFloat4; const [Ref] Constants: TTextureConstantInput; const [ref] AVSInput: TTextureVSInput; var AVSOutput: TTexturePSInput);
+
+implementation
+
+uses
+  Math,
+  Mundus.Shader,
+  Mundus.Math.Interpolation,
+  Mundus.Rasterizer.Types,
+  Mundus.Rasterizer.Helper;
 
 procedure VertexShader(var AVertex: TFloat4; const [Ref] Constants: TTextureConstantInput; const [ref] AVSInput: TTextureVSInput; var AVSOutput: TTexturePSInput);
 begin

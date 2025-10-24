@@ -53,11 +53,13 @@ procedure Factorize(
 
 implementation
 
+
+{$i Mundus.Defines.inc}
 {$PointerMath ON}
 {$B+}
 
 procedure DenormalizeFactors4(ATarget, ASource: PSingle; AZ: Single);
-{$IFDEF CPUX86}
+{$IFDEF ASM86}
 asm
   movups xmm0, [ASource]
   movss xmm1, [AZ]
@@ -67,6 +69,7 @@ asm
   movups [ATarget], xmm0
 end;
 {$ELSE}
+{$IFDEF ASM64}
 asm
   movups xmm0, [ASource]
   movss xmm1, AZ
@@ -75,6 +78,7 @@ asm
   mulps xmm0, xmm1
   movups [ATarget], xmm0
 end;
+{$ENDIF}
 {$ENDIF}
 
 procedure DenormalizeFactors(
@@ -98,8 +102,6 @@ var
   LAW, LBW, LCW: Single;
   LStepCZ: Single;
   i: Integer;
-  LSteps: TFloat3;
-  LInput: TFloat4;
   LAttributeA, LAttributeB, LAttributeC: PFloat4;
   LStepA, LStepB, LStepD: PFloat4;
 begin
@@ -140,7 +142,7 @@ procedure InitFactors4(
         const ATarget: PSingle;
         const AAdd: PSingle
       );
-{$IFDEF CPUX86}
+{$IFDEF ASM86}
 asm
 //  mov eax, [AMultiplier]
   CVTSI2SS xmm0, AMultiplier
@@ -156,6 +158,7 @@ asm
   movups [eax], xmm1
 end;
 {$ELSE}
+{$IFDEF ASM64}
 asm
 //  mov eax, [AMultiplier]
   CVTSI2SS xmm0, AMultiplier
@@ -170,6 +173,7 @@ asm
   mov rax, ATarget
   movups [rax], xmm1
 end;
+{$ENDIF}
 {$ENDIF}
 
 procedure InitFactors(
@@ -190,7 +194,7 @@ end;
 //                      LDenormalizeZX := LStepsZ.X * k + LDenormalizeZY;
 //                      DenormalizeFactors<TAttributes>(@LAttributesDenormalized, @LAttributesX, LDenormalizeZX);
 procedure InterpolateAttributes4(const _AX, AY: PInteger; ATarget, AStepA, AStepB, AStepD: PSingle; AZ: Single);
-{$IFDEF CPUX86}
+{$IFDEF ASM86}
 asm
   //save _AX (eax) for later
   CVTSI2SS xmm3, [_AX]
@@ -219,6 +223,7 @@ asm
   movups [ATarget], xmm2
 end;
 {$ELSE}
+{$IFDEF ASM64}
 asm
   //save _AX (rax) for later
   CVTSI2SS xmm3, [_AX]
@@ -246,6 +251,7 @@ asm
   mulps xmm2, xmm1
   movups [ATarget], xmm2
 end;
+{$ENDIF}
 {$ENDIF}
 
 procedure InterpolateAttributes(AX, AY: Integer; ATarget, AStepA, AStepB, AStepD: PSingle; const AZValue: Single; const AAttributeSize: Integer);

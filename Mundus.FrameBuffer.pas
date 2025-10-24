@@ -75,7 +75,6 @@ procedure TFrameBuffer.Draw(ACanvas: TCanvas; const Rect: TRect);
 begin
   SetDIBitsToDevice(ACanvas.Handle, Rect.Left, Rect.Top, Rect.Width, Rect.Height, 0, 0, 0, FHeight, Unpack(), FInfo, DIB_RGB_COLORS);
 end;
-end;
 
 procedure TFrameBuffer.Resize(AWidth, AHeight: Integer);
 begin
@@ -124,7 +123,6 @@ begin
       end;
     end;
   end;
-end;
 end;
 
 end.

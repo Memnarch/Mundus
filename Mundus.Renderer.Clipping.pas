@@ -42,12 +42,14 @@ procedure ClipPolygon(const ACall: PDrawCall; AContext: PClipContext; AA, AB, AC
 
 implementation
 
+{$i Mundus.Defines.inc}
+
 type
   TClipPlane = (PosZ, NegZ, PosX, NegX, PosY, NegY);
   TClipPlanes = set of TClipPlane;
 
 function ClipPlanes(const AVector: TFloat4): TClipPlanes;
-{$IFDEF CPUX86}
+{$IFDEF ASM86}
 var
   LResult: array[0..3] of Cardinal;
 label NoX, NoY, NoZ, NoNegX, NoNegY, NoNegZ;
@@ -101,7 +103,7 @@ const
   COne: Single = 1;
 
 procedure InterpolateVertex(A, B: PSingle; AFactor: PSingle; AOut: PSingle);
-{$IFDEF CPUX86}
+{$IFDEF ASM86}
 asm
   movups XMM0, [A]
   movups XMM1, [B]

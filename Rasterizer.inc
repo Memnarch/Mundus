@@ -1,4 +1,5 @@
 
+{$i Mundus.Defines.inc}
 {$POINTERMATH ON}
 {$EXCESSPRECISION OFF}
 //const
@@ -19,7 +20,7 @@ type
   end;
   PBlockAttributes = ^TBlockAttributes;
 
-{$IFDEF CPUX86}
+{$IFDEF ASM86}
 procedure RenderFullBlock(const AAttributes: PBlockAttributes);
 var
   LDenormalizeZY, LDenormalizeZX: Single;
@@ -112,49 +113,37 @@ var
   LDenormalizeZY, LDenormalizeZX: Single;
   i, k: Integer;
   LAttributesX, LAttributesY, LAttributesDenormalized: TAttributes;
-  LPixelX, LPixelY: PRGB32;
-  LDepthY, LDepthX: PSingle;
+  LPixel: PRGB32;
+  LDepth: PSingle;
 begin
   InitFactors(@AAttributes.StepB, AAttributes.Y, @LAttributesY, @AAttributes.StepD, SizeOf(TAttributes));
   LDenormalizeZY := AAttributes.ZValues.Y * AAttributes.Y + AAttributes.ZValues.Z;
-  LPixelY := AAttributes.FirstPixel;
+  LPixel := AAttributes.FirstPixel;
   if DepthTest <> dtNone then
-    LDepthY := AAttributes.FirstDepth;
+    LDepth := AAttributes.FirstDepth;
   for i := AAttributes.Y to AAttributes.Y + (CQuadSize - 1) do
   begin
     InitFactors(@AAttributes.StepA, AAttributes.X, @LAttributesX, @LAttributesY, SizeOf(TAttributes));
     LDenormalizeZX := AAttributes.ZValues.X * AAttributes.X + LDenormalizeZY;
-    LPixelX := LPixelY;
-    if DepthTest <> dtNone then
-      LDepthX := LDepthY;
     for k := AAttributes.X to AAttributes.X + (CQuadSize - 1) do
     begin
       {$B-}
-      if (DepthTest = dtNone) or (LDenormalizeZX <= LDepthX^) then
+      if (DepthTest = dtNone) or (LDenormalizeZX <= LDepth^) then
       {$B+}
       begin
         DenormalizeFactors(@LAttributesDenormalized, @LAttributesX, LDenormalizeZX, SizeOf(TAttributes));
-        AAttributes.ShaderInstance.Fragment(LPixelX, @LAttributesDenormalized);
+        FragmentShader(AAttributes.Constants, LPixel, @LAttributesDenormalized);
         if DepthTest = dtWrite then
-          LDepthX^ := LDenormalizeZX;
-      {$IFDEF ShowZFail}
-      end
-      else
-      begin
-        LPixelX.R := 200;
-      {$EndIF}
+          LDepth^ := LDenormalizeZX;
       end;
       StepFactors(@AAttributes.StepA, @LAttributesX, SizeOf(TAttributes));
       LDenormalizeZX := LDenormalizeZX + AAttributes.ZValues.X;
       if DepthTest <> dtNone then
-        Inc(LDepthX);
-      Inc(LPixelX);
+        Inc(LDepth);
+      Inc(LPixel);
     end;
     StepFactors(@AAttributes.StepB, @LAttributesY, SizeOf(TAttributes));
     LDenormalizeZY := LDenormalizeZY + AAttributes.ZValues.Y;
-    if DepthTest <> dtNone then
-      Inc(LDepthY, AAttributes.LineLength);
-    Inc(LPixelY, AAttributes.LineLength);
   end;
 end;
 {$ENDIF}
@@ -167,7 +156,7 @@ const
     128, 128, 128, 128
   );
 
-{$IFDEF CPUX86}
+{$IFDEF ASM86}
 procedure RenderHalfBlock(
       APosY: PTrianglePosition;
       AFixedDeltas: PHalfSpaceDeltas;
@@ -233,17 +222,17 @@ procedure RenderHalfBlock(
       AFixedDeltas: PHalfSpaceDeltas;
       const AAttributes: PBlockAttributes);
 var
-  LPixelX, LPixelY: PRGB32;
-  LDepthX, LDepthY: PSingle;
+  LPixel: PRGB32;
+  LDepth: PSingle;
   BlockXEnd, BlockYEnd: Integer;
   LX, LY: TTrianglePosition;
   i, k: Integer;
   LDenormalizedZ: Single;
   LAttributesDenormalized: TAttributes;
 begin
-  LPixelY := AAttributes.FirstPixel;
+  LPixel := AAttributes.FirstPixel;
   if DepthTest <> dtNone then
-    LDepthY := AAttributes.FirstDepth;
+    LDepth := AAttributes.FirstDepth;
   BlockYEnd := AAttributes.Y + (CQuadSize - 1);
   BlockXEnd := AAttributes.X + (CQuadSize - 1);
   LY := APosY^;
@@ -252,45 +241,33 @@ begin
     LX._1 := LY._1;
     LX._2 := LY._2;
     LX._3 := LY._3;
-    LPixelX := LPixelY;
-    if DepthTest <> dtNone then
-      LDepthX := LDepthY;
     for k := AAttributes.X to BlockXEnd do
     begin
       if (LX._1 or LX._2 or LX._3) >= 0 then
       begin
         LDenormalizedZ := ((AAttributes.ZValues.Y*i + AAttributes.ZValues.Z) + AAttributes.ZValues.X * k);
         {$B-}
-        if (DepthTest = dtNone) or (LDenormalizedZ <= LDepthX^) then
+        if (DepthTest = dtNone) or (LDenormalizedZ <= LDepth^) then
         {$B+}
         begin
           InterpolateAttributes(k, i, @LAttributesDenormalized, @AAttributes.StepA, @AAttributes.StepB, @AAttributes.StepD, LDenormalizedZ, SizeOf(TAttributes));
-          AAttributes.ShaderInstance.Fragment(LPixelX, @LAttributesDenormalized);
+          FragmentShader(AAttributes.Constants, LPixel, @LAttributesDenormalized);
           if DepthTest = dtWrite then
-            LDepthX^ := LDenormalizedZ;
-        {$IFDEF ShowZFail}
-        end
-        else
-        begin
-          LPixelX.R := 200;
-        {$ENDIF}
+            LDepth^ := LDenormalizedZ;
         end;
       end;
 
       LX._1 := LX._1 - AFixedDeltas.Y12;
       LX._2 := LX._2 - AFixedDeltas.Y23;
       LX._3 := LX._3 - AFixedDeltas.Y31;
-      Inc(LPixelX);
+      Inc(LPixel);
       if DepthTest <> dtNone then
-        Inc(LDepthX);
+        Inc(LDepth);
     end;
 
     LY._1 := LY._1 + AFixedDeltas.X12;
     LY._2 := LY._2 + AFixedDeltas.X23;
     LY._3 := LY._3 + AFixedDeltas.X31;
-    Inc(LPixelY, AAttributes.LineLength);
-    if DepthTest <> dtNone then
-      Inc(LDepthY, AAttributes.LineLength);
   end;
 end;
 {$ENDIF}
