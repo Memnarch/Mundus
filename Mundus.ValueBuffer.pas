@@ -77,7 +77,6 @@ var
   LField: TRttiField;
   i: Integer;
   LFieldInfo: TFieldInfo;
-  LOffset: TFieldSize;
 begin
   LFields := AInfo.GetFields();
   Result.FFieldCount := Length(LFields);
@@ -86,7 +85,6 @@ begin
   if Result.FFieldCount > CMaxFields then
     RaiseToManyFields;
 
-  LOffset := 0;
   for i := 0 to High(LFields) do
   begin
     LField := LFields[i];
@@ -109,11 +107,11 @@ var
   i: Integer;
 begin
   for i := 0 to Pred(FFieldCount) do
-    if AnsiSameText(AName, FFields[i].Name) then
-    begin
-      AField := @FFields[i];
+  begin
+    AField := @FFields[i];
+    if SameText(AName, AField.Name) then
       Exit(True);
-    end;
+  end;
   Result := False;
 end;
 
@@ -180,19 +178,17 @@ end;
 
 procedure TValueBuffer.BindArray<T>(const AName: string; const AValues: TArray<T>);
 var
-  LTarget, LSource: ^T;
+  LTarget: ^T;
   i: Integer;
   LField: PFieldInfo;
 begin
   if FDescriptor.TryGetField(AName, LField) then
   begin
     LTarget := @FData[LField.Offset];
-    LSource := @AValues[0];
     for i := 0 to Pred(FRecordCount) do
     begin
-      LTarget^ := LSource^;
+      LTarget^ := AValues[i];
       Inc(PByte(LTarget), FDescriptor.FRecordSize);
-      Inc(LSource);
     end;
   end;
 end;
