@@ -64,8 +64,7 @@ asm
   movups xmm0, [ASource]
   movss xmm1, [AZ]
   shufps xmm1, xmm1, 0
-  rcpps xmm1, xmm1
-  mulps xmm0, xmm1
+  divps xmm0, xmm1
   movups [ATarget], xmm0
 end;
 {$ELSE}
@@ -74,8 +73,7 @@ asm
   movups xmm0, [ASource]
   movss xmm1, AZ
   shufps xmm1, xmm1, 0
-  rcpps xmm1, xmm1
-  mulps xmm0, xmm1
+  divps xmm0, xmm1
   movups [ATarget], xmm0
 end;
 {$ENDIF}

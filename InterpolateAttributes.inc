@@ -3,7 +3,6 @@
 //calculate denormalized z for later
 movss xmm3, xmm0//[LDenormalizedZ]
 shufps xmm3, xmm3, 0
-rcpps xmm3, xmm3
 
 //first 16
 //load i
@@ -23,7 +22,7 @@ movups xmm2, [eax + TBlockAttributes.StepA]
 mulps xmm2, xmm1
 addps xmm0, xmm2
 //denormalize
-mulps xmm0, xmm3
+divps xmm0, xmm3
 movups dqword ptr [eax + TBlockAttributes.AttributesDenormalized], xmm0
 
 //next 16
@@ -44,7 +43,7 @@ movups xmm2, [eax + TBlockAttributes.StepA+16]
 mulps xmm2, xmm1
 addps xmm0, xmm2
 //denormalize
-mulps xmm0, xmm3
+divps xmm0, xmm3
 movups dqword ptr [eax + TBlockAttributes.AttributesDenormalized + 16], xmm0
 {$ifend}
 //next 16
@@ -65,7 +64,7 @@ movups xmm2, [eax + TBlockAttributes.StepA+32]
 mulps xmm2, xmm1
 addps xmm0, xmm2
 //denormalize
-mulps xmm0, xmm3
+divps xmm0, xmm3
 movups dqword ptr [eax + TBlockAttributes.AttributesDenormalized + 32], xmm0
 {$ifend}
 
@@ -87,7 +86,7 @@ movups xmm2, [eax + TBlockAttributes.StepA+48]
 mulps xmm2, xmm1
 addps xmm0, xmm2
 //denormalize
-mulps xmm0, xmm3
+divps xmm0, xmm3
 movups dqword ptr [eax + TBlockAttributes.AttributesDenormalized + 48], xmm0
 {$ifend}
 
