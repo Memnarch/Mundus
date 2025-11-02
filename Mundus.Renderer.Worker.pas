@@ -133,7 +133,7 @@ begin
             LCall.Attributes[LTriangle.VertexA],
             LCall.Attributes[LTriangle.VertexB],
             LCall.Attributes[LTriangle.VertexC],
-            @LCall.ConstantValues.Data[0],
+            @LCall.ConstantValues[0],
             LRenderTarget,
             LFirstDepth,
             LFirstLowDepth,

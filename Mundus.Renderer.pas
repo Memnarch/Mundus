@@ -10,7 +10,6 @@ uses
   Graphics,
   Generics.Collections,
   Mundus.Math,
-  Mundus.Mesh,
   Mundus.Types,
   Mundus.Shader,
   Mundus.Diagnostics.StopWatch,
@@ -18,17 +17,17 @@ uses
   Mundus.Renderer.Worker,
   Mundus.Camera,
   Mundus.ValueBuffer,
-  Mundus.FrameBuffer;
+  Mundus.FrameBuffer,
+  Mundus.GeometryBuffer;
 
 type
   TRenderEvent = procedure(Canvas: TCanvas) of object;
-  TInitBufferEvent = reference to procedure(AMesh: TMesh; const AConstantBuffer, AVertexBuffer: PValueBuffer);
 
   TMundusRenderer = class
   private
-    FBackBuffer: array[boolean] of TFrameBuffer;
-    FDrawCalls: array[boolean] of TDrawCalls;
-    FMeshList: TObjectList<TMesh>;
+    FBackBuffer: array[Boolean] of TFrameBuffer;
+    FDrawCalls: array[Boolean] of TDrawCalls;
+    FGeometryBuffers: TGeometryBuffers;
     FFPS: Integer;
     FResolutionX: Integer;
     FResolutionY: Integer;
@@ -38,11 +37,10 @@ type
     FRenderFences: TArray<THandle>;
     FCurrentBuffer: Boolean;
     FWorkerFPS: Integer;
-    FOnInitValueBuffer: TInitBufferEvent;
-    procedure TransformMesh(AMesh: TMesh; ATargetCall: PDrawCall);
+    procedure ProcessGeometry(const AGeometry: PGeometryBuffer; const ATarget: PDrawCall);
     procedure DoAfterFrame(ACanvas: TCanvas);
-    function GenerateDrawCalls: TDrawCalls;
-    procedure DispatchCalls(ACanvas: TCanvas; ACalls: TDrawCalls);
+    function GenerateDrawCalls: PDrawCalls;
+    procedure DispatchCalls(ACanvas: TCanvas; ACalls: PDrawCalls);
     procedure SpinupWorkers(AWorkerCount: Integer);
     procedure TerminateWorkers;
     procedure WaitForRender;
@@ -54,14 +52,13 @@ type
     constructor Create(AWorker: Integer = 1);
     destructor Destroy(); override;
     procedure SetResolution(AWidth, AHeight: Integer);
+    function NewFrame: PGeometryBuffers;
     procedure RenderFrame(ACanvas: TCanvas);
     function GetCurrentFPS(): Integer;
-    property MeshList: TObjectList<TMesh> read FMeshList;
     property OnAfterFrame: TRenderEvent read FOnAfterFrame write FOnAfterFrame;
     property ResolutionX: Integer read FResolutionX;
     property ResolutionY: Integer read FResolutionY;
     property ReenderWorkers: Integer read GetRenderWorkers;
-    property OnInitValueBuffer: TInitBufferEvent read FOnInitValueBuffer write FOnInitValueBuffer;
   end;
 
   function RGB32(ARed, AGreen, ABlue, AAlpha: Byte): TRGB32;
@@ -116,7 +113,6 @@ begin
   FDrawCalls[True] := TDrawCalls.Create();
   FDrawCalls[False] := TDrawCalls.Create();
   SetResolution(512, 512);
-  FMeshList := TObjectList<TMesh>.Create(False);
 
   FTimer := TStopWatch.Create(False);
 
@@ -128,7 +124,6 @@ destructor TMundusRenderer.Destroy;
 begin
   TerminateWorkers;
   FWorkers.Free;
-  FMeshList.Free;
   FBackBuffer[True].Free();
   FBackBuffer[False].Free();
   FDrawCalls[True].Free;
@@ -137,7 +132,7 @@ begin
   inherited;
 end;
 
-procedure TMundusRenderer.DispatchCalls(ACanvas: TCanvas; ACalls: TDrawCalls);
+procedure TMundusRenderer.DispatchCalls(ACanvas: TCanvas; ACalls: PDrawCalls);
 var
   LWorker: TRenderWorker;
   LBackBuffer, LFrontBuffer: Boolean;
@@ -157,7 +152,7 @@ begin
   FWorkerFPS := High(FWorkerFPS);
   for LWorker in FWorkers do
   begin
-    LWorker.DrawCalls := ACalls;
+    LWorker.DrawCalls := ACalls^;
     LWorker.FrameBuffer := FBackBuffer[LFrontBuffer];
     LWorker.ResolutionX := FResolutionX;
     LWorker.ResolutionY := FResolutionY;
@@ -182,21 +177,16 @@ begin
   end;
 end;
 
-function TMundusRenderer.GenerateDrawCalls: TDrawCalls;
+function TMundusRenderer.GenerateDrawCalls: PDrawCalls;
 var
-  LMesh: TMesh;
-  LCall: PDrawCall;
+  LGeometries: PGeometryBuffers;
+  i: Integer;
 begin
-  Result := FDrawCalls[not FCurrentBuffer];
+  Result := @FDrawCalls[not FCurrentBuffer];
   Result.Reset;
-
-  for LMesh in FMeshList do
-  begin
-    LCall := Result.Add;
-
-    LCall.Shader := LMesh.Shader;
-    TransformMesh(LMesh, LCall);
-  end;
+  LGeometries := @FGeometryBuffers;
+  for i := 0 to Pred(LGeometries.Count) do
+    ProcessGeometry(LGeometries.Geometries[i], Result.Add());
 end;
 
 function TMundusRenderer.GetCurrentFPS: Integer;
@@ -209,9 +199,95 @@ begin
   Result := FWorkers.Count;
 end;
 
+function TMundusRenderer.NewFrame: PGeometryBuffers;
+begin
+  Result := @FGeometryBuffers;
+  Result.Clear;
+end;
+
+procedure TMundusRenderer.ProcessGeometry(const AGeometry: PGeometryBuffer; const ATarget: PDrawCall);
+var
+  LClipContext: TClipContext;
+  i, LCount: Integer;
+  LVertex: TFloat4;
+  LAttributes: TVertexAttributeBuffer;
+  LVInput, LUniformInput: PByte;
+
+  procedure ProcessTriangle(A, B, C: Integer);
+  var
+    LA, LB, LC: TFloat4;
+    LNormal: TFloat3;
+    LClippedTriangle: TTriangle;
+    i: Integer;
+  begin
+    ClipPolygon(ATarget, @LClipContext, A, B, C);
+    //if less than 3, it is fully clipped
+    if LClipContext.ResultBuffer.Count >= 3 then
+    begin
+      LClippedTriangle.VertexA := LClipContext.ResultBuffer.Indices[0];
+      LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[1];
+      LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[2];
+      LA := ATarget.Vertices[LClippedTriangle.VertexA];
+      LA.XYZ := LA.XYZ / LA.W;
+      LB := ATarget.Vertices[LClippedTriangle.VertexB];
+      LB.XYZ := LB.XYZ / LB.W;
+      LC := ATarget.Vertices[LClippedTriangle.VertexC];
+      LC.XYZ := LC.XYZ / LC.W;
+      LNormal := CalculateSurfaceNormal(LA.XYZ, LB.XYZ, LC.XYZ);
+      //Backface culling
+      if LNormal.Z < 0 then
+      begin
+        ATarget.AddTriangle(@LClippedTriangle);
+        for i := 3 to Pred(LClipContext.ResultBuffer.Count) do
+        begin
+          LClippedTriangle.VertexA := LClipContext.ResultBuffer.Indices[0];
+          LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[i-1];
+          LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[i];
+          ATarget.AddTriangle(@LClippedTriangle);
+        end;
+      end;
+    end;
+  end;
+
+begin
+  ATarget.Shader := AGeometry.Shader;
+  if Assigned(ATarget.Shader) then
+  begin
+    LClipContext := TClipContext.Create();
+    SetLength(LAttributes, ATarget.Shader.FragmentAttributeSize);
+    LUniformInput := @AGeometry.UniformValues.Data[0];
+    LVInput := @AGeometry.Values.Data[0];
+    ATarget.ConstantValues := AGeometry.UniformValues.Data;
+    for i := 0 to High(AGeometry.Vertices) do
+    begin
+      LVertex.XYZ := AGeometry.Vertices[i];
+      LVertex.W := 1;
+      ATarget.Shader.VertexShader(LVertex, LUniformInput, LVInput, LAttributes);
+      ATarget.AddVertex(LVertex, @LAttributes[0]);
+      Inc(LVInput, AGeometry.Values.Descriptor.RecordSize);
+    end;
+
+    if Assigned(AGeometry.VertexIndices) then
+    begin
+      LCount := Length(AGeometry.VertexIndices) div 3;
+      for i := 0 to Pred(LCount) do
+        ProcessTriangle(AGeometry.VertexIndices[i * 3], AGeometry.VertexIndices[i * 3 + 1], AGeometry.VertexIndices[i * 3 + 2]);
+    end
+    else
+    begin
+      LCount := Length(AGeometry.Vertices) div 3;
+      for i := 0 to Pred(LCount) do
+        ProcessTriangle(i * 3, i * 3 + 1, i * 3 + 2);
+    end;
+  end;
+
+  for i := 0 to High(ATarget.Vertices) do
+    ATarget.Vertices[i].XYZ := ATarget.Vertices[i].XYZ / ATarget.Vertices[i].W;
+end;
+
 procedure TMundusRenderer.RenderFrame(ACanvas: TCanvas);
 var
-  LDrawCalls: TDrawCalls;
+  LDrawCalls: PDrawCalls;
   LMicro: UInt64;
 begin
   FTimer.Start();
@@ -256,75 +332,6 @@ var
 begin
   for LWorker in FWorkers do
     LWorker.Terminate;
-end;
-
-procedure TMundusRenderer.TransformMesh(AMesh: TMesh; ATargetCall: PDrawCall);
-
-var
-  i, k: Integer;
-  LVertex: TFloat4;
-  LTriangle: PTriangle;
-  LBuffer: TVertexAttributeBuffer;
-  LBufferSize: Integer;
-  LVInput: PByte;
-  LClipContext: TClipContext;
-  LClippedTriangle: TTriangle;
-  LA, LB, LC: TFloat4;LNormal: TFloat3;
-begin
-  LBufferSize := AMesh.Shader.FragmentAttributeSize;
-  SetLength(LBuffer, LBufferSize);
-  ATargetCall.ConstantValues.Initialize(AMesh.Shader.ConstantBufferDescriptor, 1);
-  ATargetCall.Values.Initialize(AMesh.Shader.VertexBufferDescriptor, Length(AMesh.Vertices));
-  if Assigned(FOnInitValueBuffer) then
-    FOnInitValueBuffer(AMesh, @ATargetCall.ConstantValues, @ATargetCall.Values);
-
-  //transform all vertices
-  LVInput := @ATargetCall.Values.Data[0];
-  for i := 0 to High(AMesh.Vertices) do
-  begin
-    LVertex.XYZ := AMesh.Vertices[i];
-    LVertex.W := 1;
-    ATargetCall.Shader.VertexShader(LVertex, @ATargetCall.ConstantValues.Data[0], LVInput, @LBuffer[0]);
-    ATargetCall.AddVertex(LVertex, @LBuffer[0]);
-    Inc(LVInput, ATargetCall.Values.Descriptor.RecordSize);
-  end;
-
-  //add visible triangles
-  LClipContext := TClipContext.Create();
-  for i := 0 to High(AMesh.Triangles) do
-  begin
-    LTriangle := @AMesh.Triangles[i];
-    ClipPolygon(ATargetCall, @LClipContext, LTriangle.VertexA, LTriangle.VertexB, LTriangle.VertexC);
-    //if less than 3, it is fully clipped
-    if LClipContext.ResultBuffer.Count >= 3 then
-    begin
-      LClippedTriangle.VertexA := LClipContext.ResultBuffer.Indices[0];
-      LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[1];
-      LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[2];
-      LA := ATargetCall.Vertices[LClippedTriangle.VertexA];
-      LA.XYZ := LA.XYZ / LA.W;
-      LB := ATargetCall.Vertices[LClippedTriangle.VertexB];
-      LB.XYZ := LB.XYZ / LB.W;
-      LC := ATargetCall.Vertices[LClippedTriangle.VertexC];
-      LC.XYZ := LC.XYZ / LC.W;
-      LNormal := CalculateSurfaceNormal(LA.XYZ, LB.XYZ, LC.XYZ);
-      //Backface culling
-      if LNormal.Z < 0 then
-      begin
-        ATargetCall.AddTriangle(@LClippedTriangle);
-        for k := 3 to Pred(LClipContext.ResultBuffer.Count) do
-        begin
-          LClippedTriangle.VertexA := LClipContext.ResultBuffer.Indices[0];
-          LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[k-1];
-          LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[k];
-          ATargetCall.AddTriangle(@LClippedTriangle);
-        end;
-      end;
-    end;
-  end;
-
-  for i := 0 to High(ATargetCall.Vertices) do
-    ATargetCall.Vertices[i].XYZ := ATargetCall.Vertices[i].XYZ / ATargetCall.Vertices[i].W;
 end;
 
 procedure TMundusRenderer.UpdateBufferResolution(ABuffer: Boolean; AWidth, AHeight: Integer);

@@ -23,7 +23,7 @@ type
     FAttributes: TArray<Single>;
     FShader: PShaderInfo;
     FValues: TValueBuffer;
-    FConstantValues: TValueBuffer;
+    FConstantValues: TArray<Byte>;
     FAttributesPerVertex: Integer;
     function GetAttributes(Index: Integer): PSingle;
     procedure SetShader(const Value: PShaderInfo);
@@ -38,8 +38,7 @@ type
     property VertexCount: Integer read FVertexCount;
     property TriangleCount: Integer read FTriangleCount;
     property Shader: PShaderInfo read FShader write SetShader;
-    property Values: TValueBuffer read FValues;
-    property ConstantValues: TValueBuffer read FConstantValues;
+    property ConstantValues: TArray<Byte> read FConstantValues write FConstantValues;
     property AttributesPerVertex: Integer read FAttributesPerVertex;
   end;
 
@@ -56,6 +55,8 @@ type
     property Calls[Index: Integer]: PDrawCall read GetCalls; default;
     property Count: Integer read FCallCount;
   end;
+
+  PDrawCalls = ^TDrawCalls;
 
 implementation
 
