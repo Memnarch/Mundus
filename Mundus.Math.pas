@@ -144,7 +144,7 @@ end;
 
 function Cross(const A, B: TFloat3): TFloat3; overload;
 begin
-  Result.X := A.Y * B.Z - A.Z - B.Y;
+  Result.X := A.Y * B.Z - A.Z * B.Y;
   Result.Y := A.Z * B.X - A.X * B.Z;
   Result.Z := A.X * B.Y - A.Y * B.X;
 end;
