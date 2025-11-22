@@ -5,7 +5,7 @@ interface
 uses
   Classes,
   Types,
-  Graphics,
+  VCL.Graphics,
   Mundus.Types,
   Mundus.Math,
   Mundus.ValueBuffer,

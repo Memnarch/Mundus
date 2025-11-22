@@ -4,7 +4,7 @@ interface
 
 uses
   Classes,
-  Graphics,
+  VCL.Graphics,
   SyncObjs,
   Generics.Collections,
   Mundus.DrawCall,

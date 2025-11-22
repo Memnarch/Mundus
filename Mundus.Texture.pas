@@ -5,7 +5,7 @@ interface
 uses
   Classes,
   Types,
-  Graphics,
+  VCL.Graphics,
   Mundus.Types,
   Mundus.Math,
   Math;
@@ -43,8 +43,8 @@ type
 implementation
 
 uses
-  jpeg,
-  PngImage,
+  VCL.Imaging.jpeg,
+  VCL.Imaging.pngimage,
   SysUtils;
 
 {$i Mundus.Defines.inc}

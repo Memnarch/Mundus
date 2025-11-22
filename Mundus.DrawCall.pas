@@ -22,7 +22,6 @@ type
     FTriangleCount: Integer;
     FAttributes: TArray<Single>;
     FShader: PShaderInfo;
-    FValues: TValueBuffer;
     FConstantValues: TArray<Byte>;
     FAttributesPerVertex: Integer;
     function GetAttributes(Index: Integer): PSingle;
