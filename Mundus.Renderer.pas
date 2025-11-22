@@ -7,7 +7,7 @@ uses
   Classes,
   Windows,
   SysUtils,
-  Graphics,
+  VCL.Graphics,
   Generics.Collections,
   Mundus.Math,
   Mundus.Types,
@@ -186,7 +186,8 @@ begin
   Result.Reset;
   LGeometries := @FGeometryBuffers;
   for i := 0 to Pred(LGeometries.Count) do
-    ProcessGeometry(LGeometries.Geometries[i], Result.Add());
+    if Assigned(LGeometries.Geometries[i].Shader) then
+      ProcessGeometry(LGeometries.Geometries[i], Result.Add());
 end;
 
 function TMundusRenderer.GetCurrentFPS: Integer;
