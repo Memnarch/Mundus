@@ -99,6 +99,7 @@ type
   end;
 
   TGeometry = record
+    Name: string;
     Vertices: TArray<TVector>;
     VertexIndices: TArray<Int32>;
     UVLayers: TArray<TUVLayer>;

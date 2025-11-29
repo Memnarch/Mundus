@@ -26,6 +26,7 @@ type
     FMaterial: TMaterial;
     FNormals: TArray<TVector>;
     FTextures: TArray<TTextureReference>;
+    FName: string;
   protected
     FVertexList: TArray<TVector>;
     FTriangles: TArray<TTriangle>;
@@ -47,6 +48,7 @@ type
     property Shader: PShaderInfo read FShader write FShader;
     property Material: TMaterial read FMaterial write FMaterial;
     property Textures: TArray<TTextureReference> read FTextures;
+    property Name: string read FName write FName;
   end;
 
   TMeshGroup = class

@@ -36,7 +36,7 @@ type
     class function LoadUVLayer(const ANode: TNode): TUVLayer;
     class function LoadNormalLayer(const ANode: TNode): TNormalLayer;
     class function ReadVertices(const ANode: TNode): TArray<TVector>;
-    class function AddPolygons(AMeshByMaterial: TArray<TMesh>; const AMaterialLayer: TMaterialLayer; const AVertices: TArray<TVector>; const AIndices: TArray<Int32>): TArray<Int32>;
+    class function AddPolygons(AMeshByMaterial: TArray<TMesh>; const AName: string; const AMaterialLayer: TMaterialLayer; const AVertices: TArray<TVector>; const AIndices: TArray<Int32>): TArray<Int32>;
     class procedure AddUVs(AMeshByMaterial: TArray<TMesh>; const AMaterialLayer: TMaterialLayer; const AUVLayer: TUVLayer; const APolygonByPolygonVertex: TArray<Int32>);
     class procedure AddNormals(AMeshByMaterial: TArray<TMesh>; const AMaterialLayer: TMaterialLayer; const ANormalLayer: TNormalLayer; const APolygonByPolygonVertex: TArray<Int32>);
     class function ReadPropertyDescriptor(ANode: TNode): TPropertyDescriptor;
@@ -82,7 +82,7 @@ begin
   end;
 end;
 
-class function TFBXMeshLoader.AddPolygons(AMeshByMaterial: TArray<TMesh>; const AMaterialLayer: TMaterialLayer; const AVertices: TArray<TVector>; const AIndices: TArray<Int32>): TArray<Int32>;
+class function TFBXMeshLoader.AddPolygons(AMeshByMaterial: TArray<TMesh>; const AName: string; const AMaterialLayer: TMaterialLayer; const AVertices: TArray<TVector>; const AIndices: TArray<Int32>): TArray<Int32>;
 var
   i, k, LPolyCount: Integer;
   LTriangle: TTriangle;
@@ -98,10 +98,22 @@ begin
     case AMaterialLayer.MappingType of
       mtAllSame: LTarget := AMeshByMaterial[AMaterialLayer.Materials[0]];
       mtByPolygon: LTarget := AMeshByMaterial[AMaterialLayer.Materials[LPolygonIndex]];
+      mtUnknown:
+      begin
+        //last index is for polygons without material
+        LTarget := AMeshByMaterial[High(AMeshByMaterial)];
+        if not Assigned(LTarget) then
+        begin
+          LTarget := TMesh.Create();
+          AMeshByMaterial[High(AMeshByMaterial)] := LTarget;
+        end;
+      end
     else
       raise EFBX.Create('Unexpected material mapping');
     end;
 
+    if AName <> '' then
+      LTarget.Name := AName;
     LPolyCount := ReadPolygon(AIndices, i);
     SetLength(LIndices, LPolyCount);
     for k := i to Pred(i+LPolyCount) do
@@ -130,6 +142,7 @@ class procedure TFBXMeshLoader.AddNormals(AMeshByMaterial: TArray<TMesh>; const 
     case AMaterialLayer.MappingType of
       mtAllSame: Result := AMeshByMaterial[AMaterialLayer.Materials[0]];
       mtByPolygon: Result := AMeshByMaterial[AMaterialLayer.Materials[APolygonByPolygonVertex[AIndex]]];
+      mtUnknown: Result := AMeshByMaterial[High(AMeshByMaterial)];
     else
       raise EFBX.Create('Unexpected mapping type');
     end;
@@ -167,6 +180,7 @@ begin
     case AMaterialLayer.MappingType of
       mtAllSame: LTarget := AMeshByMaterial[AMaterialLayer.Materials[0]];
       mtByPolygon: LTarget := AMeshByMaterial[AMaterialLayer.Materials[APolygonByPolygonVertex[i]]];
+      mtUnknown: LTarget := AMeshByMaterial[High(AMeshByMaterial)];
     else
       raise EFBX.Create('Unexpected mapping type');
     end;
@@ -313,6 +327,8 @@ var
   LChild: TNode;
 begin
   Result := Default(TGeometry);
+  if Length(ANode.Properties) > 1 then
+    Result.Name := PChar(ANode.Properties[1].Data.AsString);
   for LChild in ANode.Childs do
   begin
     case IndexText(LChild.Name, ['Vertices', 'PolygonVertexIndex', 'LayerElementUV', 'LayerElementNormal', 'LayerElementMaterial']) of
@@ -462,21 +478,31 @@ var
   LGeometry: TGeometry;
   LPolygonIndexByPolygonVertex: TArray<Int32>;
   LUVLayer: TUVLayer;
+  LDefaultMesh: TMesh;
 begin
-  SetLength(LMeshByMaterial, Length(AMaterials));
+  SetLength(LMeshByMaterial, Length(AMaterials) + 1);
   for i := 0 to High(AMaterials) do
   begin
     LMeshByMaterial[i] := TMesh.Create();
     ATarget.Meshes.Add(LMeshByMaterial[i]);
     LMeshByMaterial[i].Material := AMaterials[i];
   end;
+  //add an extra slot for meshes without materials, which is created when needed
+  LMeshByMaterial[High(LMeshByMaterial)] := nil;
 
   for LGeometry in AGeometries do
   begin
-    LPolygonIndexByPolygonVertex := AddPolygons(LMeshByMaterial, LGeometry.MaterialLayer, LGeometry.Vertices, LGeometry.VertexIndices);
+    LPolygonIndexByPolygonVertex := AddPolygons(LMeshByMaterial, LGeometry.Name, LGeometry.MaterialLayer, LGeometry.Vertices, LGeometry.VertexIndices);
     AddNormals(LMeshByMaterial, LGeometry.MaterialLayer, LGeometry.NormalLayer, LPolygonIndexByPolygonVertex);
     for LUVLayer in LGeometry.UVLayers do
       AddUVs(LMeshByMaterial, LGeometry.MaterialLayer, LUVLayer, LPolygonIndexByPolygonVertex);
+
+    LDefaultMesh := LMeshByMaterial[High(LMeshByMaterial)];
+    if Assigned(LDefaultMesh) then
+    begin
+      ATarget.Meshes.Add(LDefaultMesh);
+      LMeshByMaterial[High(LMeshByMaterial)] := nil;
+    end;
   end;
 end;
 
