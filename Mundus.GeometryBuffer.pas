@@ -8,6 +8,10 @@ uses
   Mundus.ValueBuffer;
 
 type
+  TGeometryCopyOperation = (gcoUniqueUniforms, gcoUniqueValues);
+  TGeometryCopyOperations = set of TGeometryCopyOperation;
+
+  PGeometryBuffer = ^TGeometryBuffer;
   TGeometryBuffer = record
   private
     FShader: PShaderInfo;
@@ -21,6 +25,7 @@ type
     procedure BindShader(AShader: PShaderInfo);
     procedure BindVertices(const AVertices: TArray<TFloat3>);
     procedure BindIndexedVertices(const AVertices: TArray<TFloat3>; const AIndices: TArray<Int32>);
+    procedure CopyFrom(const ASource: PGeometryBuffer; AOperations: TGeometryCopyOperations = []);
     property Vertices: TArray<TFloat3> read FVertices;
     property VertexIndices: TArray<Int32> read FVertexIndices;
     property Shader: PShaderInfo read FShader;
@@ -28,7 +33,7 @@ type
     property Values: TValueBuffer read FValues;
   end;
 
-  PGeometryBuffer = ^TGeometryBuffer;
+//  PGeometryBuffer = ^TGeometryBuffer;
 
   TGeometryBuffers = record
   private
@@ -67,6 +72,22 @@ begin
   FVertices := AVertices;
   FVertexIndices := nil;
   SetupValueBuffers;
+end;
+
+procedure TGeometryBuffer.CopyFrom(const ASource: PGeometryBuffer; AOperations: TGeometryCopyOperations = []);
+begin
+  FShader := ASource.FShader;
+  FVertices := ASource.FVertices;
+  FVertexIndices := ASource.FVertexIndices;
+  if gcoUniqueUniforms in AOperations then
+    FUniformValues.CopyFrom(ASource.UniformValues)
+  else
+    FUniformValues := ASource.UniformValues;
+
+  if gcoUniqueValues in AOperations then
+    FValues.CopyFrom(ASource.FValues)
+  else
+    FValues := ASource.FValues;
 end;
 
 class function TGeometryBuffer.Create: TGeometryBuffer;

@@ -51,6 +51,7 @@ type
     procedure BindArray(const AName: string; const AValues: TArray<TMatrix4x4>); overload;
     procedure Bind<T: record>(const AName: string; const AValue: T); overload;
     procedure Bind(const AName: string; const AValue: TObject); overload;
+    procedure CopyFrom(const ASource: TValueBuffer);
     property Data: TArray<Byte> read FData;
     property Descriptor: TValueBufferDescriptor read FDescriptor;
   end;
@@ -191,6 +192,13 @@ begin
       Inc(PByte(LTarget), FDescriptor.FRecordSize);
     end;
   end;
+end;
+
+procedure TValueBuffer.CopyFrom(const ASource: TValueBuffer);
+begin
+  Initialize(ASource.FDescriptor, ASource.FRecordCount);
+  if Assigned(FData) then
+  CopyMemory(@FData[0], @ASource.FData[0], Length(ASource.FData));
 end;
 
 procedure TValueBuffer.Initialize(const ADescriptor: TValueBufferDescriptor; const ARecordCount: Integer);
