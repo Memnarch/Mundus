@@ -82,7 +82,8 @@ type
 
 function Float2(X, Y: Single): TFloat2;
 function Float3(X, Y, Z: Single): TFloat3;
-function Float4(X, Y, Z, W: Single): TFloat4;
+function Float4(X, Y, Z, W: Single): TFloat4; overload;
+function Float4(XYZ: TFloat3; W: Single): TFloat4; overload;
 
 function Dot(const A, B: TFloat2): Single; overload;
 function Dot(const A, B: TFloat3): Single; overload;
@@ -115,6 +116,12 @@ begin
   Result.X := X;
   Result.Y := Y;
   Result.Z := Z;
+  Result.W := W;
+end;
+
+function Float4(XYZ: TFloat3; W: Single): TFloat4; overload;
+begin
+  Result.XYZ := XYZ;
   Result.W := W;
 end;
 
