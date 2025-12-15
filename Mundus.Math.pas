@@ -196,9 +196,11 @@ end;
 
 class function TMatrix4x4.CreateRotationMatrix(XDegAlpha, YDegAlpha, ZDegAlpha: Single): TMatrix4x4;
 begin
-  Result :=   TMatrix4x4.CreateRotationXMatrix(XDegAlpha)
+  //https://en.wikipedia.org/wiki/Rotation_matrix
+  //Following order described in "General 3D rotations" for classic/intrinsic Eula angles
+  Result :=   TMatrix4x4.CreateRotationZMatrix(ZDegAlpha)
             * TMatrix4x4.CreateRotationYMatrix(YDegAlpha)
-            * TMatrix4x4.CreateRotationZMatrix(ZDegAlpha);
+            * TMatrix4x4.CreateRotationXMatrix(XDegAlpha);
 end;
 
 class function TMatrix4x4.CreateRotationXMatrix(DegAlpha: Single): TMatrix4x4;
