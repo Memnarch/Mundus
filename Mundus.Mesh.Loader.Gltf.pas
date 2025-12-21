@@ -38,6 +38,8 @@ uses
   System.IOUtils,
   System.SysUtils,
   Winapi.Windows;
+const
+  CMeterToCM = 100;
 
 procedure RaiseInvalidComponentSize;
 begin
@@ -277,7 +279,7 @@ begin
       end;
       LAttributes := LPrimitive.GetValue<TJSONObject>('attributes');
       for LValue in Read<TFloat3>(AData, LAttributes.GetValue<Integer>('POSITION')) do
-        LMesh.AddVertice(LValue);
+        LMesh.AddVertice(LValue * CMeterToCM);
 
       if LAttributes.TryGetValue<Integer>('NORMAL', LIndex) then
         for LValue in Read<TFloat3>(AData, LIndex) do
