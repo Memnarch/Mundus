@@ -10,7 +10,9 @@ uses
   Mundus.Math,
   Mundus.Types,
   Mundus.Shader,
-  Mundus.Material;
+  Mundus.Material,
+  Mundus.Mesh.Skeleton,
+  Mundus.Mesh.AnimationData;
 
 type
   TMesh = class;
@@ -20,6 +22,16 @@ type
     FileName: string;
   end;
 
+  TJoint = record
+    Index: Byte;
+    Weight: Single;
+  end;
+
+  TJoints = record
+    Count: Byte;
+    Values: array[0..3] of TJoint;
+  end;
+
   TMesh = class
   private
     FShader: PShaderInfo;
@@ -27,6 +39,7 @@ type
     FNormals: TArray<TVector>;
     FTextures: TArray<TTextureReference>;
     FName: string;
+    FJoints: TArray<TJoints>;
   protected
     FVertexList: TArray<TVector>;
     FTriangles: TArray<TTriangle>;
@@ -48,16 +61,22 @@ type
     property Shader: PShaderInfo read FShader write FShader;
     property Material: TMaterial read FMaterial write FMaterial;
     property Textures: TArray<TTextureReference> read FTextures;
+    property Joints: TArray<TJoints> read FJoints write FJoints;
     property Name: string read FName write FName;
   end;
 
   TMeshGroup = class
   private
     FMeshes: TObjectList<TMesh>;
+    FSkeleton: TSkeleton;
+    FAnimations: TObjectList<TAnimationData>;
+    procedure SetSkeleton(const Value: TSkeleton);
   public
     constructor Create;
     destructor Destroy; override;
     property Meshes: TObjectList<TMesh> read FMeshes;
+    property Skeleton: TSkeleton read FSkeleton write SetSkeleton;
+    property Animations: TObjectList<TAnimationData> read FAnimations;
   end;
 
 implementation
@@ -108,12 +127,21 @@ constructor TMeshGroup.Create;
 begin
   inherited;
   FMeshes := TObjectList<TMesh>.Create();
+  FAnimations := TObjectList<TAnimationData>.Create();
 end;
 
 destructor TMeshGroup.Destroy;
 begin
   FMeshes.Free;
+  FSkeleton.Free;
+  FAnimations.Free;
   inherited;
+end;
+
+procedure TMeshGroup.SetSkeleton(const Value: TSkeleton);
+begin
+  FSkeleton.Free;
+  FSkeleton := Value;
 end;
 
 end.

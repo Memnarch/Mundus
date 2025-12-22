@@ -3,7 +3,8 @@ unit Mundus.Mesh.Loader.Gltf.Types;
 interface
 
 uses
-  Mundus.Material;
+  Mundus.Material,
+  Mundus.Math;
 
 type
   TBuffer = record
@@ -47,6 +48,58 @@ type
 
   PAccessor = ^TAccessor;
 
+  TNode = record
+    Name: string;
+    Children: TArray<Integer>;
+    Skin: Integer;
+    Mesh: Integer;
+    Translation: TFloat3;
+    Rotation: TFloat3;
+    Scale: TFloat3;
+  end;
+
+  PNode = ^TNode;
+
+  TSkin = record
+    Name: string;
+    InverseBindMatrices: Integer;
+    Joints: TArray<Integer>;
+  end;
+
+  PSkin = ^TSkin;
+
+  TTarget = record
+    Node: Integer;
+    Path: string;
+  end;
+
+  PTarget = ^TTarget;
+
+  TChannel = record
+    Sampler: Integer;
+    Target: TTarget;
+  end;
+
+  PChannel = ^TChannel;
+
+  TInterpolation = (iLinear, iStep, iCubicSpline);
+
+  TSampler = record
+    Input: Integer;
+    Interpolation: TInterpolation;
+    Output: Integer;
+  end;
+
+  PSampler = ^TSampler;
+
+  TAnimation = record
+    Name: string;
+    Channels: TArray<TChannel>;
+    Samplers: TArray<TSampler>;
+  end;
+
+  PAnimation = ^TAnimation;
+
   TGLTFData = record
     Buffers: TArray<TBuffer>;
     Views: TArray<TBufferView>;
@@ -54,7 +107,12 @@ type
     Images: TArray<TImage>;
     Textures: TArray<TTexture>;
     Materials: TArray<TMaterial>;
+    Nodes: TArray<TNode>;
+    Skins: TArray<TSkin>;
+    Animations: TArray<TAnimation>;
   end;
+
+  TJointIndices = array[0..3] of Byte;
 
 implementation
 
