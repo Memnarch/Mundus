@@ -16,9 +16,7 @@ uses
 function BuildTransformMatrix(const APosition, ARotation: TFloat3): TMatrix4x4;
 begin
   Result := TMatrix4x4.CreateTranslationMatrix(APosition.X, APosition.Y, APosition.Z)
-            * TMatrix4x4.CreateRotationXMatrix(ARotation.X)
-            * TMatrix4x4.CreateRotationYMatrix(ARotation.Y)
-            * TMatrix4x4.CreateRotationZMatrix(ARotation.Z);
+            * TMatrix4x4.CreateRotationMatrix(ARotation.X, ARotation.Y, ARotation.Z)
 end;
 
 function RGBToBGR(const AValue: TFloat3): TFloat3;
