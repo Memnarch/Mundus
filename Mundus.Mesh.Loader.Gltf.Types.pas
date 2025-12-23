@@ -54,7 +54,7 @@ type
     Skin: Integer;
     Mesh: Integer;
     Translation: TFloat3;
-    Rotation: TFloat3;
+    Rotation: TQuaternion;
     Scale: TFloat3;
   end;
 

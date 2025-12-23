@@ -33,11 +33,12 @@ type
     class function ReadChannels(const AValues: TJSONArray): TArray<TChannel>;
     class function ReadSamplers(const AValues: TJSONArray): TArray<TSampler>;
     class function Read<T>(const AData: TGLTFData; const AAccessor: Integer): TArray<T>; overload;
+    class function ReadMatrices(const AData: TGLTFData; const AAccessor: Integer): TArray<TMatrix4x4>;
     class procedure ReadMeshes(const ADoc: TJSONObject; const AData: TGLTFData; const ATarget: TMeshGroup);
     class function BuildJoints(const AIndices: TArray<TJointIndices>; const AWeights: TArray<TFloat4>): TArray<TJoints>;
     class procedure BuildSkeleton(const AData: TGLTFData; ATarget: TMeshGroup; ANodeToBone: TDictionary<Integer, Integer>);
     class procedure BuildAnimationData(const AData: TGLTFData; ATarget: TMeshGroup; ANodeToBone: TDictionary<Integer, Integer>);
-    class function ReadAnimationRotationChannel(const AData: TGLTFData; const AAnimation: PAnimation; const AChannel: TChannel): TArray<TKeyFrame<TFloat3>>;
+    class function ReadAnimationRotationChannel(const AData: TGLTFData; const AAnimation: PAnimation; const AChannel: TChannel): TArray<TKeyFrame<TQuaternion>>;
   public
     class function CanLoad(const AFileName: string): Boolean; override;
     class function LoadFromFile(const AFileName: string): TMeshGroup; override;
@@ -74,6 +75,7 @@ begin
     Result := ptUnknown;
   end;
 end;
+
 procedure RaiseInvalidComponentSize;
 begin
   raise Exception.Create('InvalidComponentsize') at ReturnAddress;
@@ -112,34 +114,6 @@ begin
   end;
 end;
 
-//https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToEuler/
-function QuaternionToEuler(const Q: TFloat4): TFloat3;
-var
-  LCheck: Single;
-begin
-  Result.X := ArcSin(2 * Q.X * Q.Y + 2 * Q.Z * Q.W);
-  LCheck := Q.X * Q.Y + Q.Z * Q.W;
-  if LCheck = 0.5 then
-  begin
-    Result.Y := 2 * ArcTan2(Q.X, Q.W);
-    Result.Z := 0;
-  end
-  else if LCheck = -0.5 then
-  begin
-    Result.Y := -2 * ArcTan2(Q.X, Q.W);
-    Result.Z := 0;
-  end
-  else
-  begin
-    Result.Y := ArcTan2(2 * Q.Y * Q.W - 2 * Q.X * Q.Z, 1 - 2 * Q.Y * Q.Y - 2 * Q.Z * Q.Z);
-    Result.Z := ArcTan2(2 * Q.X * Q.W - 2 * Q.Y * Q.Z, 1 - 2 * Q.X * Q.X - 2 * Q.Z * Q.Z);
-  end;
-
-  Result.X := RadToDeg(Result.X);
-  Result.Y := RadToDeg(Result.Y);
-  Result.Z := RadToDeg(Result.Z);
-end;
-
 { TGLTFMeshLoader }
 
 class procedure TGLTFMeshLoader.BuildAnimationData(const AData: TGLTFData; ATarget: TMeshGroup; ANodeToBone: TDictionary<Integer, Integer>);
@@ -150,7 +124,6 @@ var
   LBoneAnim: TBoneAnimationData;
   LChannel: TChannel;
   LChannelTarget: TPathTarget;
-  LChannelData: TKeyFrame<TFloat3>;
   i: Integer;
   LBoneIndex: Integer;
 begin
@@ -231,7 +204,7 @@ begin
   LSkeleton := TSkeleton.Create();
   try
     if LSkin.InverseBindMatrices > -1 then
-      LSkeleton.InverseBindingMatrices := Read<TMatrix4x4>(AData, LSkin.InverseBindMatrices);
+      LSkeleton.InverseBindingMatrices := ReadMatrices(AData, LSkin.InverseBindMatrices);
     for i := 0 to High(LSkin.Joints) do
     begin
       LNode := @AData.Nodes[LSkin.Joints[i]];
@@ -357,21 +330,21 @@ end;
 
 class function TGLTFMeshLoader.ReadAnimationRotationChannel(
   const AData: TGLTFData; const AAnimation: PAnimation;
-  const AChannel: TChannel): TArray<TKeyFrame<TFloat3>>;
+  const AChannel: TChannel): TArray<TKeyFrame<TQuaternion>>;
 var
   LTimes: TArray<Single>;
-  LData: TArray<TFloat4>;
+  LData: TArray<TQuaternion>;
   LSampler: PSampler;
   i: Integer;
 begin
   LSampler := @AAnimation.Samplers[AChannel.Sampler];
   LTimes := Read<Single>(AData, LSampler.Input);
-  LData := Read<TFloat4>(AData, LSampler.Output);
+  LData := Read<TQuaternion>(AData, LSampler.Output);
   SetLength(Result, Length(LTimes));
   for i := 0 to High(Result) do
   begin
     Result[i].Time := LTimes[i];
-    Result[i].Value := QuaternionToEuler(LData[i]);
+    Result[i].Value := LData[i];
   end;
 end;
 
@@ -495,6 +468,25 @@ begin
   end;
 end;
 
+function ScaleMatrixTranslation(const AMatrix: TMatrix4x4): TMatrix4x4;
+var
+  LData: array[0..3, 0..3] of Single absolute Result;
+begin
+  Result := AMatrix;
+  LData[3, 0] := LData[3, 0] * CMeterToCM;
+  LData[3, 1] := LData[3, 1] * CMeterToCM;
+  LData[3, 2] := LData[3, 2] * CMeterToCM;
+end;
+
+class function TGLTFMeshLoader.ReadMatrices(const AData: TGLTFData; const AAccessor: Integer): TArray<TMatrix4x4>;
+var
+  i: Integer;
+begin
+  Result := Read<TMatrix4x4>(AData, AAccessor);
+  for i := 0 to High(Result) do
+    Result[i] := ScaleMatrixTranslation(Result[i]);
+end;
+
 class procedure TGLTFMeshLoader.ReadMeshes(const ADoc: TJSONObject; const AData: TGLTFData; const ATarget: TMeshGroup);
 var
   LItems, LPrimitives: TJSONArray;
@@ -606,9 +598,9 @@ begin
     LNode.Mesh := LValue.GetValue<Integer>('mesh', -1);
 
     if LValue.TryGetValue<TValue4<Single>>('rotation', LValue4) then
-      LNode.Rotation := QuaternionToEuler(TFloat4(LValue4))
+      LNode.Rotation := TQuaternion(LValue4)
     else
-      LNode.Rotation := Float3(0, 0, 0);
+      LNode.Rotation := TQuaternion.Identity;
 
     if LValue.TryGetValue<TValue3<Single>>('translation', LValue3) then
       LNode.Translation := TFloat3(LValue3) * CMeterToCM

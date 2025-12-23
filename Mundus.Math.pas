@@ -60,6 +60,14 @@ type
 
   PFloat4 = ^TFloat4;
 
+  TQuaternion = record
+    X, Y, Z, W: Single;
+  end;
+
+  TQuaternionHelper = record helper for TQuaternion
+  const Identity: TQuaternion = (X: 0; Y: 0; Z: 0; W: 0);
+  end;
+
   TMatrix4x4 = record
   public
     class function CreateNullMatrix: TMatrix4x4; static;
@@ -70,7 +78,8 @@ type
     class function CreateRotationXMatrix(DegAlpha: Single): TMatrix4x4; static;
     class function CreateRotationYMatrix(DegAlpha: Single): TMatrix4x4; static;
     class function CreateRotationZMatrix(DegAlpha: Single): TMatrix4x4; static;
-    class function CreateRotationMatrix(XDegAlpha, YDegAlpha, ZDegAlpha: Single): TMatrix4x4; static;
+    class function CreateRotationMatrix(XDegAlpha, YDegAlpha, ZDegAlpha: Single): TMatrix4x4; overload; static;
+    class function CreateRotationMatrix(const AQuaternion: TQuaternion): TMatrix4x4; overload; static;
     class operator Multiply(const ALeft, ARight: TMatrix4x4): TMatrix4x4; static;
     class operator Multiply(const ALeft: TMatrix4x4; const ARight: TFloat4): TFloat4; static;
     function Inverse: TMatrix4x4;
@@ -201,6 +210,32 @@ begin
   Result :=   TMatrix4x4.CreateRotationZMatrix(ZDegAlpha)
             * TMatrix4x4.CreateRotationYMatrix(YDegAlpha)
             * TMatrix4x4.CreateRotationXMatrix(XDegAlpha);
+end;
+
+class function TMatrix4x4.CreateRotationMatrix(const AQuaternion: TQuaternion): TMatrix4x4;
+var
+  LData: array[0..3, 0..3] of Single absolute Result;
+  Q: TQuaternion absolute AQuaternion;
+begin
+  LData[0, 0] := 1 - 2 * Q.Y * Q.Y - 2 * Q.Z * Q.Z;
+  LData[1, 0] := 2 * Q.X * Q.Y - 2 * Q.W * Q.Z;
+  LData[2, 0] := 2 * Q.X * Q.Z + 2 * Q.W * Q.Y;
+  LData[3, 0] := 0;
+
+  LData[0, 1] := 2 * Q.X * Q.Y + 2 * Q.W * Q.Z;
+  LData[1, 1] := 1 - 2 * Q.X * Q.X - 2 * Q.Z * Q.Z;
+  LData[2, 1] := 2 * Q.Y * Q.Z - 2 * Q.W * Q.X;
+  LData[3, 1] := 0;
+
+  LData[0, 2] := 2 * Q.X * Q.Z - 2 * Q.W * Q.Y;
+  LData[1, 2] := 2 * Q.Y * Q.Z + 2 * Q.W * Q.X;
+  LData[2, 2] := 1 - 2 * Q.X * Q.X - 2 * Q.Y * Q.Y;
+  LData[3, 2] := 0;
+
+  LData[0, 3] := 0;
+  LData[1, 3] := 0;
+  LData[2, 3] := 0;
+  LData[3, 3] := 1;
 end;
 
 class function TMatrix4x4.CreateRotationXMatrix(DegAlpha: Single): TMatrix4x4;
