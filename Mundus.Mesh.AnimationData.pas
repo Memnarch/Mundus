@@ -32,25 +32,36 @@ type
   private
     FName: string;
     FBones: TObjectList<TBoneAnimationData>;
+    FBonesByIndex: TDictionary<Integer, TBoneAnimationData>;
   public
     constructor Create;
     destructor Destroy; override;
+    procedure AddBoneAnimationData(ABone: TBoneAnimationData);
     property Name: string read FName write FName;
     property Bones: TObjectList<TBoneAnimationData> read FBones;
+    property BonesByIndex: TDictionary<Integer, TBoneAnimationData> read FBonesByIndex;
   end;
 
 implementation
 
 { TAnimationData }
 
+procedure TAnimationData.AddBoneAnimationData(ABone: TBoneAnimationData);
+begin
+  FBones.Add(ABone);
+  FBonesByIndex.Add(ABone.BoneIndex, ABone);
+end;
+
 constructor TAnimationData.Create;
 begin
   inherited;
   FBones := TObjectList<TBoneAnimationData>.Create();
+  FBonesByIndex := TDictionary<Integer, TBoneAnimationData>.Create();
 end;
 
 destructor TAnimationData.Destroy;
 begin
+  FBonesByIndex.Free;
   FBones.Free;
   inherited;
 end;

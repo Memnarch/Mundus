@@ -33,6 +33,8 @@ type
     class function ReadChannels(const AValues: TJSONArray): TArray<TChannel>;
     class function ReadSamplers(const AValues: TJSONArray): TArray<TSampler>;
     class function Read<T>(const AData: TGLTFData; const AAccessor: Integer): TArray<T>; overload;
+    class function ReadAsUInt32(const AData: TGLTFData; const AAccessor: Integer): TArray<Cardinal>;
+    class function ReadAsJointIndices(const AData: TGLTFData; const AAccessor: Integer): TArray<TJointIndices>;
     class function ReadMatrices(const AData: TGLTFData; const AAccessor: Integer): TArray<TMatrix4x4>;
     class procedure ReadMeshes(const ADoc: TJSONObject; const AData: TGLTFData; const ATarget: TMeshGroup);
     class function BuildJoints(const AIndices: TArray<TJointIndices>; const AWeights: TArray<TFloat4>): TArray<TJoints>;
@@ -138,12 +140,15 @@ begin
       LAnimationByBone.Clear;
       for LChannel in LAnimation.Channels do
       begin
-        LBoneIndex := ANodeToBone[LChannel.Target.Node];
+        //handle bone based animations, only
+        if not ANodeToBone.TryGetValue(LChannel.Target.Node, LBoneIndex) then
+          Continue;
+
         if not LAnimationByBone.TryGetValue(LBoneIndex, LBoneAnim) then
         begin
           LBoneAnim := TBoneAnimationData.Create();
           LBoneAnim.BoneIndex := LBoneIndex;
-          LAnimData.Bones.Add(LBoneAnim);
+          LAnimData.AddBoneAnimationData(LBoneAnim);
           LAnimationByBone.Add(LBoneIndex, LBoneAnim);
         end;
 
@@ -370,6 +375,76 @@ begin
   end;
 end;
 
+class function TGLTFMeshLoader.ReadAsJointIndices(const AData: TGLTFData; const AAccessor: Integer): TArray<TJointIndices>;
+var
+  LData: TArray<DWORD>;
+  i: Integer;
+begin
+  LData := ReadAsUInt32(AData, AAccessor);
+  SetLength(Result, Length(LData) div 4);
+  if Assigned(Result) then
+  begin
+    for i := 0 to High(Result) do
+    begin
+      Result[i][0] := LData[i * 4];
+      Result[i][1] := LData[i * 4 + 1];
+      Result[i][2] := LData[i * 4 + 2];
+      Result[i][3] := LData[i * 4 + 3];
+    end;
+  end;
+end;
+
+class function TGLTFMeshLoader.ReadAsUInt32(const AData: TGLTFData; const AAccessor: Integer): TArray<Cardinal>;
+var
+  LUInt32: PDWORD;
+  LUInt16: PWORD;
+  LByte: PByte;
+  LAccessor: PAccessor;
+  LBuffer: PBuffer;
+  LView: PBufferView;
+  i: Integer;
+  LCount: Integer;
+begin
+  LAccessor := @AData.Accessors[AAccessor];
+  LView := @AData.Views[LAccessor.BufferView];
+  LBuffer := @AData.Buffers[LView.BufferIndex];
+  LCount := LAccessor.Count * ElementCount(LAccessor.ElementType);
+  SetLength(Result, LCount);
+  case LAccessor.ComponentType of
+    ctUInt32:
+    begin
+      LUInt32 := @LBuffer.Data[LView.Offset + LAccessor.Offset];
+      for i := 0 to High(Result) do
+      begin
+        Result[i] := LUInt32^;
+        Inc(LUInt32);
+      end;
+    end;
+
+    ctUShort:
+    begin
+      LUInt16 := @LBuffer.Data[LView.Offset + LAccessor.Offset];
+      for i := 0 to High(Result) do
+      begin
+        Result[i] := LUInt16^;
+        Inc(LUInt16);
+      end;
+    end;
+
+    ctUByte:
+    begin
+      LByte := @LBuffer.Data[LView.Offset + LAccessor.Offset];
+      for i := 0 to High(Result) do
+      begin
+        Result[i] := LByte^;
+        Inc(LByte);
+      end;
+    end;
+  else
+    raise Exception.Create('Unsupported Componenttype for ReadAsUInt32');
+  end;
+end;
+
 class function TGLTFMeshLoader.Read<T>(const AData: TGLTFData; const AAccessor: Integer): TArray<T>;
 var
   LAccessor: PAccessor;
@@ -494,7 +569,7 @@ var
   LAttributes: TJSONObject;
   i, k, m, LIndex: Integer;
   LIndiceAccessor: Integer;
-  LIndices: TArray<Word>;
+  LIndices: TArray<DWord>;
   LMesh: TMesh;
   LValue: TFloat3;
   LUV, LTempUV: TFloat2;
@@ -516,7 +591,7 @@ begin
       LPrimitive := LPrimitives[k] as TJSONObject;
       LIndiceAccessor := LPrimitive.GetValue<Integer>('indices', -1);
       if LIndiceAccessor > -1 then
-        LIndices := Read<Word>(AData, LIndiceAccessor);
+        LIndices := ReadAsUInt32(AData, LIndiceAccessor);
 
       if LPrimitive.TryGetValue<Integer>('material', LIndex) then
       begin
@@ -559,7 +634,7 @@ begin
       if LAttributes.TryGetValue<Integer>('JOINTS_0', LIndex) then
       begin
         LMesh.Joints := BuildJoints(
-          Read<TJointIndices>(AData, LIndex),
+          ReadAsJointIndices(AData, LIndex),
           Read<TFloat4>(AData, LAttributes.GetValue<Integer>('WEIGHTS_0'))
         );
       end;

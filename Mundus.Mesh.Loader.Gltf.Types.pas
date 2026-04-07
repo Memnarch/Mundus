@@ -112,7 +112,7 @@ type
     Animations: TArray<TAnimation>;
   end;
 
-  TJointIndices = array[0..3] of Byte;
+  TJointIndices = array[0..3] of Word;
 
 implementation
 
