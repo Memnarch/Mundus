@@ -18,7 +18,8 @@ uses
   Mundus.Camera,
   Mundus.ValueBuffer,
   Mundus.FrameBuffer,
-  Mundus.GeometryBuffer;
+  Mundus.GeometryBuffer,
+  Mundus.Renderer.Worker.Sync;
 
 type
   TRenderEvent = procedure(Canvas: TCanvas) of object;
@@ -27,7 +28,7 @@ type
   private
     FBackBuffer: array[Boolean] of TFrameBuffer;
     FDrawCalls: array[Boolean] of TDrawCalls;
-    FGeometryBuffers: TGeometryBuffers;
+    FGeometryBuffers: array[Boolean] of TGeometryBuffers;
     FFPS: Integer;
     FResolutionX: Integer;
     FResolutionY: Integer;
@@ -37,10 +38,11 @@ type
     FRenderFences: TArray<THandle>;
     FCurrentBuffer: Boolean;
     FWorkerFPS: Integer;
+    FVectorPassSync: TStageSync;
     procedure ProcessGeometry(const AGeometry: PGeometryBuffer; const ATarget: PDrawCall);
     procedure DoAfterFrame(ACanvas: TCanvas);
-    function GenerateDrawCalls: PDrawCalls;
-    procedure DispatchCalls(ACanvas: TCanvas; ACalls: PDrawCalls);
+    function GenerateDrawCalls: TDrawCalls;
+    procedure DispatchCalls(ACanvas: TCanvas; ACalls: TDrawCalls);
     procedure SpinupWorkers(AWorkerCount: Integer);
     procedure TerminateWorkers;
     procedure WaitForRender;
@@ -117,6 +119,7 @@ begin
   FTimer := TStopWatch.Create(False);
 
   FWorkers := TObjectList<TRenderWorker>.Create();
+  FVectorPassSync := TStageSync.Create(AWorker);
   SpinupWorkers(AWorker);
 end;
 
@@ -129,10 +132,11 @@ begin
   FDrawCalls[True].Free;
   FDrawCalls[False].Free;
   FTimer.Free;
+  FVectorPassSync.Free;
   inherited;
 end;
 
-procedure TMundusRenderer.DispatchCalls(ACanvas: TCanvas; ACalls: PDrawCalls);
+procedure TMundusRenderer.DispatchCalls(ACanvas: TCanvas; ACalls: TDrawCalls);
 var
   LWorker: TRenderWorker;
   LBackBuffer, LFrontBuffer: Boolean;
@@ -147,12 +151,13 @@ begin
 
   //wait for workers to finish frame
   WaitForRender;
+  FVectorPassSync.Reset;
   AssignWorkerAreas(FResolutionY);
   //load workers with new stuff and start
   FWorkerFPS := High(FWorkerFPS);
   for LWorker in FWorkers do
   begin
-    LWorker.DrawCalls := ACalls^;
+    LWorker.DrawCalls := ACalls;
     LWorker.FrameBuffer := FBackBuffer[LFrontBuffer];
     LWorker.ResolutionX := FResolutionX;
     LWorker.ResolutionY := FResolutionY;
@@ -177,14 +182,14 @@ begin
   end;
 end;
 
-function TMundusRenderer.GenerateDrawCalls: PDrawCalls;
+function TMundusRenderer.GenerateDrawCalls: TDrawCalls;
 var
   LGeometries: PGeometryBuffers;
   i: Integer;
 begin
-  Result := @FDrawCalls[not FCurrentBuffer];
+  Result := FDrawCalls[not FCurrentBuffer];
   Result.Reset;
-  LGeometries := @FGeometryBuffers;
+  LGeometries := @FGeometryBuffers[not FCurrentBuffer];
   for i := 0 to Pred(LGeometries.Count) do
     if Assigned(LGeometries.Geometries[i].Shader) then
       ProcessGeometry(LGeometries.Geometries[i], Result.Add());
@@ -202,93 +207,34 @@ end;
 
 function TMundusRenderer.NewFrame: PGeometryBuffers;
 begin
-  Result := @FGeometryBuffers;
+  Result := @FGeometryBuffers[not FCurrentBuffer];
   Result.Clear;
 end;
 
 procedure TMundusRenderer.ProcessGeometry(const AGeometry: PGeometryBuffer; const ATarget: PDrawCall);
 var
-  LClipContext: TClipContext;
-  i, LCount: Integer;
+  i: Integer;
   LVertex: TFloat4;
-  LAttributes: TVertexAttributeBuffer;
-  LVInput, LUniformInput: PByte;
-
-  procedure ProcessTriangle(A, B, C: Integer);
-  var
-    LA, LB, LC: TFloat4;
-    LNormal: TFloat3;
-    LClippedTriangle: TTriangle;
-    i: Integer;
-  begin
-    ClipPolygon(ATarget, @LClipContext, A, B, C);
-    //if less than 3, it is fully clipped
-    if LClipContext.ResultBuffer.Count >= 3 then
-    begin
-      LClippedTriangle.VertexA := LClipContext.ResultBuffer.Indices[0];
-      LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[1];
-      LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[2];
-      LA := ATarget.Vertices[LClippedTriangle.VertexA];
-      LA.XYZ := LA.XYZ / LA.W;
-      LB := ATarget.Vertices[LClippedTriangle.VertexB];
-      LB.XYZ := LB.XYZ / LB.W;
-      LC := ATarget.Vertices[LClippedTriangle.VertexC];
-      LC.XYZ := LC.XYZ / LC.W;
-      LNormal := CalculateSurfaceNormal(LA.XYZ, LB.XYZ, LC.XYZ);
-      //Backface culling
-      if LNormal.Z < 0 then
-      begin
-        ATarget.AddTriangle(@LClippedTriangle);
-        for i := 3 to Pred(LClipContext.ResultBuffer.Count) do
-        begin
-          LClippedTriangle.VertexA := LClipContext.ResultBuffer.Indices[0];
-          LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[i-1];
-          LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[i];
-          ATarget.AddTriangle(@LClippedTriangle);
-        end;
-      end;
-    end;
-  end;
-
 begin
   ATarget.Shader := AGeometry.Shader;
   if Assigned(ATarget.Shader) then
   begin
-    LClipContext := TClipContext.Create();
-    SetLength(LAttributes, ATarget.Shader.FragmentAttributeSize);
-    LUniformInput := @AGeometry.UniformValues.Data[0];
-    LVInput := @AGeometry.Values.Data[0];
     ATarget.ConstantValues := AGeometry.UniformValues.Data;
+    ATarget.Values := AGeometry.Values.Data;
+    ATarget.VertexIndices := AGeometry.VertexIndices;
+    ATarget.InitBuffers(Length(AGeometry.Vertices));
     for i := 0 to High(AGeometry.Vertices) do
     begin
       LVertex.XYZ := AGeometry.Vertices[i];
       LVertex.W := 1;
-      ATarget.Shader.VertexShader(LVertex, LUniformInput, LVInput, LAttributes);
-      ATarget.AddVertex(LVertex, @LAttributes[0]);
-      Inc(LVInput, AGeometry.Values.Descriptor.RecordSize);
-    end;
-
-    if Assigned(AGeometry.VertexIndices) then
-    begin
-      LCount := Length(AGeometry.VertexIndices) div 3;
-      for i := 0 to Pred(LCount) do
-        ProcessTriangle(AGeometry.VertexIndices[i * 3], AGeometry.VertexIndices[i * 3 + 1], AGeometry.VertexIndices[i * 3 + 2]);
-    end
-    else
-    begin
-      LCount := Length(AGeometry.Vertices) div 3;
-      for i := 0 to Pred(LCount) do
-        ProcessTriangle(i * 3, i * 3 + 1, i * 3 + 2);
+      ATarget.AddVertex(LVertex, nil);
     end;
   end;
-
-  for i := 0 to High(ATarget.Vertices) do
-    ATarget.Vertices[i].XYZ := ATarget.Vertices[i].XYZ / ATarget.Vertices[i].W;
 end;
 
 procedure TMundusRenderer.RenderFrame(ACanvas: TCanvas);
 var
-  LDrawCalls: PDrawCalls;
+  LDrawCalls: TDrawCalls;
   LMicro: UInt64;
 begin
   FTimer.Start();
@@ -318,7 +264,7 @@ begin
   SetLength(FRenderFences, AWorkerCount);
   for i := 0 to Pred(AWorkerCount) do
   begin
-    LWorker := TRenderWorker.Create();
+    LWorker := TRenderWorker.Create(FVectorPassSync);
     LWorker.BlockSteps := AWorkerCount;
     LWorker.BlockOffset := i;
     FWorkers.Add(LWorker);

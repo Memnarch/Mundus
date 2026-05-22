@@ -99,8 +99,8 @@ procedure TGeometryBuffer.SetupValueBuffers;
 begin
   if Assigned(FShader) and Assigned(FVertices) then
   begin
-    FUniformValues.Initialize(FShader.ConstantBufferDescriptor, 1);
-    FValues.Initialize(FShader.VertexBufferDescriptor, Length(FVertices));
+    FUniformValues.Initialize(@FShader.ConstantBufferDescriptor, 1);
+    FValues.Initialize(@FShader.VertexBufferDescriptor, Length(FVertices));
   end;
 end;
 

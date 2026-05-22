@@ -36,13 +36,15 @@ type
     property RecordSize: NativeUInt read FRecordSize;
   end;
 
+  PValueBufferDescriptor = ^TValueBufferDescriptor;
+
   TValueBuffer = record
   private
-    FDescriptor: TValueBufferDescriptor;
+    FDescriptor: PValueBufferDescriptor;
     FRecordCount: Integer;
     FData: TArray<Byte>;
   public
-    procedure Initialize(const ADescriptor: TValueBufferDescriptor; const ARecordCount: Integer);
+    procedure Initialize(const ADescriptor: PValueBufferDescriptor; const ARecordCount: Integer);
     procedure BindArray<T: record>(const AName: string; const AValues: TArray<T>); overload;
     procedure BindArray(const AName: string; const AValues: TArray<Single>); overload;
     procedure BindArray(const AName: string; const AValues: TArray<TFloat2>); overload;
@@ -53,7 +55,7 @@ type
     procedure Bind(const AName: string; const AValue: TObject); overload;
     procedure CopyFrom(const ASource: TValueBuffer);
     property Data: TArray<Byte> read FData;
-    property Descriptor: TValueBufferDescriptor read FDescriptor;
+    property Descriptor: PValueBufferDescriptor read FDescriptor;
   end;
 
   PValueBuffer = ^TValueBuffer;
@@ -124,7 +126,7 @@ var
   i: Integer;
   LField: PFieldInfo;
 begin
-  if FDescriptor.TryGetField(AName, LField) then
+  if Assigned(FDescriptor) and FDescriptor.TryGetField(AName, LField) then
   begin
     LTarget := @FData[LField.Offset];
     for i := 0 to Pred(FRecordCount) do
@@ -141,7 +143,7 @@ var
   i: Integer;
   LField: PFieldInfo;
 begin
-  if FDescriptor.TryGetField(AName, LField) then
+  if Assigned(FDescriptor) and FDescriptor.TryGetField(AName, LField) then
   begin
     LTarget := @FData[LField.Offset];
     for i := 0 to Pred(FRecordCount) do
@@ -183,7 +185,7 @@ var
   i: Integer;
   LField: PFieldInfo;
 begin
-  if FDescriptor.TryGetField(AName, LField) then
+  if Assigned(FDescriptor) and FDescriptor.TryGetField(AName, LField) then
   begin
     LTarget := @FData[LField.Offset];
     for i := 0 to Pred(FRecordCount) do
@@ -201,15 +203,19 @@ begin
   CopyMemory(@FData[0], @ASource.FData[0], Length(ASource.FData));
 end;
 
-procedure TValueBuffer.Initialize(const ADescriptor: TValueBufferDescriptor; const ARecordCount: Integer);
+procedure TValueBuffer.Initialize(const ADescriptor: PValueBufferDescriptor; const ARecordCount: Integer);
 var
   LSize: NativeUInt;
 begin
   FDescriptor := ADescriptor;
   FRecordCount := ARecordCount;
-  LSize := FDescriptor.FRecordSize * ARecordCount;
-  if Length(FData) < LSize then
-    SetLength(FData, LSize);
+  if Assigned(FDescriptor) then
+  begin
+    LSize := FDescriptor.FRecordSize * ARecordCount;
+    if Length(FData) < LSize then
+      SetLength(FData, LSize);
+  end;
 end;
 
 end.
+

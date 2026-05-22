@@ -24,20 +24,25 @@ type
     FShader: PShaderInfo;
     FConstantValues: TArray<Byte>;
     FAttributesPerVertex: Integer;
+    FVertexIndices: TArray<Int32>;
+    FValues: TArray<Byte>;
     function GetAttributes(Index: Integer): PSingle;
     procedure SetShader(const Value: PShaderInfo);
   public
     function AddVertex(const AVertex: TFloat4; AAttributes: PSingle = nil): Integer;
+    procedure UpdateVertex(const AIndex: Integer; const AVertex: TFloat4; AAttributes: PSingle = nil);
     procedure AddTriangle(const ATriangle: PTriangle);
     procedure Reset;
     procedure InitBuffers(AVertices: Integer);
     property Vertices: TArray<TFloat4> read FVertices;
+    property VertexIndices: TArray<Int32> read FVertexIndices write FVertexIndices;
     property Attributes[Index: Integer]: PSingle read GetAttributes;
     property Triangles: TArray<TTriangle> read FTriangles;
     property VertexCount: Integer read FVertexCount;
     property TriangleCount: Integer read FTriangleCount;
     property Shader: PShaderInfo read FShader write SetShader;
     property ConstantValues: TArray<Byte> read FConstantValues write FConstantValues;
+    property Values: TArray<Byte> read FValues write FValues;
     property AttributesPerVertex: Integer read FAttributesPerVertex;
   end;
 
@@ -47,20 +52,20 @@ type
   private
     FDrawCalls: TArray<TDrawCall>;
     FCallCount: Integer;
+    FUnpreparedIndex: Integer;
     function GetCalls(Index: Integer): PDrawCall;
   public
     function Add: PDrawCall;
     procedure Reset;
+    function TryGetUnpreparedCall(out ACall: PDrawCall): Boolean;
     property Calls[Index: Integer]: PDrawCall read GetCalls; default;
     property Count: Integer read FCallCount;
   end;
 
-  PDrawCalls = ^TDrawCalls;
-
 implementation
 
 const
-  CBufferStep  = 128;
+  CBufferStep  = 1;
 
 { TDrawCall }
 
@@ -81,9 +86,7 @@ begin
     SetLength(FVertices, Length(FVertices) + CBufferStep);
     SetLength(FAttributes, Length(FVertices) * FAttributesPerVertex);
   end;
-  FVertices[FVertexCount] := AVertex;
-  if Assigned(AAttributes) then
-    CopyMemory(Attributes[FVertexCount], AAttributes, FShader.FragmentAttributeSize);
+  UpdateVertex(FVertexCount, AVertex, AAttributes);
   Result := FVertexCount;
   Inc(FVertexCount);
 end;
@@ -96,7 +99,7 @@ end;
 procedure TDrawCall.InitBuffers(AVertices: Integer);
 begin
   SetLength(FVertices, AVertices);
-  SetLength(FAttributes, AVertices);
+  SetLength(FAttributes, AVertices * FAttributesPerVertex);
 end;
 
 procedure TDrawCall.Reset;
@@ -112,6 +115,13 @@ begin
     FAttributesPerVertex := FShader.FragmentAttributeSize div SizeOf(Single)
   else
     FAttributesPerVertex := 0;
+end;
+
+procedure TDrawCall.UpdateVertex(const AIndex: Integer; const AVertex: TFloat4; AAttributes: PSingle);
+begin
+  FVertices[AIndex] := AVertex;
+  if Assigned(AAttributes) then
+    CopyMemory(Attributes[AIndex], AAttributes, FShader.FragmentAttributeSize);
 end;
 
 { TDrawCalls }
@@ -133,6 +143,17 @@ end;
 procedure TDrawCalls.Reset;
 begin
   FCallCount := 0;
+  FUnpreparedIndex := -1;
+end;
+
+function TDrawCalls.TryGetUnpreparedCall(out ACall: PDrawCall): Boolean;
+var
+  LIndex: Integer;
+begin
+  LIndex := AtomicIncrement(FUnpreparedIndex);
+  Result := LIndex < FCallCount;
+  if Result then
+    ACall := @FDrawCalls[LIndex];
 end;
 
 end.
