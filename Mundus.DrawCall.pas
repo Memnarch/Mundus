@@ -24,6 +24,8 @@ type
     FAttributesPerVertex: Integer;
     FVertexIndices: TArray<Int32>;
     FValues: TArray<Byte>;
+    FMaxY: Single;
+    FMinY: Single;
     FProcessedIndicesCount: Integer;
     FProcessedIndices: TArray<Integer>;
     function GetAttributes(Index: Integer): PSingle;
@@ -44,6 +46,8 @@ type
     property ConstantValues: TArray<Byte> read FConstantValues write FConstantValues;
     property Values: TArray<Byte> read FValues write FValues;
     property AttributesPerVertex: Integer read FAttributesPerVertex;
+    property MinY: Single read FMinY write FMinY;
+    property MaxY: Single read FMaxY write FMaxY;
   end;
 
   PDrawCall = ^TDrawCall;
@@ -101,10 +105,13 @@ begin
 end;
 
 procedure TDrawCall.InitBuffers(AVertices: Integer);
+begin
+  if AVertices > Length(FVertices) then
   begin
     SetLength(FVertices, AVertices);
     SetLength(FAttributes, AVertices * FAttributesPerVertex);
   end;
+end;
 
 procedure TDrawCall.Reset;
 begin

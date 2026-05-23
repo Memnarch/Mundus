@@ -33,7 +33,6 @@ type
     FFrameBuffer: TFrameBuffer;
     FBlockEnd: Integer;
     FVectorPassSync: TStageSync;
-    FTempAttributes: TVertexAttributeBuffer;
     procedure SetResolutionX(const Value: Integer);
     procedure SetResolutionY(const Value: Integer);
     function GetFPS: Integer;
@@ -124,6 +123,7 @@ var
   i, LCount: Integer;
   LVertex: TFloat4;
   LVInput, LUniformInput: PByte;
+  LMinY, LMaxY: Single;
 
   procedure ProcessTriangle(A, B, C: Integer);
   var
@@ -152,7 +152,7 @@ var
         ATarget.AddProcessedIndices(LClippedTriangle);
         for i := 3 to Pred(LClipContext.ResultBuffer.Count) do
         begin
-          LClippedTriangle[0] := LClipContext.ResultBuffer.Indices[0];
+          //we connect 2 new vertices to our vertex at index 0
           LClippedTriangle[1] := LClipContext.ResultBuffer.Indices[i-1];
           LClippedTriangle[2] := LClipContext.ResultBuffer.Indices[i];
           ATarget.AddProcessedIndices(LClippedTriangle);
@@ -165,15 +165,13 @@ begin
   if Assigned(ATarget.Shader) then
   begin
     LClipContext := TClipContext.Create();
-    if Length(FTempAttributes) < ATarget.Shader.FragmentAttributeSize then
-      SetLength(FTempAttributes, ATarget.Shader.FragmentAttributeSize);
     LUniformInput := @ATarget.ConstantValues[0];
     LVInput := @ATarget.Values[0];
     for i := 0 to Pred(ATarget.VertexCount) do
     begin
       LVertex := ATarget.Vertices[i];
-      ATarget.Shader.VertexShader(LVertex, LUniformInput, LVInput, FTempAttributes);
-      ATarget.UpdateVertex(i, LVertex, @FTempAttributes[0]);
+      ATarget.Shader.VertexShader(LVertex, LUniformInput, LVInput, ATarget.Attributes[i]);
+      ATarget.Vertices[i] := LVertex;
       Inc(LVInput, ATarget.Shader.VertexBufferDescriptor.RecordSize);
     end;
 
@@ -198,8 +196,22 @@ begin
     //denormalize vectors to screenpos
     LVertex.X := (1-LVertex.X) * FHalfResolutionX;//half screen size
     LVertex.Y := (1-LVertex.Y) * FHalfResolutionY;
+
+    if i = 0 then
+    begin
+      LMinY := LVertex.Y;
+      LMaxY := LMinY;
+    end;
+
+    if LVertex.Y < LMinY then
+      LMinY := LVertex.Y
+    else if LVertex.Y > LMaxY then
+      LMaxY := LVertex.Y;
+
     ATarget.Vertices[i] := LVertex;
   end;
+  ATarget.MinY := LMinY;
+  ATarget.MaxY := LMaxY;
 end;
 
 {$PointerMath ON}
@@ -223,11 +235,15 @@ begin
   for i := 0 to Pred(FDrawCalls.Count) do
   begin
     LCall := FDrawCalls[i];
+
+    if (LCall.MinY > LMaxY) or (LCall.MaxY < LMinY) then
+      Continue;
+
     LRasterizer := LCall.Shader.Rasterizer;
     LTriangleCount := LCall.ProcessedIndicesCount div 3;
+    LTriangle := @LCall.ProcessedIndices[0];
     for k := 0 to Pred(LTriangleCount) do
     begin
-      LTriangle := @LCall.ProcessedIndices[k * 3];
       LVertexA := LCall.Vertices[LTriangle[0]];
       LVertexB := LCall.Vertices[LTriangle[1]];
       LVertexC := LCall.Vertices[LTriangle[2]];
@@ -236,7 +252,10 @@ begin
       if ((LVertexA.Y > LMaxY) and (LVertexB.Y > LMaxY) and (LVertexC.Y > LMaxY))
         or ((LVertexA.Y < LMinY) and (LVertexB.Y < LMinY) and (LVertexC.Y < LMinY))
       then
+      begin
+        Inc(LTriangle, 3);
         Continue;
+      end;
 
       LRasterizer(
         FMaxResolutionX, FMaxResolutionY,
@@ -249,6 +268,7 @@ begin
         LFirstDepth,
         LFirstLowDepth,
         FBlockOffset, FBlockSteps, FBlockEnd);
+      Inc(LTriangle, 3);
     end;
   end;
 end;
