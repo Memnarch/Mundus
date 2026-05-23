@@ -129,33 +129,33 @@ var
   var
     LA, LB, LC: TFloat4;
     LNormal: TFloat3;
-    LClippedTriangle: TTriangle;
+    LClippedTriangle: array[0..2] of Integer;
     i: Integer;
   begin
     ClipPolygon(ATarget, @LClipContext, A, B, C);
     //if less than 3, it is fully clipped
     if LClipContext.ResultBuffer.Count >= 3 then
     begin
-      LClippedTriangle.VertexA := LClipContext.ResultBuffer.Indices[0];
-      LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[1];
-      LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[2];
-      LA := ATarget.Vertices[LClippedTriangle.VertexA];
+      LClippedTriangle[0] := LClipContext.ResultBuffer.Indices[0];
+      LClippedTriangle[1] := LClipContext.ResultBuffer.Indices[1];
+      LClippedTriangle[2] := LClipContext.ResultBuffer.Indices[2];
+      LA := ATarget.Vertices[LClippedTriangle[0]];
       LA.XYZ := LA.XYZ / LA.W;
-      LB := ATarget.Vertices[LClippedTriangle.VertexB];
+      LB := ATarget.Vertices[LClippedTriangle[1]];
       LB.XYZ := LB.XYZ / LB.W;
-      LC := ATarget.Vertices[LClippedTriangle.VertexC];
+      LC := ATarget.Vertices[LClippedTriangle[2]];
       LC.XYZ := LC.XYZ / LC.W;
       LNormal := CalculateSurfaceNormal(LA.XYZ, LB.XYZ, LC.XYZ);
       //Backface culling
       if LNormal.Z < 0 then
       begin
-        ATarget.AddTriangle(@LClippedTriangle);
+        ATarget.AddProcessedIndices(LClippedTriangle);
         for i := 3 to Pred(LClipContext.ResultBuffer.Count) do
         begin
-          LClippedTriangle.VertexA := LClipContext.ResultBuffer.Indices[0];
-          LClippedTriangle.VertexB := LClipContext.ResultBuffer.Indices[i-1];
-          LClippedTriangle.VertexC := LClipContext.ResultBuffer.Indices[i];
-          ATarget.AddTriangle(@LClippedTriangle);
+          LClippedTriangle[0] := LClipContext.ResultBuffer.Indices[0];
+          LClippedTriangle[1] := LClipContext.ResultBuffer.Indices[i-1];
+          LClippedTriangle[2] := LClipContext.ResultBuffer.Indices[i];
+          ATarget.AddProcessedIndices(LClippedTriangle);
         end;
       end;
     end;
@@ -169,7 +169,7 @@ begin
       SetLength(FTempAttributes, ATarget.Shader.FragmentAttributeSize);
     LUniformInput := @ATarget.ConstantValues[0];
     LVInput := @ATarget.Values[0];
-    for i := 0 to High(ATarget.Vertices) do
+    for i := 0 to Pred(ATarget.VertexCount) do
     begin
       LVertex := ATarget.Vertices[i];
       ATarget.Shader.VertexShader(LVertex, LUniformInput, LVInput, FTempAttributes);
@@ -191,7 +191,7 @@ begin
     end;
   end;
 
-  for i := 0 to High(ATarget.Vertices) do
+  for i := 0 to Pred(ATarget.VertexCount) do
   begin
     LVertex := ATarget.Vertices[i];
     LVertex.XYZ := LVertex.XYZ / LVertex.W;
@@ -202,16 +202,18 @@ begin
   end;
 end;
 
+{$PointerMath ON}
 procedure TRenderWorker.RunRasterization;
 var
   LCall: PDrawCall;
-  LTriangle: PTriangle;
+  LTriangle: PInteger;
   i, k: Integer;
   LVertexA, LVertexB, LVertexC: TFloat4;
   LRasterizer: TRasterizer;
   LRenderTarget: Pointer;
   LFirstDepth, LFirstLowDepth: System.PSingle;
   LMinY, LMaxY: Integer;
+  LTriangleCount: Integer;
 begin
   LRenderTarget := FFrameBuffer.FirstPixel;
   LFirstDepth := FFrameBuffer.DepthBuffer;
@@ -222,13 +224,14 @@ begin
   begin
     LCall := FDrawCalls[i];
     LRasterizer := LCall.Shader.Rasterizer;
-    for k := 0 to Pred(LCall.TriangleCount) do
+    LTriangleCount := LCall.ProcessedIndicesCount div 3;
+    for k := 0 to Pred(LTriangleCount) do
     begin
-      LTriangle := @LCall.Triangles[k];
-      LVertexA := LCall.Vertices[LTriangle.VertexA];
-      LVertexB := LCall.Vertices[LTriangle.VertexB];
-      LVertexC := LCall.Vertices[LTriangle.VertexC];
-
+      LTriangle := @LCall.ProcessedIndices[k * 3];
+      LVertexA := LCall.Vertices[LTriangle[0]];
+      LVertexB := LCall.Vertices[LTriangle[1]];
+      LVertexC := LCall.Vertices[LTriangle[2]];
+//
       //check if triangle overlaps with workers render area. Skip if not intersecting
       if ((LVertexA.Y > LMaxY) and (LVertexB.Y > LMaxY) and (LVertexC.Y > LMaxY))
         or ((LVertexA.Y < LMinY) and (LVertexB.Y < LMinY) and (LVertexC.Y < LMinY))
@@ -238,9 +241,9 @@ begin
       LRasterizer(
         FMaxResolutionX, FMaxResolutionY,
         LVertexA, LVertexB, LVertexC,
-        LCall.Attributes[LTriangle.VertexA],
-        LCall.Attributes[LTriangle.VertexB],
-        LCall.Attributes[LTriangle.VertexC],
+        LCall.Attributes[LTriangle[0]],
+        LCall.Attributes[LTriangle[1]],
+        LCall.Attributes[LTriangle[2]],
         @LCall.ConstantValues[0],
         LRenderTarget,
         LFirstDepth,

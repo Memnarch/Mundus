@@ -85,7 +85,6 @@ end;
 class function TFBXMeshLoader.AddPolygons(AMeshByMaterial: TArray<TMesh>; const AName: string; const AMaterialLayer: TMaterialLayer; const AVertices: TArray<TVector>; const AIndices: TArray<Int32>): TArray<Int32>;
 var
   i, k, LPolyCount: Integer;
-  LTriangle: TTriangle;
   LIndices: TArray<Int32>;
   LPolygonIndex: Integer;
   LTarget: TMesh;
@@ -123,12 +122,7 @@ begin
     end;
 
     for k := 2 to Pred(LPolyCount) do
-    begin
-      LTriangle.VertexA := LIndices[0];
-      LTriangle.VertexB := LIndices[k-1];
-      LTriangle.VertexC := LIndices[k];
-      LTarget.AddTriangle(LTriangle);
-    end;
+      LTarget.AddIndices([LIndices[0], LIndices[k -1], LIndices[k]]);
 
     Inc(i, LPolyCount);
     Inc(LPolygonIndex);

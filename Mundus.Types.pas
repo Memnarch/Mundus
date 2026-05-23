@@ -37,15 +37,8 @@ type
 
   TUV = TFloat2;
 
-  TTriangle = record
-    VertexA, VertexB, VertexC: Integer;
-  end;
-
-  PTriangle = ^TTriangle;
-
   function Vector(AX, AY, AZ: Single): TVector;
   function UV(AU, AV: Single): TUV;
-  function Triangle(AVertexA, AVertexB, AVertexC: Integer): TTriangle;
 
   function RGB32(R, G, B, A: Byte): TRGB32;
 
@@ -60,13 +53,6 @@ begin
   Result.X := AX;
   Result.Y := AY;
   Result.Z := AZ;
-end;
-
-function Triangle(AVertexA, AVertexB, AVertexC: Integer): TTriangle;
-begin
-  Result.VertexA := AVertexA;
-  Result.VertexB := AVertexB;
-  Result.VertexC := AVertexC;
 end;
 
 function UV(AU, AV: Single): TUV;

@@ -17,29 +17,29 @@ type
   TDrawCall = record
   private
     FVertices: TArray<TFloat4>;
-    FTriangles: TArray<TTriangle>;
     FVertexCount: Integer;
-    FTriangleCount: Integer;
     FAttributes: TArray<Single>;
     FShader: PShaderInfo;
     FConstantValues: TArray<Byte>;
     FAttributesPerVertex: Integer;
     FVertexIndices: TArray<Int32>;
     FValues: TArray<Byte>;
+    FProcessedIndicesCount: Integer;
+    FProcessedIndices: TArray<Integer>;
     function GetAttributes(Index: Integer): PSingle;
     procedure SetShader(const Value: PShaderInfo);
   public
     function AddVertex(const AVertex: TFloat4; AAttributes: PSingle = nil): Integer;
     procedure UpdateVertex(const AIndex: Integer; const AVertex: TFloat4; AAttributes: PSingle = nil);
-    procedure AddTriangle(const ATriangle: PTriangle);
+    procedure AddProcessedIndices(const AIndices: array of Integer);
     procedure Reset;
     procedure InitBuffers(AVertices: Integer);
     property Vertices: TArray<TFloat4> read FVertices;
     property VertexIndices: TArray<Int32> read FVertexIndices write FVertexIndices;
+    property ProcessedIndices: TArray<Integer> read FProcessedIndices;
+    property ProcessedIndicesCount: Integer read FProcessedIndicesCount;
     property Attributes[Index: Integer]: PSingle read GetAttributes;
-    property Triangles: TArray<TTriangle> read FTriangles;
     property VertexCount: Integer read FVertexCount;
-    property TriangleCount: Integer read FTriangleCount;
     property Shader: PShaderInfo read FShader write SetShader;
     property ConstantValues: TArray<Byte> read FConstantValues write FConstantValues;
     property Values: TArray<Byte> read FValues write FValues;
@@ -71,12 +71,16 @@ const
 
 { TDrawCall }
 
-procedure TDrawCall.AddTriangle(const ATriangle: PTriangle);
+procedure TDrawCall.AddProcessedIndices(const AIndices: array of Integer);
+var
+  LCount, LProcessedCount: Integer;
 begin
-  if FTriangleCount = Length(FTriangles) then
-    SetLength(FTriangles, Length(FTriangles) + CBufferStep);
-  FTriangles[FTriangleCount] := ATriangle^;
-  Inc(FTriangleCount);
+  LCount := Length(AIndices);
+  LProcessedCount := Length(FProcessedIndices);
+  if FProcessedIndicesCount + LCount >= LProcessedCount then
+    SetLength(FProcessedIndices, FProcessedIndicesCount + LCount);
+  CopyMemory(@FProcessedIndices[FProcessedIndicesCount], @AIndices[0], LCount * SizeOf(Integer));
+  Inc(FProcessedIndicesCount, LCount);
 end;
 
 function TDrawCall.AddVertex(const AVertex: TFloat4; AAttributes: PSingle): Integer;
@@ -97,14 +101,14 @@ begin
 end;
 
 procedure TDrawCall.InitBuffers(AVertices: Integer);
-begin
-  SetLength(FVertices, AVertices);
-  SetLength(FAttributes, AVertices * FAttributesPerVertex);
-end;
+  begin
+    SetLength(FVertices, AVertices);
+    SetLength(FAttributes, AVertices * FAttributesPerVertex);
+  end;
 
 procedure TDrawCall.Reset;
 begin
-  FTriangleCount := 0;
+  FProcessedIndicesCount := 0;
   FVertexCount := 0;
 end;
 

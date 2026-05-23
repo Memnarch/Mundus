@@ -52,9 +52,9 @@ begin
       LVertexA := (k-1) + LVerticesPerLine * (i-1);
       LVertexB := LVertexA + 1;
       LVertexC := LVertexA + LVerticesPerLine;
-      AddTriangle(Triangle(LVertexA, LVertexB, LVertexC));
+      AddIndices([LVertexA, LVertexB, LVertexC]);
       LVertexA := LVertexC + 1;
-      AddTriangle(Triangle(LVertexC, LVertexB, LVertexA));
+      AddIndices([LVertexC, LVertexB, LVertexA]);
     end;
   end;
 end;

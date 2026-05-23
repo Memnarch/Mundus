@@ -73,10 +73,10 @@ begin
   end;
 
   if Length(LIndices) > 2 then
-    AMesh.AddTriangle(Triangle(LIndices[0], LIndices[1], LIndices[2]));
+    AMesh.AddIndices([LIndices[0], LIndices[1], LIndices[2]]);
 
   if Length(LIndices) > 3 then
-    AMesh.AddTriangle(Triangle(LIndices[0], LIndices[2], LIndices[3]));
+    AMesh.AddIndices([LIndices[0], LIndices[2], LIndices[3]]);
 end;
 
 class procedure TObjMeshLoader.AddUV(var AUVs: TArray<TFloat2>; const AParts: TStringDynArray; const AFormat: TFormatSettings);

@@ -42,17 +42,18 @@ type
     FJoints: TArray<TJoints>;
   protected
     FVertexList: TArray<TVector>;
-    FTriangles: TArray<TTriangle>;
+    FIndices: TArray<Integer>;
     FUVs: TArray<TArray<TUV>>;
     FRotation: TFloat3;
     FPosition: TFloat3;
   public
     function AddVertice(const AVertice: TVector): Integer;
-    function AddTriangle(const ATriangle: TTriangle): Integer;
+    function AddVertices(const AVertices: array of TVector): Integer;
+    procedure AddIndices(const AIndices: array of Integer);
     function AddUV(const AUV: TUV; AUVSet: Integer = 0): Integer;
     function AddNormal(const ANormal: TVector): Integer;
     function AddTextureReference(const AReference: TTextureReference): Integer;
-    property Triangles: TArray<TTriangle> read FTriangles;
+    property Indices: TArray<Integer> read FIndices;
     property Vertices: TArray<TVector> read FVertexList;
     property Normals: TArray<TVector> read FNormals;
     property UVs: TArray<TArray<TUV>> read FUVs;
@@ -81,6 +82,18 @@ type
 
 implementation
 
+uses
+  Winapi.Windows;
+
+procedure TMesh.AddIndices(const AIndices: array of Integer);
+var
+  LCount: Integer;
+begin
+  LCount := Length(FIndices);
+  SetLength(FIndices, Length(FIndices) + Length(AIndices));
+  CopyMemory(@FIndices[LCount], @AIndices[0], Length(AIndices) * SizeOf(Integer));
+end;
+
 function TMesh.AddNormal(const ANormal: TVector): Integer;
 begin
   Result := Length(FNormals);
@@ -96,13 +109,6 @@ begin
 end;
 
 { TBaseMesh }
-
-function TMesh.AddTriangle(const ATriangle: TTriangle): Integer;
-begin
-  Result := Length(FTriangles);
-  SetLength(FTriangles, Length(FTriangles)+1);
-  FTriangles[High(FTriangles)] := ATriangle;
-end;
 
 function TMesh.AddUV(const AUV: TUV; AUVSet: Integer = 0): Integer;
 begin
@@ -121,6 +127,12 @@ begin
   FVertexList[Result] := AVertice;
 end;
 
+function TMesh.AddVertices(const AVertices: array of TVector): Integer;
+begin
+  Result := Length(FVertexList);
+  SetLength(FVertexList, Length(FVertexList) + Length(AVertices));
+  CopyMemory(@FVertexList[Result], @AVertices[0], Length(AVertices) * SizeOf(TVector));
+end;
 { TMeshGroup }
 
 constructor TMeshGroup.Create;

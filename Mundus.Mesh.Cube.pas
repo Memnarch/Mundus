@@ -10,8 +10,6 @@ uses
 
 type
   TCube = class(TMesh)
-  private
-
   public
     constructor Create(const ASizeX, ASizeY, ASizeZ: Single); reintroduce;
   end;
@@ -42,42 +40,44 @@ begin
   LVertices[6] := LMax;
   LVertices[7] := Vector(LMax.X, LMin.Y, LMax.Z);
   //add vertices, simply one vertex per triangle corner to simplify uv mapping
-  AddVertice(LVertices[0]);
-  AddVertice(LVertices[1]);
-  AddVertice(LVertices[2]);
-  AddVertice(LVertices[2]);
-  AddVertice(LVertices[3]);
-  AddVertice(LVertices[0]);
-  AddVertice(LVertices[3]);
-  AddVertice(LVertices[2]);
-  AddVertice(LVertices[6]);
-  AddVertice(LVertices[6]);
-  AddVertice(LVertices[7]);
-  AddVertice(LVertices[3]);
-  AddVertice(LVertices[7]);
-  AddVertice(LVertices[5]);
-  AddVertice(LVertices[4]);
-  AddVertice(LVertices[6]);
-  AddVertice(LVertices[5]);
-  AddVertice(LVertices[7]);
-  AddVertice(LVertices[5]);
-  AddVertice(LVertices[0]);
-  AddVertice(LVertices[4]);
-  AddVertice(LVertices[5]);
-  AddVertice(LVertices[1]);
-  AddVertice(LVertices[0]);
-  AddVertice(LVertices[2]);
-  AddVertice(LVertices[1]);
-  AddVertice(LVertices[5]);
-  AddVertice(LVertices[2]);
-  AddVertice(LVertices[5]);
-  AddVertice(LVertices[6]);
-  AddVertice(LVertices[4]);
-  AddVertice(LVertices[0]);
-  AddVertice(LVertices[3]);
-  AddVertice(LVertices[7]);
-  AddVertice(LVertices[4]);
-  AddVertice(LVertices[3]);
+  AddVertices([
+    LVertices[0],
+    LVertices[1],
+    LVertices[2],
+    LVertices[2],
+    LVertices[3],
+    LVertices[0],
+    LVertices[3],
+    LVertices[2],
+    LVertices[6],
+    LVertices[6],
+    LVertices[7],
+    LVertices[3],
+    LVertices[7],
+    LVertices[5],
+    LVertices[4],
+    LVertices[6],
+    LVertices[5],
+    LVertices[7],
+    LVertices[5],
+    LVertices[0],
+    LVertices[4],
+    LVertices[5],
+    LVertices[1],
+    LVertices[0],
+    LVertices[2],
+    LVertices[1],
+    LVertices[5],
+    LVertices[2],
+    LVertices[5],
+    LVertices[6],
+    LVertices[4],
+    LVertices[0],
+    LVertices[3],
+    LVertices[7],
+    LVertices[4],
+    LVertices[3]
+  ]);
 
   for i := 0 to High(Vertices) do
   begin
@@ -137,26 +137,26 @@ begin
   LUV[35] := UV(0, 0);
 
   //FrontFace
-  AddTriangle(Triangle(0, 1, 2));
-  AddTriangle(Triangle(3, 4, 5));
+  AddIndices([0, 1, 2]);
+  AddIndices([3, 4, 5]);
 
   //LeftSide
-  AddTriangle(Triangle(6, 7, 8));
-  AddTriangle(Triangle(9, 10, 11));
+  AddIndices([6, 7, 8]);
+  AddIndices([9, 10, 11]);
 
   //BackSide
-  AddTriangle(Triangle(12, 13, 14));
-  AddTriangle(Triangle(15, 16, 17));
+  AddIndices([12, 13, 14]);
+  AddIndices([15, 16, 17]);
   //RightSide;
-  AddTriangle(Triangle(18, 19, 20));
-  AddTriangle(Triangle(21, 22, 23));
+  AddIndices([18, 19, 20]);
+  AddIndices([21, 22, 23]);
 
   //TopSide
-  AddTriangle(Triangle(24, 25, 26));
-  AddTriangle(Triangle(27, 28, 29));
+  AddIndices([24, 25, 26]);
+  AddIndices([27, 28, 29]);
   //BottomSide
-  AddTriangle(Triangle(30, 31, 32));
-  AddTriangle(Triangle(33, 34, 35));
+  AddIndices([30, 31, 32]);
+  AddIndices([33, 34, 35]);
 end;
 
 end.

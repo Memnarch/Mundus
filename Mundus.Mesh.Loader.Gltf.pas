@@ -567,13 +567,12 @@ var
   LItems, LPrimitives: TJSONArray;
   LItem, LPrimitive: TJSONObject;
   LAttributes: TJSONObject;
-  i, k, m, LIndex: Integer;
+  i, k, LIndex: Integer;
   LIndiceAccessor: Integer;
   LIndices: TArray<DWord>;
   LMesh: TMesh;
   LValue: TFloat3;
   LUV, LTempUV: TFloat2;
-  LTriangle: TTriangle;
   LTextureReference: TTextureReference;
   LTexture: PTexture;
   LImage: PImage;
@@ -639,13 +638,7 @@ begin
         );
       end;
 
-      for m := 0 to Pred(Length(LIndices) div 3) do
-      begin
-        LTriangle.VertexA := LIndices[m * 3];
-        LTriangle.VertexB := LIndices[m * 3 + 1];
-        LTriangle.VertexC := LIndices[m * 3 + 2];
-        LMesh.AddTriangle(LTriangle);
-      end;
+      LMesh.AddIndices(TArray<Integer>(LIndices));
     end;
   end;
 end;
