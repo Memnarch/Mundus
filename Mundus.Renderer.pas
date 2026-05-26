@@ -19,7 +19,8 @@ uses
   Mundus.ValueBuffer,
   Mundus.FrameBuffer,
   Mundus.GeometryBuffer,
-  Mundus.Renderer.Worker.Sync;
+  Mundus.Renderer.Worker.Sync,
+  Mundus.Renderer.Worker.Buffer;
 
 type
   TRenderEvent = procedure(Canvas: TCanvas) of object;
@@ -28,7 +29,6 @@ type
   private
     FBackBuffer: array[Boolean] of TFrameBuffer;
     FDrawCalls: array[Boolean] of TDrawCalls;
-    FGeometryBuffers: array[Boolean] of TGeometryBuffers;
     FFPS: Integer;
     FResolutionX: Integer;
     FResolutionY: Integer;
@@ -39,9 +39,8 @@ type
     FCurrentBuffer: Boolean;
     FWorkerFPS: Integer;
     FVectorPassSync: TStageSync;
-    procedure ProcessGeometry(const AGeometry: PGeometryBuffer; const ATarget: PDrawCall);
+    FWorkerBuffer: TRenderWorkerBuffers;
     procedure DoAfterFrame(ACanvas: TCanvas);
-    function GenerateDrawCalls: TDrawCalls;
     procedure DispatchCalls(ACanvas: TCanvas; ACalls: TDrawCalls);
     procedure SpinupWorkers(AWorkerCount: Integer);
     procedure TerminateWorkers;
@@ -54,7 +53,7 @@ type
     constructor Create(AWorker: Integer = 1);
     destructor Destroy(); override;
     procedure SetResolution(AWidth, AHeight: Integer);
-    function NewFrame: PGeometryBuffers;
+    function NewFrame: TDrawCalls;
     procedure RenderFrame(ACanvas: TCanvas);
     function GetCurrentFPS(): Integer;
     property OnAfterFrame: TRenderEvent read FOnAfterFrame write FOnAfterFrame;
@@ -153,6 +152,7 @@ begin
   WaitForRender;
   FVectorPassSync.Reset;
   AssignWorkerAreas(FResolutionY);
+  FWorkerBuffer.Prepare(ACalls.Count);
   //load workers with new stuff and start
   FWorkerFPS := High(FWorkerFPS);
   for LWorker in FWorkers do
@@ -182,19 +182,6 @@ begin
   end;
 end;
 
-function TMundusRenderer.GenerateDrawCalls: TDrawCalls;
-var
-  LGeometries: PGeometryBuffers;
-  i: Integer;
-begin
-  Result := FDrawCalls[not FCurrentBuffer];
-  Result.Reset;
-  LGeometries := @FGeometryBuffers[not FCurrentBuffer];
-  for i := 0 to Pred(LGeometries.Count) do
-    if Assigned(LGeometries.Geometries[i].Shader) then
-      ProcessGeometry(LGeometries.Geometries[i], Result.Add());
-end;
-
 function TMundusRenderer.GetCurrentFPS: Integer;
 begin
   Result := FFPS;
@@ -205,42 +192,19 @@ begin
   Result := FWorkers.Count;
 end;
 
-function TMundusRenderer.NewFrame: PGeometryBuffers;
+function TMundusRenderer.NewFrame: TDrawCalls;
 begin
-  Result := @FGeometryBuffers[not FCurrentBuffer];
-  Result.Clear;
-end;
-
-procedure TMundusRenderer.ProcessGeometry(const AGeometry: PGeometryBuffer; const ATarget: PDrawCall);
-var
-  i: Integer;
-  LVertex: TFloat4;
-begin
-  ATarget.Shader := AGeometry.Shader;
-  if Assigned(ATarget.Shader) then
-  begin
-    ATarget.ConstantValues := AGeometry.UniformValues.Data;
-    ATarget.Values := AGeometry.Values.Data;
-    ATarget.VertexIndices := AGeometry.VertexIndices;
-    ATarget.InitBuffers(Length(AGeometry.Vertices));
-    for i := 0 to High(AGeometry.Vertices) do
-    begin
-      LVertex.XYZ := AGeometry.Vertices[i];
-      LVertex.W := 1;
-      ATarget.AddVertex(LVertex, nil);
-    end;
-  end;
+  Result := FDrawCalls[not FCurrentBuffer];
+  Result.Reset;
 end;
 
 procedure TMundusRenderer.RenderFrame(ACanvas: TCanvas);
 var
-  LDrawCalls: TDrawCalls;
   LMicro: UInt64;
 begin
   FTimer.Start();
 
-  LDrawCalls := GenerateDrawCalls();
-  DispatchCalls(ACanvas, LDrawCalls);
+  DispatchCalls(ACanvas, FDrawCalls[not FCurrentBuffer]);
 
   FTimer.Stop();
   LMicro := FTimer.ElapsedMicroseconds;
@@ -267,6 +231,7 @@ begin
     LWorker := TRenderWorker.Create(FVectorPassSync);
     LWorker.BlockSteps := AWorkerCount;
     LWorker.BlockOffset := i;
+    LWorker.Buffer := @FWorkerBuffer;
     FWorkers.Add(LWorker);
     FRenderFences[i] := LWorker.RenderFence;
     LWorker.Start;

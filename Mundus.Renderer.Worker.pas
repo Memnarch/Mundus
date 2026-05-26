@@ -13,7 +13,9 @@ uses
   Mundus.Types,
   Mundus.Diagnostics.StopWatch,
   Mundus.FrameBuffer,
-  Mundus.Renderer.Worker.Sync;
+  Mundus.Renderer.Worker.Sync,
+  Mundus.Renderer.Worker.Buffer,
+  Mundus.GeometryBuffer;
 
 type
   TRenderWorker = class(TThread)
@@ -33,11 +35,12 @@ type
     FFrameBuffer: TFrameBuffer;
     FBlockEnd: Integer;
     FVectorPassSync: TStageSync;
+    FBuffers: PRenderWorkerBuffers;
     procedure SetResolutionX(const Value: Integer);
     procedure SetResolutionY(const Value: Integer);
     function GetFPS: Integer;
     function GetRenderFence: THandle;
-    procedure PrepareDrawcall(const ATarget: PDrawCall);
+    procedure PrepareBuffer(const ASource: PDrawCall; const ATarget: PRenderWorkerBuffer);
     procedure RunRasterization;
     procedure RunVectorization;
   protected
@@ -56,6 +59,7 @@ type
     property FrameBuffer: TFrameBuffer read FFrameBuffer write FFrameBuffer;
     property FPS: Integer read GetFPS;
     property RenderFence: THandle read GetRenderFence;
+    property Buffer: PRenderWorkerBuffers read FBuffers write FBuffers;
   end;
 
 implementation
@@ -63,7 +67,8 @@ implementation
 uses
   Windows,
   Mundus.Shader,
-  Mundus.Renderer.Clipping;
+  Mundus.Renderer.Clipping,
+  System.Math;
 
 { TRenderWorker }
 
@@ -117,13 +122,14 @@ begin
   Result := FDone.Handle;
 end;
 
-procedure TRenderWorker.PrepareDrawcall(const ATarget: PDrawCall);
+procedure TRenderWorker.PrepareBuffer(const ASource: PDrawCall; const ATarget: PRenderWorkerBuffer);
 var
   LClipContext: TClipContext;
   i, LCount: Integer;
   LVertex: TFloat4;
   LVInput, LUniformInput: PByte;
   LMinY, LMaxY: Single;
+  LGeometry: PGeometryBuffer;
 
   procedure ProcessTriangle(A, B, C: Integer);
   var
@@ -149,46 +155,53 @@ var
       //Backface culling
       if LNormal.Z < 0 then
       begin
-        ATarget.AddProcessedIndices(LClippedTriangle);
+        ATarget.AddIndices(LClippedTriangle);
         for i := 3 to Pred(LClipContext.ResultBuffer.Count) do
         begin
           //we connect 2 new vertices to our vertex at index 0
           LClippedTriangle[1] := LClipContext.ResultBuffer.Indices[i-1];
           LClippedTriangle[2] := LClipContext.ResultBuffer.Indices[i];
-          ATarget.AddProcessedIndices(LClippedTriangle);
+          ATarget.AddIndices(LClippedTriangle);
         end;
       end;
     end;
   end;
 
 begin
-  if Assigned(ATarget.Shader) then
+  ATarget.Reset;
+
+  if Assigned(ASource.Geometry.Shader) then
   begin
+    LGeometry := @ASource.Geometry;
     LClipContext := TClipContext.Create();
-    LUniformInput := @ATarget.ConstantValues[0];
-    LVInput := @ATarget.Values[0];
-    for i := 0 to Pred(ATarget.VertexCount) do
+    LUniformInput := @LGeometry.UniformValues.Data[0];
+    LVInput := @LGeometry.Values.Data[0];
+    ATarget.InitBuffers(Length(LGeometry.Vertices), Length(LGeometry.VertexIndices), LGeometry.Shader.FragmentAttributeSize);
+    for i := 0 to High(LGeometry.Vertices) do
     begin
-      LVertex := ATarget.Vertices[i];
-      ATarget.Shader.VertexShader(LVertex, LUniformInput, LVInput, ATarget.Attributes[i]);
+      LVertex.XYZ := LGeometry.Vertices[i];
+      LVertex.W := 1;
+      LGeometry.Shader.VertexShader(LVertex, LUniformInput, LVInput, ATarget.Attributes[i]);
       ATarget.Vertices[i] := LVertex;
-      Inc(LVInput, ATarget.Shader.VertexBufferDescriptor.RecordSize);
+      Inc(LVInput, LGeometry.Shader.VertexBufferDescriptor.RecordSize);
     end;
 
-    if Assigned(ATarget.VertexIndices) then
+    if Assigned(LGeometry.VertexIndices) then
     begin
-      LCount := Length(ATarget.VertexIndices) div 3;
+      LCount := Length(LGeometry.VertexIndices) div 3;
       for i := 0 to Pred(LCount) do
-        ProcessTriangle(ATarget.VertexIndices[i * 3], ATarget.VertexIndices[i * 3 + 1], ATarget.VertexIndices[i * 3 + 2]);
+        ProcessTriangle(LGeometry.VertexIndices[i * 3], LGeometry.VertexIndices[i * 3 + 1], LGeometry.VertexIndices[i * 3 + 2]);
     end
     else
     begin
-      LCount := Length(ATarget.Vertices) div 3;
+      LCount := ATarget.VertexCount div 3;
       for i := 0 to Pred(LCount) do
         ProcessTriangle(i * 3, i * 3 + 1, i * 3 + 2);
     end;
   end;
 
+  LMaxY := 0;
+  LMinY := FResolutionY;
   for i := 0 to Pred(ATarget.VertexCount) do
   begin
     LVertex := ATarget.Vertices[i];
@@ -197,12 +210,6 @@ begin
     LVertex.X := (1-LVertex.X) * FHalfResolutionX;//half screen size
     LVertex.Y := (1-LVertex.Y) * FHalfResolutionY;
 
-    if i = 0 then
-    begin
-      LMinY := LVertex.Y;
-      LMaxY := LMinY;
-    end;
-
     if LVertex.Y < LMinY then
       LMinY := LVertex.Y
     else if LVertex.Y > LMaxY then
@@ -210,14 +217,15 @@ begin
 
     ATarget.Vertices[i] := LVertex;
   end;
-  ATarget.MinY := LMinY;
-  ATarget.MaxY := LMaxY;
+  ATarget.MinY := Trunc(Max(0, LMinY));
+  ATarget.MaxY := Trunc(Min(FResolutionY, LMaxY));
 end;
 
 {$PointerMath ON}
 procedure TRenderWorker.RunRasterization;
 var
   LCall: PDrawCall;
+  LBuffer: PRenderWorkerBuffer;
   LTriangle: PInteger;
   i, k: Integer;
   LVertexA, LVertexB, LVertexC: TFloat4;
@@ -226,6 +234,7 @@ var
   LFirstDepth, LFirstLowDepth: System.PSingle;
   LMinY, LMaxY: Integer;
   LTriangleCount: Integer;
+  LGeometry: PGeometryBuffer;
 begin
   LRenderTarget := FFrameBuffer.FirstPixel;
   LFirstDepth := FFrameBuffer.DepthBuffer;
@@ -235,19 +244,20 @@ begin
   for i := 0 to Pred(FDrawCalls.Count) do
   begin
     LCall := FDrawCalls[i];
-
-    if (LCall.MinY > LMaxY) or (LCall.MaxY < LMinY) then
+    LBuffer := @FBuffers.Buffers[i];
+    if (LBuffer.MinY > LMaxY) or (LBuffer.MaxY < LMinY) then
       Continue;
 
-    LRasterizer := LCall.Shader.Rasterizer;
-    LTriangleCount := LCall.ProcessedIndicesCount div 3;
-    LTriangle := @LCall.ProcessedIndices[0];
+    LGeometry := @LCall.Geometry;
+    LRasterizer := LGeometry.Shader.Rasterizer;
+    LTriangleCount := LBuffer.IndexCount div 3;
+    LTriangle := @LBuffer.Indices[0];
     for k := 0 to Pred(LTriangleCount) do
     begin
-      LVertexA := LCall.Vertices[LTriangle[0]];
-      LVertexB := LCall.Vertices[LTriangle[1]];
-      LVertexC := LCall.Vertices[LTriangle[2]];
-//
+      LVertexA := LBuffer.Vertices[LTriangle[0]];
+      LVertexB := LBuffer.Vertices[LTriangle[1]];
+      LVertexC := LBuffer.Vertices[LTriangle[2]];
+
       //check if triangle overlaps with workers render area. Skip if not intersecting
       if ((LVertexA.Y > LMaxY) and (LVertexB.Y > LMaxY) and (LVertexC.Y > LMaxY))
         or ((LVertexA.Y < LMinY) and (LVertexB.Y < LMinY) and (LVertexC.Y < LMinY))
@@ -260,10 +270,10 @@ begin
       LRasterizer(
         FMaxResolutionX, FMaxResolutionY,
         LVertexA, LVertexB, LVertexC,
-        LCall.Attributes[LTriangle[0]],
-        LCall.Attributes[LTriangle[1]],
-        LCall.Attributes[LTriangle[2]],
-        @LCall.ConstantValues[0],
+        LBuffer.Attributes[LTriangle[0]],
+        LBuffer.Attributes[LTriangle[1]],
+        LBuffer.Attributes[LTriangle[2]],
+        @LGeometry.UniformValues.Data[0],
         LRenderTarget,
         LFirstDepth,
         LFirstLowDepth,
@@ -275,10 +285,10 @@ end;
 
 procedure TRenderWorker.RunVectorization;
 var
-  LCall: PDrawCall;
+  LIndex: Integer;
 begin
-  while FDrawCalls.TryGetUnpreparedCall(LCall) do
-    PrepareDrawcall(LCall);
+  while FBuffers.TryGetNextUnprepared(LIndex) do
+    PrepareBuffer(FDrawCalls.Calls[LIndex], @FBuffers.Buffers[LIndex]);
   FVectorPassSync.Sync;
 end;
 
